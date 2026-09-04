@@ -147,6 +147,16 @@ interface RelanceSms {
   statut_global: string;
 }
 
+const DEFAULT_EMAIL_TEMPLATE = {
+  subject: "Rappel : votez aux élections professionnelles 2026",
+  body:
+    "Bonjour {{prenom}} {{nom}},\n\n" +
+    "merci de voter aux élections professionnelles" +
+    "{{#if CCMMEP_non_votant and scrutin_local_non_votant}} aux scrutins CCMMEP et {{scrutin_local}}{{/if}}" +
+    "{{#if CCMMEP_non_votant and not(scrutin_local_non_votant)}} au scrutin CCMMEP{{/if}}" +
+    "{{#if not(CCMMEP_non_votant) and scrutin_local_non_votant}} au scrutin {{scrutin_local}}{{/if}}.",
+};
+
 interface BrevoPlanEntry {
   type: string;
   credits: number;
@@ -244,7 +254,21 @@ function BrevoPanel({ spelc }: { spelc: string }) {
       )}
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <Card title="Modèle de mail de relance" subtitle="Champs : {{nom}} {{prenom}} {{scrutin}} · {{#if votant}}…{{else}}…{{/if}}">
+        <Card
+          title="Modèle de mail de relance"
+          subtitle={
+            "Champs : {{nom}} {{prenom}} {{scrutin_local}} · {{CCMMEP_non_votant}} {{scrutin_local_non_votant}} · " +
+            "{{#if expr}}…{{else}}…{{/if}} avec expr combinant and/or/not(...), ex. " +
+            "\"CCMMEP_non_votant and not(scrutin_local_non_votant)\""
+          }
+        >
+          <button
+            type="button"
+            className="mb-2 rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
+            onClick={() => setEmailTemplate(DEFAULT_EMAIL_TEMPLATE)}
+          >
+            Charger le modèle prégarni
+          </button>
           <input
             className="mb-2 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
             placeholder="Objet du mail"
@@ -264,7 +288,10 @@ function BrevoPanel({ spelc }: { spelc: string }) {
             Enregistrer le modèle
           </button>
         </Card>
-        <Card title="Modèle de SMS de relance">
+        <Card
+          title="Modèle de SMS de relance"
+          subtitle="Mêmes champs que le mail : {{nom}} {{prenom}} {{scrutin_local}} · {{CCMMEP_non_votant}} {{scrutin_local_non_votant}}"
+        >
           <textarea
             className="h-40 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
             placeholder="{{prenom}}, pensez à voter au {{scrutin}} avant le 10/12."

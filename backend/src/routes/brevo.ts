@@ -2,7 +2,7 @@ import { Router } from "express";
 import dayjs from "dayjs";
 import { db } from "../db/index.js";
 import { requireAuth, requireRole, canAccessSpelc } from "../middleware/auth.js";
-import { renderTemplate } from "../lib/template.js";
+import { renderTemplate, type TemplateFields } from "../lib/template.js";
 import {
   sendBrevoEmails,
   sendBrevoSms,
@@ -10,6 +10,7 @@ import {
   fetchAggregatedSmsStats,
   fetchAccountInfo,
 } from "../services/brevo.js";
+import { currentImportIds } from "../services/stats.js";
 
 const MAX_TEST_RECIPIENTS = 20;
 const DEFAULT_TEST_RECIPIENTS = 3;
@@ -118,38 +119,67 @@ interface Recipient {
   prenom: string;
   mail: string | null;
   mobile: string | null;
-  votant: number;
+  votantLocal: number | null;
+  scrutinLocal: string | null;
+  votantNational: number | null;
 }
 
-/** Adhérents du Spelc, croisés par nom/prénom avec les scrutins locaux (1D+2D). */
+/**
+ * Adhérents du Spelc, croisés par nom/prénom à la fois avec le scrutin
+ * national CCMMEP et avec les scrutins locaux (1D+2D) — nécessaire pour les
+ * champs de template CCMMEP_non_votant / scrutin_local_non_votant /
+ * scrutin_local.
+ */
 function matchedAdherents(spelc: string): Recipient[] {
   const academie = spelcAcademie(spelc);
   if (!academie) return [];
-  const importIds = db
-    .prepare(
-      `SELECT i.id FROM imports i
-       INNER JOIN (SELECT degre, MAX(imported_at) AS max_at FROM imports WHERE scope='academique' AND academie=? GROUP BY degre) latest
-       ON latest.degre = i.degre AND latest.max_at = i.imported_at
-       WHERE i.scope='academique' AND i.academie=?`
-    )
-    .all(academie, academie) as { id: number }[];
-  if (importIds.length === 0) return [];
-  const placeholders = importIds.map(() => "?").join(",");
+  const localImportIds = currentImportIds("academique", academie);
+  const nationalImportIds = currentImportIds("national", null);
+  if (localImportIds.length === 0 && nationalImportIds.length === 0) return [];
+
+  const localPlaceholders = localImportIds.length ? localImportIds.map(() => "?").join(",") : "NULL";
+  const nationalPlaceholders = nationalImportIds.length ? nationalImportIds.map(() => "?").join(",") : "NULL";
+
   return db
     .prepare(
-      `SELECT a.nom, a.prenom, a.mail, a.mobile, MAX(e.votant) AS votant
+      `SELECT a.nom, a.prenom, a.mail, a.mobile,
+              MAX(el.votant) AS votantLocal,
+              MAX(el.scrutin_type) AS scrutinLocal,
+              MAX(en.votant) AS votantNational
        FROM adherents a
-       LEFT JOIN emargements e ON e.spelc = a.spelc AND e.nom_norm = a.nom_norm AND e.prenom_norm = a.prenom_norm
-         AND e.import_id IN (${placeholders})
+       LEFT JOIN emargements el ON el.spelc = a.spelc AND el.nom_norm = a.nom_norm AND el.prenom_norm = a.prenom_norm
+         AND el.import_id IN (${localPlaceholders})
+       LEFT JOIN emargements en ON en.spelc = a.spelc AND en.nom_norm = a.nom_norm AND en.prenom_norm = a.prenom_norm
+         AND en.import_id IN (${nationalPlaceholders})
        WHERE a.spelc = ?
        GROUP BY a.id`
     )
-    .all(...importIds.map((r) => r.id), spelc) as Recipient[];
+    .all(...localImportIds, ...nationalImportIds, spelc) as Recipient[];
+}
+
+function templateFieldsFor(r: Recipient): TemplateFields {
+  const scrutinLocal = r.scrutinLocal ?? "";
+  const votantLocal = Boolean(r.votantLocal);
+  return {
+    nom: r.nom,
+    prenom: r.prenom,
+    scrutin_local: scrutinLocal,
+    CCMMEP_non_votant: !r.votantNational,
+    scrutin_local_non_votant: !votantLocal,
+    // alias conservés pour compatibilité avec d'anciens modèles
+    scrutin: scrutinLocal,
+    votant: votantLocal,
+  };
+}
+
+/** Une personne est ciblée par une relance si elle n'a voté à AU MOINS un des deux scrutins. */
+function needsRelance(r: Recipient): boolean {
+  return !r.votantNational || !r.votantLocal;
 }
 
 router.post("/campaigns/email", requireRole("admin_spelc"), async (req, res) => {
   const spelc = req.user!.spelc!;
-  const { scrutin, tag, onlyNonVotants = true, testMode, testLimit, testEmail } = req.body ?? {};
+  const { tag, onlyNonVotants = true, testMode, testLimit, testEmail } = req.body ?? {};
   const user = db.prepare("SELECT brevo_api_key FROM users WHERE id = ?").get(req.user!.id) as {
     brevo_api_key: string | null;
   };
@@ -170,14 +200,14 @@ router.post("/campaigns/email", requireRole("admin_spelc"), async (req, res) => 
   }
 
   let recipients = testMode ? matchedAdherents(spelc) : matchedAdherents(spelc).filter((r) => r.mail);
-  if (onlyNonVotants) recipients = recipients.filter((r) => !r.votant);
+  if (onlyNonVotants) recipients = recipients.filter(needsRelance);
   if (testMode) recipients = recipients.slice(0, clampTestLimit(testLimit));
 
   const to = recipients.map((r) => ({
     email: testMode ? String(testEmail) : r.mail!,
     name: `${r.prenom} ${r.nom}`,
-    subject: renderTemplate(template.subject, { nom: r.nom, prenom: r.prenom, scrutin: scrutin ?? "", votant: Boolean(r.votant) }),
-    html: renderTemplate(template.body, { nom: r.nom, prenom: r.prenom, scrutin: scrutin ?? "", votant: Boolean(r.votant) }),
+    subject: renderTemplate(template.subject, templateFieldsFor(r)),
+    html: renderTemplate(template.body, templateFieldsFor(r)),
   }));
 
   // Brevo n'acceptant pas un contenu par destinataire en un seul appel groupé sans template,
@@ -190,13 +220,13 @@ router.post("/campaigns/email", requireRole("admin_spelc"), async (req, res) => 
       to: [{ email: item.email, name: item.name }],
       subject: item.subject,
       htmlContent: item.html,
-      tag: tag ?? scrutin ?? "relance",
+      tag: tag ?? "relance",
     });
     sent += result.sent;
     errors += result.errors;
   }
 
-  const campagneTag = (tag ?? scrutin ?? "relance") + (testMode ? "-test" : "");
+  const campagneTag = (tag ?? "relance") + (testMode ? "-test" : "");
   db.prepare(
     `INSERT INTO relances_mail (spelc, date, campagne_tag, total_envoye, erreurs_envoi, mails_lus, liens_clique, is_test)
      VALUES (?, ?, ?, ?, ?, 0, 0, ?)`
@@ -207,7 +237,7 @@ router.post("/campaigns/email", requireRole("admin_spelc"), async (req, res) => 
 
 router.post("/campaigns/sms", requireRole("admin_spelc"), async (req, res) => {
   const spelc = req.user!.spelc!;
-  const { scrutin, tag, onlyNonVotants = true, testMode, testLimit, testMobile } = req.body ?? {};
+  const { tag, onlyNonVotants = true, testMode, testLimit, testMobile } = req.body ?? {};
   const user = db.prepare("SELECT brevo_api_key FROM users WHERE id = ?").get(req.user!.id) as {
     brevo_api_key: string | null;
   };
@@ -228,19 +258,14 @@ router.post("/campaigns/sms", requireRole("admin_spelc"), async (req, res) => {
   }
 
   let recipients = testMode ? matchedAdherents(spelc) : matchedAdherents(spelc).filter((r) => r.mobile);
-  if (onlyNonVotants) recipients = recipients.filter((r) => !r.votant);
+  if (onlyNonVotants) recipients = recipients.filter(needsRelance);
   if (testMode) recipients = recipients.slice(0, clampTestLimit(testLimit));
 
-  const campagneTag = (tag ?? scrutin ?? "relance") + (testMode ? "-test" : "");
+  const campagneTag = (tag ?? "relance") + (testMode ? "-test" : "");
   let sent = 0;
   let errors = 0;
   for (const r of recipients) {
-    const content = renderTemplate(template.body, {
-      nom: r.nom,
-      prenom: r.prenom,
-      scrutin: scrutin ?? "",
-      votant: Boolean(r.votant),
-    });
+    const content = renderTemplate(template.body, templateFieldsFor(r));
     const result = await sendBrevoSms({
       apiKey: user.brevo_api_key,
       recipients: [testMode ? String(testMobile) : r.mobile!],
