@@ -8,7 +8,17 @@ import {
   sendBrevoSms,
   fetchAggregatedEmailStats,
   fetchAggregatedSmsStats,
+  fetchAccountInfo,
 } from "../services/brevo.js";
+
+const MAX_TEST_RECIPIENTS = 20;
+const DEFAULT_TEST_RECIPIENTS = 3;
+
+function clampTestLimit(value: unknown): number {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 1) return DEFAULT_TEST_RECIPIENTS;
+  return Math.min(Math.floor(n), MAX_TEST_RECIPIENTS);
+}
 
 const router = Router();
 router.use(requireAuth);
@@ -44,6 +54,23 @@ router.put("/settings", requireRole("admin_spelc"), (req, res) => {
   }
   db.prepare("UPDATE users SET brevo_api_key = ? WHERE id = ?").run(String(apiKey), req.user!.id);
   res.json({ ok: true });
+});
+
+/** Crédits mail/SMS restants sur le compte Brevo configuré. */
+router.get("/account", requireRole("admin_spelc"), async (req, res) => {
+  const user = db.prepare("SELECT brevo_api_key FROM users WHERE id = ?").get(req.user!.id) as {
+    brevo_api_key: string | null;
+  };
+  if (!user.brevo_api_key) {
+    res.status(400).json({ error: "Clé API Brevo non configurée." });
+    return;
+  }
+  const info = await fetchAccountInfo(user.brevo_api_key);
+  if (!info) {
+    res.status(400).json({ error: "Impossible de récupérer les informations du compte Brevo (clé invalide ?)." });
+    return;
+  }
+  res.json(info);
 });
 
 router.get("/templates/email", (req, res) => {
@@ -122,7 +149,7 @@ function matchedAdherents(spelc: string): Recipient[] {
 
 router.post("/campaigns/email", requireRole("admin_spelc"), async (req, res) => {
   const spelc = req.user!.spelc!;
-  const { scrutin, tag, onlyNonVotants = true } = req.body ?? {};
+  const { scrutin, tag, onlyNonVotants = true, testMode, testLimit, testEmail } = req.body ?? {};
   const user = db.prepare("SELECT brevo_api_key FROM users WHERE id = ?").get(req.user!.id) as {
     brevo_api_key: string | null;
   };
@@ -137,11 +164,17 @@ router.post("/campaigns/email", requireRole("admin_spelc"), async (req, res) => 
     res.status(400).json({ error: "Aucun modèle de mail configuré." });
     return;
   }
-  let recipients = matchedAdherents(spelc).filter((r) => r.mail);
+  if (testMode && !testEmail) {
+    res.status(400).json({ error: "Une adresse mail de test est requise en mode test." });
+    return;
+  }
+
+  let recipients = testMode ? matchedAdherents(spelc) : matchedAdherents(spelc).filter((r) => r.mail);
   if (onlyNonVotants) recipients = recipients.filter((r) => !r.votant);
+  if (testMode) recipients = recipients.slice(0, clampTestLimit(testLimit));
 
   const to = recipients.map((r) => ({
-    email: r.mail!,
+    email: testMode ? String(testEmail) : r.mail!,
     name: `${r.prenom} ${r.nom}`,
     subject: renderTemplate(template.subject, { nom: r.nom, prenom: r.prenom, scrutin: scrutin ?? "", votant: Boolean(r.votant) }),
     html: renderTemplate(template.body, { nom: r.nom, prenom: r.prenom, scrutin: scrutin ?? "", votant: Boolean(r.votant) }),
@@ -163,18 +196,18 @@ router.post("/campaigns/email", requireRole("admin_spelc"), async (req, res) => 
     errors += result.errors;
   }
 
-  const campagneTag = tag ?? scrutin ?? "relance";
+  const campagneTag = (tag ?? scrutin ?? "relance") + (testMode ? "-test" : "");
   db.prepare(
-    `INSERT INTO relances_mail (spelc, date, campagne_tag, total_envoye, erreurs_envoi, mails_lus, liens_clique)
-     VALUES (?, ?, ?, ?, ?, 0, 0)`
-  ).run(spelc, dayjs().format("YYYY-MM-DD"), campagneTag, sent, errors);
+    `INSERT INTO relances_mail (spelc, date, campagne_tag, total_envoye, erreurs_envoi, mails_lus, liens_clique, is_test)
+     VALUES (?, ?, ?, ?, ?, 0, 0, ?)`
+  ).run(spelc, dayjs().format("YYYY-MM-DD"), campagneTag, sent, errors, testMode ? 1 : 0);
 
   res.status(201).json({ sent, errors, total: to.length });
 });
 
 router.post("/campaigns/sms", requireRole("admin_spelc"), async (req, res) => {
   const spelc = req.user!.spelc!;
-  const { scrutin, tag, onlyNonVotants = true } = req.body ?? {};
+  const { scrutin, tag, onlyNonVotants = true, testMode, testLimit, testMobile } = req.body ?? {};
   const user = db.prepare("SELECT brevo_api_key FROM users WHERE id = ?").get(req.user!.id) as {
     brevo_api_key: string | null;
   };
@@ -189,10 +222,16 @@ router.post("/campaigns/sms", requireRole("admin_spelc"), async (req, res) => {
     res.status(400).json({ error: "Aucun modèle de SMS configuré." });
     return;
   }
-  let recipients = matchedAdherents(spelc).filter((r) => r.mobile);
-  if (onlyNonVotants) recipients = recipients.filter((r) => !r.votant);
+  if (testMode && !testMobile) {
+    res.status(400).json({ error: "Un numéro de mobile de test est requis en mode test." });
+    return;
+  }
 
-  const campagneTag = tag ?? scrutin ?? "relance";
+  let recipients = testMode ? matchedAdherents(spelc) : matchedAdherents(spelc).filter((r) => r.mobile);
+  if (onlyNonVotants) recipients = recipients.filter((r) => !r.votant);
+  if (testMode) recipients = recipients.slice(0, clampTestLimit(testLimit));
+
+  const campagneTag = (tag ?? scrutin ?? "relance") + (testMode ? "-test" : "");
   let sent = 0;
   let errors = 0;
   for (const r of recipients) {
@@ -204,7 +243,7 @@ router.post("/campaigns/sms", requireRole("admin_spelc"), async (req, res) => {
     });
     const result = await sendBrevoSms({
       apiKey: user.brevo_api_key,
-      recipients: [r.mobile!],
+      recipients: [testMode ? String(testMobile) : r.mobile!],
       content,
       tag: campagneTag,
     });
@@ -213,9 +252,9 @@ router.post("/campaigns/sms", requireRole("admin_spelc"), async (req, res) => {
   }
 
   db.prepare(
-    `INSERT INTO relances_sms (spelc, date, campagne_tag, sms_envoyes, erreurs_envoi, sms_delivres, sms_rejetes, statut_global)
-     VALUES (?, ?, ?, ?, ?, 0, 0, 'En attente')`
-  ).run(spelc, dayjs().format("YYYY-MM-DD"), campagneTag, sent, errors);
+    `INSERT INTO relances_sms (spelc, date, campagne_tag, sms_envoyes, erreurs_envoi, sms_delivres, sms_rejetes, statut_global, is_test)
+     VALUES (?, ?, ?, ?, ?, 0, 0, 'En attente', ?)`
+  ).run(spelc, dayjs().format("YYYY-MM-DD"), campagneTag, sent, errors, testMode ? 1 : 0);
 
   res.status(201).json({ sent, errors, total: recipients.length });
 });

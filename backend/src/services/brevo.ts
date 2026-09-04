@@ -105,3 +105,29 @@ export async function fetchAggregatedSmsStats(
   if (!response.ok) return null;
   return (await response.json()) as { delivered: number; sent: number; softBounces: number; hardBounces: number };
 }
+
+export interface BrevoPlanEntry {
+  type: string;
+  credits: number;
+  creditsType: string;
+}
+
+/** Infos de compte Brevo, dont les crédits restants (mail/SMS) par plan. */
+export async function fetchAccountInfo(
+  apiKey: string
+): Promise<{ email: string; companyName: string; plan: BrevoPlanEntry[] } | null> {
+  const response = await fetch(`${BREVO_BASE}/account`, {
+    headers: { "api-key": apiKey, Accept: "application/json" },
+  });
+  if (!response.ok) return null;
+  const data = (await response.json()) as {
+    email?: string;
+    companyName?: string;
+    plan?: BrevoPlanEntry[];
+  };
+  return {
+    email: data.email ?? "",
+    companyName: data.companyName ?? "",
+    plan: Array.isArray(data.plan) ? data.plan : [],
+  };
+}

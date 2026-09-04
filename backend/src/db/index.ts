@@ -127,6 +127,7 @@ export function migrate(): void {
       erreurs_envoi INTEGER NOT NULL DEFAULT 0,
       mails_lus INTEGER NOT NULL DEFAULT 0,
       liens_clique INTEGER NOT NULL DEFAULT 0,
+      is_test INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
@@ -157,7 +158,24 @@ export function migrate(): void {
       sms_delivres INTEGER NOT NULL DEFAULT 0,
       sms_rejetes INTEGER NOT NULL DEFAULT 0,
       statut_global TEXT NOT NULL DEFAULT '',
+      is_test INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
   `);
+
+  addColumnIfMissing("relances_mail", "is_test", "INTEGER NOT NULL DEFAULT 0");
+  addColumnIfMissing("relances_sms", "is_test", "INTEGER NOT NULL DEFAULT 0");
+}
+
+/**
+ * CREATE TABLE IF NOT EXISTS ne modifie jamais une table déjà créée par une
+ * version antérieure : les nouvelles colonnes ajoutées après coup doivent
+ * être migrées explicitement, de façon idempotente, pour les bases déjà
+ * déployées.
+ */
+function addColumnIfMissing(table: string, column: string, definition: string): void {
+  const columns = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+  if (!columns.some((c) => c.name === column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  }
 }

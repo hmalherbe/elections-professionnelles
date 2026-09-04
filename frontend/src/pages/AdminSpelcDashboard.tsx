@@ -147,6 +147,12 @@ interface RelanceSms {
   statut_global: string;
 }
 
+interface BrevoPlanEntry {
+  type: string;
+  credits: number;
+  creditsType: string;
+}
+
 function BrevoPanel({ spelc }: { spelc: string }) {
   const [configured, setConfigured] = useState(false);
   const [maskedKey, setMaskedKey] = useState<string | null>(null);
@@ -157,11 +163,30 @@ function BrevoPanel({ spelc }: { spelc: string }) {
   const [smsRows, setSmsRows] = useState<RelanceSms[]>([]);
   const [campagneTag, setCampagneTag] = useState("relance-1");
   const [message, setMessage] = useState<string | null>(null);
+  const [plan, setPlan] = useState<BrevoPlanEntry[] | null>(null);
+  const [planError, setPlanError] = useState<string | null>(null);
+  const [testMode, setTestMode] = useState(false);
+  const [testEmail, setTestEmail] = useState("");
+  const [testMobile, setTestMobile] = useState("");
+  const [testMailLimit, setTestMailLimit] = useState(3);
+  const [testSmsLimit, setTestSmsLimit] = useState(3);
 
   function refreshAll() {
     api.get<{ configured: boolean; maskedKey: string | null }>("/brevo/settings").then((r) => {
       setConfigured(r.configured);
       setMaskedKey(r.maskedKey);
+      if (r.configured) {
+        api
+          .get<{ plan: BrevoPlanEntry[] }>("/brevo/account")
+          .then((res) => {
+            setPlan(res.plan);
+            setPlanError(null);
+          })
+          .catch((err) => {
+            setPlan(null);
+            setPlanError((err as Error).message);
+          });
+      }
     });
     api.get<{ subject: string; body: string }>(`/brevo/templates/email${qs({ spelc })}`).then(setEmailTemplate);
     api.get<{ body: string }>(`/brevo/templates/sms${qs({ spelc })}`).then(setSmsTemplate);
@@ -193,6 +218,30 @@ function BrevoPanel({ spelc }: { spelc: string }) {
           </button>
         </div>
       </Card>
+
+      {configured && (
+        <Card title="Crédits Brevo restants">
+          {plan && plan.length > 0 && (
+            <div className="flex flex-wrap gap-4">
+              {plan.map((p, i) => (
+                <div key={i} className="rounded-md bg-slate-50 px-3 py-2">
+                  <p className="text-xs text-slate-500">
+                    {p.creditsType} ({p.type})
+                  </p>
+                  <p className="text-lg font-semibold text-slate-800">{p.credits.toLocaleString("fr-FR")}</p>
+                </div>
+              ))}
+            </div>
+          )}
+          {plan && plan.length === 0 && (
+            <p className="text-sm text-slate-400">
+              Le compte Brevo n'expose aucune information de crédit (offre par abonnement sans quota affiché par
+              l'API).
+            </p>
+          )}
+          {planError && <p className="text-sm text-red-600">{planError}</p>}
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Card title="Modèle de mail de relance" subtitle="Champs : {{nom}} {{prenom}} {{scrutin}} · {{#if votant}}…{{else}}…{{/if}}">
@@ -231,7 +280,10 @@ function BrevoPanel({ spelc }: { spelc: string }) {
         </Card>
       </div>
 
-      <Card title="Envoyer une campagne de relance" subtitle="Ciblage : adhérents non-votants au scrutin local">
+      <Card
+        title="Envoyer une campagne de relance"
+        subtitle="Ciblage : adhérents non-votants au scrutin local"
+      >
         <div className="flex flex-wrap items-end gap-3">
           <div>
             <label className="block text-xs font-medium text-slate-500">Tag de campagne</label>
@@ -241,12 +293,74 @@ function BrevoPanel({ spelc }: { spelc: string }) {
               onChange={(e) => setCampagneTag(e.target.value)}
             />
           </div>
+          <label className="flex items-center gap-2 pb-1.5 text-sm text-slate-600">
+            <input type="checkbox" checked={testMode} onChange={(e) => setTestMode(e.target.checked)} />
+            Mode test
+          </label>
+        </div>
+
+        {testMode && (
+          <div className="mt-3 grid grid-cols-1 gap-3 rounded-md border border-amber-200 bg-amber-50 p-3 sm:grid-cols-2">
+            <p className="col-span-full text-xs text-amber-800">
+              En mode test, les mails/SMS sont envoyés à l'adresse/numéro de test ci-dessous (pas aux vrais
+              adhérents), en utilisant le contenu personnalisé des N premiers adhérents ciblés — utile pour vérifier
+              le rendu du modèle sans consommer de crédits sur de vraies personnes.
+            </p>
+            <div>
+              <label className="block text-xs font-medium text-slate-500">Nombre de mails à envoyer</label>
+              <input
+                type="number"
+                min={1}
+                max={20}
+                className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+                value={testMailLimit}
+                onChange={(e) => setTestMailLimit(Number(e.target.value))}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-500">Mail de test</label>
+              <input
+                type="email"
+                placeholder="moi@exemple.fr"
+                className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+                value={testEmail}
+                onChange={(e) => setTestEmail(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-500">Nombre de SMS à envoyer</label>
+              <input
+                type="number"
+                min={1}
+                max={20}
+                className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+                value={testSmsLimit}
+                onChange={(e) => setTestSmsLimit(Number(e.target.value))}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-500">Mobile de test</label>
+              <input
+                type="tel"
+                placeholder="06 00 00 00 00"
+                className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+                value={testMobile}
+                onChange={(e) => setTestMobile(e.target.value)}
+              />
+            </div>
+          </div>
+        )}
+
+        <div className="mt-3 flex flex-wrap items-center gap-3">
           <button
             className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700"
             onClick={async () => {
               try {
                 const res = await api.post<{ sent: number; errors: number; total: number }>("/brevo/campaigns/email", {
                   tag: campagneTag,
+                  testMode,
+                  testLimit: testMailLimit,
+                  testEmail,
                 });
                 setMessage(`Mails : ${res.sent}/${res.total} envoyés, ${res.errors} erreurs.`);
                 refreshAll();
@@ -263,6 +377,9 @@ function BrevoPanel({ spelc }: { spelc: string }) {
               try {
                 const res = await api.post<{ sent: number; errors: number; total: number }>("/brevo/campaigns/sms", {
                   tag: campagneTag,
+                  testMode,
+                  testLimit: testSmsLimit,
+                  testMobile,
                 });
                 setMessage(`SMS : ${res.sent}/${res.total} envoyés, ${res.errors} erreurs.`);
                 refreshAll();
