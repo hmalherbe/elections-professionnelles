@@ -15,7 +15,47 @@ seed-data/  Référentiels Excel fournis (départements/Spelc/académie,
             les tests
 ```
 
-## Démarrage rapide
+## Déploiement (Docker)
+
+Le dossier `infra/` contient tout le nécessaire pour déployer l'application
+sur un serveur unique avec Docker :
+
+- `infra/Dockerfile.backend` : build de l'API (Node/Express)
+- `infra/Dockerfile.frontend` : build du frontend (Vite) servi par nginx,
+  qui fait aussi office de reverse proxy vers l'API (`/api/*`)
+- `docker-compose.yml` : orchestre les deux services + un volume persistant
+  pour la base SQLite
+
+Sur le serveur :
+
+```bash
+git clone https://github.com/hmalherbe/elections-professionnelles.git
+cd elections-professionnelles
+git checkout claude/elections-tracking-app-l2lmal
+cp .env.example .env
+# éditer .env : JWT_SECRET et SEED_ADMIN_PASSWORD (valeurs fortes, uniques)
+docker compose up -d --build
+```
+
+L'application est alors accessible sur le port 80 du serveur. Le compte
+admin général est créé automatiquement au premier démarrage avec les
+identifiants de `.env` (`SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD`), et les
+référentiels de `seed-data/` sont chargés automatiquement.
+
+Pour mettre à jour après un nouveau push :
+
+```bash
+cd elections-professionnelles
+git pull
+docker compose up -d --build
+```
+
+**Note sécurité** : ce compose sert l'app en HTTP simple (pas de nom de
+domaine fourni pour du TLS automatique). Pour du HTTPS, pointer un nom de
+domaine vers le serveur et remplacer nginx par Caddy (TLS automatique via
+Let's Encrypt) ou ajouter certbot devant nginx.
+
+## Démarrage rapide (développement local)
 
 ```bash
 npm install

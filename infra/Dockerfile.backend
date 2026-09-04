@@ -1,0 +1,25 @@
+FROM node:22-bookworm-slim
+
+# python3/make/g++ : filet de sécurité si better-sqlite3 doit être recompilé
+# (pas de binaire prébuilt pour l'arch/l'OS cible).
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends python3 make g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+COPY backend/package.json backend/package.json
+RUN npm ci --workspace backend
+
+COPY backend ./backend
+COPY seed-data ./seed-data
+RUN npm run build --workspace backend
+
+ENV NODE_ENV=production
+ENV DATABASE_PATH=/app/data/elections.sqlite
+VOLUME ["/app/data"]
+
+EXPOSE 4000
+WORKDIR /app/backend
+CMD ["sh", "-c", "node dist/db/seed.js && node dist/index.js"]
