@@ -13,12 +13,20 @@ interface Props {
   allowAdherentFilter?: boolean;
 }
 
+const PAGE_SIZE = 100;
+
 export function ScrutinsTab({ scope, academie, spelc, allowAdherentFilter }: Props) {
   const [votant, setVotant] = useState<"" | "votant" | "non_votant">("");
   const [adherent, setAdherent] = useState<"" | "oui" | "non">("");
   const [scrutinType, setScrutinType] = useState<string>("");
+  const [page, setPage] = useState(0);
   const [data, setData] = useState<ScrutinsResult | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Toute modification de filtre revient à la première page.
+  useEffect(() => {
+    setPage(0);
+  }, [scope, academie, spelc, votant, adherent, scrutinType]);
 
   useEffect(() => {
     setLoading(true);
@@ -31,14 +39,16 @@ export function ScrutinsTab({ scope, academie, spelc, allowAdherentFilter }: Pro
           votant: votant || undefined,
           adherent: allowAdherentFilter ? adherent || undefined : undefined,
           scrutinType: scrutinType || undefined,
-          limit: "100",
+          limit: String(PAGE_SIZE),
+          offset: String(page * PAGE_SIZE),
         })}`
       )
       .then(setData)
       .finally(() => setLoading(false));
-  }, [scope, academie, spelc, votant, adherent, scrutinType, allowAdherentFilter]);
+  }, [scope, academie, spelc, votant, adherent, scrutinType, allowAdherentFilter, page]);
 
   const scrutinTypes = data?.groups.map((g) => g.scrutinType) ?? [];
+  const totalPages = Math.max(1, Math.ceil((data?.totalRows ?? 0) / PAGE_SIZE));
 
   return (
     <div className="space-y-4">
@@ -102,7 +112,10 @@ export function ScrutinsTab({ scope, academie, spelc, allowAdherentFilter }: Pro
         </div>
       </Card>
 
-      <Card title={`Détail (${data?.totalRows ?? 0} résultats, 100 premiers affichés)`}>
+      <Card
+        title={`Détail (${data?.totalRows ?? 0} résultats)`}
+        subtitle={totalPages > 1 ? `Page ${page + 1} sur ${totalPages}` : undefined}
+      >
         <div className="max-h-96 overflow-auto">
           <table className="w-full text-sm">
             <thead className="sticky top-0 bg-white">
@@ -141,7 +154,52 @@ export function ScrutinsTab({ scope, academie, spelc, allowAdherentFilter }: Pro
             <p className="py-4 text-sm text-slate-400">Aucun résultat.</p>
           )}
         </div>
+        {totalPages > 1 && <PageScroller page={page} totalPages={totalPages} onChange={setPage} />}
       </Card>
+    </div>
+  );
+}
+
+function PageScroller({
+  page,
+  totalPages,
+  onChange,
+}: {
+  page: number;
+  totalPages: number;
+  onChange: (page: number) => void;
+}) {
+  return (
+    <div className="mt-3 flex items-center gap-2 border-t border-slate-100 pt-3">
+      <button
+        disabled={page === 0}
+        onClick={() => onChange(page - 1)}
+        className="shrink-0 rounded-md border border-slate-300 px-2 py-1 text-sm text-slate-600 disabled:opacity-40"
+        aria-label="Page précédente"
+      >
+        ‹
+      </button>
+      <div className="flex flex-1 gap-1 overflow-x-auto pb-1">
+        {Array.from({ length: totalPages }, (_, i) => i).map((i) => (
+          <button
+            key={i}
+            onClick={() => onChange(i)}
+            className={`shrink-0 rounded-md px-2.5 py-1 text-sm ${
+              i === page ? "bg-slate-900 text-white" : "border border-slate-300 text-slate-600 hover:bg-slate-100"
+            }`}
+          >
+            {i + 1}
+          </button>
+        ))}
+      </div>
+      <button
+        disabled={page >= totalPages - 1}
+        onClick={() => onChange(page + 1)}
+        className="shrink-0 rounded-md border border-slate-300 px-2 py-1 text-sm text-slate-600 disabled:opacity-40"
+        aria-label="Page suivante"
+      >
+        ›
+      </button>
     </div>
   );
 }
