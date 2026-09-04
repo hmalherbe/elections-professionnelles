@@ -63,14 +63,25 @@ function VueAcademie({ academie, scope }: { academie: string; scope: "national" 
   );
 }
 
+function todayIso(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
 function ImportsPanel({ academie }: { academie: string }) {
   const [degre, setDegre] = useState<"1D" | "2D">("1D");
+  const [snapshotDate, setSnapshotDate] = useState(todayIso());
   const [imports, setImports] = useState<ImportRecord[]>([]);
 
   function refresh() {
     api.get<{ imports: ImportRecord[] }>("/imports").then((r) => setImports(r.imports.filter((i) => i.scope === "academique")));
   }
   useEffect(refresh, []);
+
+  async function handleDelete(id: number) {
+    if (!confirm("Supprimer cet import et tous les émargements associés ?")) return;
+    await api.delete(`/imports/${id}`);
+    refresh();
+  }
 
   return (
     <div className="space-y-4">
@@ -79,16 +90,27 @@ function ImportsPanel({ academie }: { academie: string }) {
         subtitle="Fichier JSON des émargements du scrutin 1er ou 2nd degré (mêmes champs que le fichier CCMMEP : nom, prenom, dateEmargement, corps, affectation). Choisissez le bon degré ci-dessous avant de sélectionner le fichier."
         accept="application/json"
         extraFields={
-          <div>
-            <label className="mr-2 text-xs font-medium text-slate-500">Degré :</label>
-            <select
-              className="rounded-md border border-slate-300 px-2 py-1 text-sm"
-              value={degre}
-              onChange={(e) => setDegre(e.target.value as "1D" | "2D")}
-            >
-              <option value="1D">1er degré</option>
-              <option value="2D">2nd degré</option>
-            </select>
+          <div className="flex flex-wrap items-center gap-4">
+            <div>
+              <label className="mr-2 text-xs font-medium text-slate-500">Degré :</label>
+              <select
+                className="rounded-md border border-slate-300 px-2 py-1 text-sm"
+                value={degre}
+                onChange={(e) => setDegre(e.target.value as "1D" | "2D")}
+              >
+                <option value="1D">1er degré</option>
+                <option value="2D">2nd degré</option>
+              </select>
+            </div>
+            <div>
+              <label className="mr-2 text-xs font-medium text-slate-500">Journée du scrutin représentée :</label>
+              <input
+                type="date"
+                className="rounded-md border border-slate-300 px-2 py-1 text-sm"
+                value={snapshotDate}
+                onChange={(e) => setSnapshotDate(e.target.value)}
+              />
+            </div>
           </div>
         }
         onUpload={async (file) => {
@@ -96,6 +118,7 @@ function ImportsPanel({ academie }: { academie: string }) {
           fd.append("file", file);
           fd.append("degre", degre);
           fd.append("academie", academie);
+          fd.append("snapshotDate", snapshotDate);
           const res = await api.upload<{ rowCount: number; votants: number }>("/imports/academique", fd);
           refresh();
           return `${res.rowCount} lignes importées, ${res.votants} votants.`;
@@ -109,6 +132,7 @@ function ImportsPanel({ academie }: { academie: string }) {
               <th className="px-4 py-2">Degré</th>
               <th className="px-4 py-2">Fichier</th>
               <th className="px-4 py-2">Lignes</th>
+              <th className="px-4 py-2"></th>
             </tr>
           </thead>
           <tbody>
@@ -118,6 +142,11 @@ function ImportsPanel({ academie }: { academie: string }) {
                 <td className="px-4 py-1.5">{imp.degre}</td>
                 <td className="px-4 py-1.5 text-slate-500">{imp.filename}</td>
                 <td className="px-4 py-1.5 text-slate-500">{imp.row_count}</td>
+                <td className="px-4 py-1.5 text-right">
+                  <button className="text-xs text-red-600 hover:underline" onClick={() => handleDelete(imp.id)}>
+                    Supprimer
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>

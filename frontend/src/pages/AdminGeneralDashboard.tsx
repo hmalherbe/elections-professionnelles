@@ -133,13 +133,24 @@ function AcademiesParticipationPanel() {
   );
 }
 
+function todayIso(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
 function ImportsPanel() {
   const [imports, setImports] = useState<ImportRecord[]>([]);
+  const [snapshotDate, setSnapshotDate] = useState(todayIso());
 
   function refresh() {
     api.get<{ imports: ImportRecord[] }>("/imports").then((r) => setImports(r.imports));
   }
   useEffect(refresh, []);
+
+  async function handleDelete(id: number) {
+    if (!confirm("Supprimer cet import et tous les émargements associés ?")) return;
+    await api.delete(`/imports/${id}`);
+    refresh();
+  }
 
   return (
     <div className="space-y-4">
@@ -147,9 +158,21 @@ function ImportsPanel() {
         title="Import quotidien CCMMEP"
         subtitle="Fichier JSON des émargements du scrutin national (champs : nom, prenom, dateEmargement, corps, affectation, referenceBulletin)."
         accept="application/json"
+        extraFields={
+          <div>
+            <label className="mr-2 text-xs font-medium text-slate-500">Journée du scrutin représentée :</label>
+            <input
+              type="date"
+              className="rounded-md border border-slate-300 px-2 py-1 text-sm"
+              value={snapshotDate}
+              onChange={(e) => setSnapshotDate(e.target.value)}
+            />
+          </div>
+        }
         onUpload={async (file) => {
           const fd = new FormData();
           fd.append("file", file);
+          fd.append("snapshotDate", snapshotDate);
           const res = await api.upload<{ rowCount: number; votants: number }>("/imports/ccmmep", fd);
           refresh();
           return `${res.rowCount} lignes importées, ${res.votants} votants.`;
@@ -171,6 +194,7 @@ function ImportsPanel() {
               <th className="px-4 py-2">Degré</th>
               <th className="px-4 py-2">Fichier</th>
               <th className="px-4 py-2">Lignes</th>
+              <th className="px-4 py-2"></th>
             </tr>
           </thead>
           <tbody>
@@ -182,6 +206,13 @@ function ImportsPanel() {
                 <td className="px-4 py-1.5">{imp.degre ?? "—"}</td>
                 <td className="px-4 py-1.5 text-slate-500">{imp.filename ?? "—"}</td>
                 <td className="px-4 py-1.5 text-slate-500">{imp.row_count}</td>
+                <td className="px-4 py-1.5 text-right">
+                  {imp.scope === "academique" && (
+                    <button className="text-xs text-red-600 hover:underline" onClick={() => handleDelete(imp.id)}>
+                      Supprimer
+                    </button>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>

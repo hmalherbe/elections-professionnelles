@@ -74,6 +74,36 @@ router.post(
   }
 );
 
+interface ImportOwnerRow {
+  scope: "national" | "academique";
+  academie: string | null;
+}
+
+/**
+ * Supprime un import et, par cascade, tous ses émargements. Un admin
+ * académique ne peut supprimer que ses propres imports académiques ; le
+ * scrutin national CCMMEP reste réservé à l'admin général.
+ */
+router.delete("/:id", requireRole("admin_academique", "admin_general"), (req, res) => {
+  const importRow = db
+    .prepare("SELECT scope, academie FROM imports WHERE id = ?")
+    .get(req.params.id) as ImportOwnerRow | undefined;
+  if (!importRow) {
+    res.status(404).json({ error: "Import introuvable." });
+    return;
+  }
+  const user = req.user!;
+  const allowed =
+    user.role === "admin_general" ||
+    (user.role === "admin_academique" && importRow.scope === "academique" && canAccessAcademie(user, importRow.academie ?? ""));
+  if (!allowed) {
+    res.status(403).json({ error: "Vous ne pouvez supprimer que les imports de votre académie." });
+    return;
+  }
+  db.prepare("DELETE FROM imports WHERE id = ?").run(req.params.id);
+  res.status(204).end();
+});
+
 router.get("/", (req, res) => {
   const user = req.user!;
   let rows;

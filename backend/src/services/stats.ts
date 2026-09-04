@@ -2,11 +2,18 @@ import { db } from "../db/index.js";
 
 export type Scope = "national" | "academique";
 
-/** Retourne les ids des imports "actuels" (les plus récents) pour un scope donné. */
+/**
+ * Retourne les ids des imports "actuels" (les plus récents) pour un scope
+ * donné. On départage par id (auto-incrémenté, donc strictement croissant)
+ * plutôt que par imported_at seul : deux imports faits dans la même
+ * seconde auraient sinon le même horodatage (résolution SQLite à la
+ * seconde) et seraient tous deux considérés "les plus récents", ce qui
+ * doublerait les émargements comptés.
+ */
 export function currentImportIds(scope: Scope, academie: string | null): number[] {
   if (scope === "national") {
     const row = db
-      .prepare("SELECT id FROM imports WHERE scope = 'national' ORDER BY imported_at DESC LIMIT 1")
+      .prepare("SELECT id FROM imports WHERE scope = 'national' ORDER BY imported_at DESC, id DESC LIMIT 1")
       .get() as { id: number } | undefined;
     return row ? [row.id] : [];
   }
@@ -15,9 +22,9 @@ export function currentImportIds(scope: Scope, academie: string | null): number[
     .prepare(
       `SELECT i.id FROM imports i
        INNER JOIN (
-         SELECT degre, MAX(imported_at) AS max_at FROM imports
+         SELECT degre, MAX(id) AS max_id FROM imports
          WHERE scope = 'academique' AND academie = ? GROUP BY degre
-       ) latest ON latest.degre = i.degre AND latest.max_at = i.imported_at
+       ) latest ON latest.degre = i.degre AND latest.max_id = i.id
        WHERE i.scope = 'academique' AND i.academie = ?`
     )
     .all(academie, academie) as { id: number }[];
@@ -84,6 +91,21 @@ export interface ScopeFilter {
   spelc?: string | null;
 }
 
+/**
+ * Pour un scope académique, l'académie est nécessaire pour retrouver les
+ * imports "actuels" (ils sont groupés par académie). Un tableau de bord
+ * Spelc ne connaît que le Spelc : on retrouve alors l'académie via le
+ * référentiel Spelc -> Académie plutôt que de renvoyer un résultat vide.
+ */
+function effectiveAcademie(filter: ScopeFilter): string | null {
+  if (filter.academie) return filter.academie;
+  if (!filter.spelc) return null;
+  const row = db.prepare("SELECT academie FROM ref_spelc WHERE spelc = ?").get(filter.spelc) as
+    | { academie: string }
+    | undefined;
+  return row?.academie ?? null;
+}
+
 function whereForScope(filter: ScopeFilter, ids: number[]): { clause: string; params: unknown[] } {
   const parts = [`import_id IN (${idsPlaceholder(ids)})`];
   const params: unknown[] = [...ids];
@@ -95,7 +117,7 @@ function whereForScope(filter: ScopeFilter, ids: number[]): { clause: string; pa
 }
 
 export function camembert(filter: ScopeFilter): { votants: number; nonVotants: number } {
-  const ids = currentImportIds(filter.scope, filter.academie ?? null);
+  const ids = currentImportIds(filter.scope, effectiveAcademie(filter));
   if (ids.length === 0) return { votants: 0, nonVotants: 0 };
   const { clause, params } = whereForScope(filter, ids);
   const row = db
@@ -118,23 +140,24 @@ export function courbeCumulative(filter: ScopeFilter): CourbePoint[] {
     importRows = db
       .prepare(
         `SELECT i.id, i.snapshot_date FROM imports i
-         INNER JOIN (SELECT snapshot_date, MAX(imported_at) AS max_at FROM imports WHERE scope='national' GROUP BY snapshot_date) latest
-         ON latest.snapshot_date = i.snapshot_date AND latest.max_at = i.imported_at
+         INNER JOIN (SELECT snapshot_date, MAX(id) AS max_id FROM imports WHERE scope='national' GROUP BY snapshot_date) latest
+         ON latest.snapshot_date = i.snapshot_date AND latest.max_id = i.id
          WHERE i.scope = 'national' ORDER BY i.snapshot_date`
       )
       .all() as { id: number; snapshot_date: string }[];
   } else {
-    if (!filter.academie) return [];
+    const academie = effectiveAcademie(filter);
+    if (!academie) return [];
     importRows = db
       .prepare(
         `SELECT i.id, i.snapshot_date FROM imports i
          INNER JOIN (
-           SELECT snapshot_date, degre, MAX(imported_at) AS max_at FROM imports
+           SELECT snapshot_date, degre, MAX(id) AS max_id FROM imports
            WHERE scope='academique' AND academie = ? GROUP BY snapshot_date, degre
-         ) latest ON latest.snapshot_date = i.snapshot_date AND latest.degre = i.degre AND latest.max_at = i.imported_at
+         ) latest ON latest.snapshot_date = i.snapshot_date AND latest.degre = i.degre AND latest.max_id = i.id
          WHERE i.scope = 'academique' AND i.academie = ? ORDER BY i.snapshot_date`
       )
-      .all(filter.academie, filter.academie) as { id: number; snapshot_date: string }[];
+      .all(academie, academie) as { id: number; snapshot_date: string }[];
   }
 
   const byDate = new Map<string, number[]>();
@@ -173,7 +196,7 @@ export interface ScrutinsResult {
 }
 
 export function scrutinsTab(filter: ScrutinsFilter, limit = 200, offset = 0): ScrutinsResult {
-  const ids = currentImportIds(filter.scope, filter.academie ?? null);
+  const ids = currentImportIds(filter.scope, effectiveAcademie(filter));
   if (ids.length === 0) return { groups: [], rows: [], totalRows: 0 };
 
   const parts = [`e.import_id IN (${idsPlaceholder(ids)})`];
@@ -189,31 +212,37 @@ export function scrutinsTab(filter: ScrutinsFilter, limit = 200, offset = 0): Sc
   if (filter.votant === "votant") parts.push("e.votant = 1");
   if (filter.votant === "non_votant") parts.push("e.votant = 0");
 
-  let joinAdherents = "";
-  if (filter.adherent && filter.spelc) {
-    joinAdherents = `LEFT JOIN adherents ad ON ad.spelc = e.spelc AND ad.nom_norm = e.nom_norm AND ad.prenom_norm = e.prenom_norm`;
-    if (filter.adherent === "oui") parts.push("ad.id IS NOT NULL");
-    else parts.push("ad.id IS NULL");
-  }
+  // Le rapprochement adhérent n'a de sens qu'une fois filtré sur un Spelc précis
+  // (les adhérents sont déclarés par Spelc). On l'exprime en EXISTS (plutôt
+  // qu'un JOIN) pour ne jamais risquer de dupliquer une ligne si plusieurs
+  // adhérents partagent le même nom/prénom au sein d'un Spelc.
+  const adherentExists = `EXISTS (
+    SELECT 1 FROM adherents ad
+    WHERE ad.spelc = e.spelc AND ad.nom_norm = e.nom_norm AND ad.prenom_norm = e.prenom_norm
+  )`;
+  const showAdherentStatus = Boolean(filter.spelc);
+  if (filter.spelc && filter.adherent === "oui") parts.push(adherentExists);
+  else if (filter.spelc && filter.adherent === "non") parts.push(`NOT ${adherentExists}`);
 
   const where = parts.join(" AND ");
 
   const groups = db
     .prepare(
       `SELECT COALESCE(e.scrutin_type, 'Non défini') AS scrutinType, COUNT(*) AS total, SUM(e.votant) AS votants
-       FROM emargements e ${joinAdherents} WHERE ${where} GROUP BY scrutinType ORDER BY scrutinType`
+       FROM emargements e WHERE ${where} GROUP BY scrutinType ORDER BY scrutinType`
     )
     .all(...params) as { scrutinType: string; total: number; votants: number }[];
 
   const totalRow = db
-    .prepare(`SELECT COUNT(*) AS c FROM emargements e ${joinAdherents} WHERE ${where}`)
+    .prepare(`SELECT COUNT(*) AS c FROM emargements e WHERE ${where}`)
     .get(...params) as { c: number };
 
   const rows = db
     .prepare(
       `SELECT e.nom, e.prenom, e.scrutin_type AS scrutinType, e.votant, e.date_emargement AS dateEmargement,
               e.affectation, e.spelc, e.academie, e.degre
-       FROM emargements e ${joinAdherents} WHERE ${where} ORDER BY e.nom, e.prenom LIMIT ? OFFSET ?`
+              ${showAdherentStatus ? `, CASE WHEN ${adherentExists} THEN 1 ELSE 0 END AS isAdherent` : ""}
+       FROM emargements e WHERE ${where} ORDER BY e.nom, e.prenom LIMIT ? OFFSET ?`
     )
     .all(...params, limit, offset) as Record<string, unknown>[];
 
@@ -228,7 +257,7 @@ export interface EtablissementRow {
 }
 
 export function participationParEtablissement(filter: ScopeFilter): EtablissementRow[] {
-  const ids = currentImportIds(filter.scope, filter.academie ?? null);
+  const ids = currentImportIds(filter.scope, effectiveAcademie(filter));
   if (ids.length === 0) return [];
   const { clause, params } = whereForScope(filter, ids);
   const rows = db

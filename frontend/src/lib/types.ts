@@ -36,6 +36,8 @@ export interface ScrutinsRow {
   spelc: string | null;
   academie: string | null;
   degre: string | null;
+  /** Présent uniquement quand la requête est filtrée sur un Spelc précis. */
+  isAdherent?: number;
 }
 
 export interface ScrutinsResult {

@@ -124,6 +124,7 @@ export function ScrutinsTab({ scope, academie, spelc, allowAdherentFilter }: Pro
                 <th className="px-4 py-2">Prénom</th>
                 <th className="px-4 py-2">Scrutin</th>
                 <th className="px-4 py-2">Statut</th>
+                {allowAdherentFilter && <th className="px-4 py-2">Adhérent</th>}
                 <th className="px-4 py-2">Émargement</th>
                 <th className="px-4 py-2">Établissement</th>
               </tr>
@@ -141,6 +142,15 @@ export function ScrutinsTab({ scope, academie, spelc, allowAdherentFilter }: Pro
                       <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">Non votant</span>
                     )}
                   </td>
+                  {allowAdherentFilter && (
+                    <td className="px-4 py-1.5">
+                      {r.isAdherent ? (
+                        <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-xs text-indigo-700">Adhérent</span>
+                      ) : (
+                        <span className="text-xs text-slate-400">—</span>
+                      )}
+                    </td>
+                  )}
                   <td className="px-4 py-1.5 text-slate-500">
                     {r.dateEmargement ? new Date(r.dateEmargement).toLocaleString("fr-FR") : "—"}
                   </td>

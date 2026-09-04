@@ -4,6 +4,15 @@ import { formatPercent } from "../lib/colors";
 import type { EtablissementRow } from "../lib/types";
 import { Card } from "./Card";
 
+type SortKey = "affectation" | "inscrits" | "votants" | "taux";
+
+const COLUMNS: { key: SortKey; label: string; defaultDir: "asc" | "desc" }[] = [
+  { key: "affectation", label: "Établissement", defaultDir: "asc" },
+  { key: "inscrits", label: "Inscrits", defaultDir: "desc" },
+  { key: "votants", label: "Votants", defaultDir: "desc" },
+  { key: "taux", label: "Taux", defaultDir: "desc" },
+];
+
 export function EtablissementsTab({
   scope,
   academie,
@@ -16,6 +25,8 @@ export function EtablissementsTab({
   const [rows, setRows] = useState<EtablissementRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [sortKey, setSortKey] = useState<SortKey>("inscrits");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
   useEffect(() => {
     setLoading(true);
@@ -25,7 +36,22 @@ export function EtablissementsTab({
       .finally(() => setLoading(false));
   }, [scope, academie, spelc]);
 
-  const filtered = rows.filter((r) => r.affectation.toLowerCase().includes(search.toLowerCase()));
+  function toggleSort(key: SortKey) {
+    if (key === sortKey) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir(COLUMNS.find((c) => c.key === key)!.defaultDir);
+    }
+  }
+
+  const filtered = rows
+    .filter((r) => r.affectation.toLowerCase().includes(search.toLowerCase()))
+    .sort((a, b) => {
+      const dir = sortDir === "asc" ? 1 : -1;
+      if (sortKey === "affectation") return a.affectation.localeCompare(b.affectation) * dir;
+      return (a[sortKey] - b[sortKey]) * dir;
+    });
 
   return (
     <Card title="Participation par établissement" subtitle={`${rows.length} établissements`}>
@@ -40,10 +66,16 @@ export function EtablissementsTab({
         <table className="w-full text-sm">
           <thead className="sticky top-0 bg-white">
             <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-500">
-              <th className="py-2 pr-4">Établissement</th>
-              <th className="px-4 py-2">Inscrits</th>
-              <th className="px-4 py-2">Votants</th>
-              <th className="px-4 py-2">Taux</th>
+              {COLUMNS.map((col) => (
+                <th
+                  key={col.key}
+                  className={`cursor-pointer select-none py-2 ${col.key === "affectation" ? "pr-4" : "px-4"} hover:text-slate-700`}
+                  onClick={() => toggleSort(col.key)}
+                >
+                  {col.label}
+                  {sortKey === col.key && <span className="ml-1 text-slate-400">{sortDir === "asc" ? "▲" : "▼"}</span>}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
