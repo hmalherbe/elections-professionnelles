@@ -69,8 +69,9 @@ export function runImport(raw: unknown, ctx: ImportContext): ImportResult {
       const row = buildEmargementRow(item, {
         forcedDegre: ctx.degre ?? undefined,
         forcedAcademie: ctx.academie ?? undefined,
-        scrutinTypeFor1D: ctx.scope === "national" ? "CCMMEP" : scrutinsForAcademie.type1d ?? undefined,
-        scrutinTypeFor2D: ctx.scope === "national" ? "CCMMEP" : scrutinsForAcademie.type2d ?? undefined,
+        scrutinTypeFixed: ctx.scope === "national" ? "CCMMEP" : undefined,
+        scrutinTypeFor1D: scrutinsForAcademie.type1d ?? undefined,
+        scrutinTypeFor2D: scrutinsForAcademie.type2d ?? undefined,
       });
 
       degreCounts[row.degre] = (degreCounts[row.degre] ?? 0) + 1;

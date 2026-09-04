@@ -47,6 +47,13 @@ export interface BuildRowOptions {
   /** Pour un import académique : degré et académie déjà connus (fichier 1D ou 2D dédié). */
   forcedDegre?: Degre;
   forcedAcademie?: string;
+  /**
+   * Type de scrutin fixe, indépendant du degré (scrutin national CCMMEP :
+   * tous les électeurs du fichier appartiennent au même scrutin, qu'on ait
+   * pu ou non déterminer leur degré à partir du corps).
+   */
+  scrutinTypeFixed?: string;
+  /** Scrutin académique : le type dépend du degré (CCMI/CCMA/CCMD/CCML…). */
   scrutinTypeFor1D?: string;
   scrutinTypeFor2D?: string;
 }
@@ -57,9 +64,11 @@ export function buildEmargementRow(item: RawEmargementItem, options: BuildRowOpt
   const degre = options.forcedDegre ?? classifyDegre(item.corps);
   const academie = options.forcedAcademie ?? lookup?.academie ?? null;
 
-  let scrutinType: string | null = null;
-  if (degre === "1D") scrutinType = options.scrutinTypeFor1D ?? null;
-  else if (degre === "2D") scrutinType = options.scrutinTypeFor2D ?? null;
+  let scrutinType: string | null = options.scrutinTypeFixed ?? null;
+  if (!scrutinType) {
+    if (degre === "1D") scrutinType = options.scrutinTypeFor1D ?? null;
+    else if (degre === "2D") scrutinType = options.scrutinTypeFor2D ?? null;
+  }
 
   const dateEmargement = parseDateEmargement(item.dateEmargement);
 
