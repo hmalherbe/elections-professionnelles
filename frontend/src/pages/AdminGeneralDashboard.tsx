@@ -84,7 +84,7 @@ function ImportsPanel() {
     <div className="space-y-4">
       <FileUploadCard
         title="Import quotidien CCMMEP"
-        subtitle="Fichier JSON des émargements du scrutin national"
+        subtitle="Fichier JSON des émargements du scrutin national (champs : nom, prenom, dateEmargement, corps, affectation, referenceBulletin)."
         accept="application/json"
         onUpload={async (file) => {
           const fd = new FormData();
@@ -94,6 +94,12 @@ function ImportsPanel() {
           return `${res.rowCount} lignes importées, ${res.votants} votants.`;
         }}
       />
+      <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+        Les fichiers JSON <strong>1er et 2nd degré des scrutins académiques</strong> ne s'importent pas ici : chaque
+        admin académique les dépose depuis son propre tableau de bord, onglet « Imports ». Cet onglet-ci est
+        réservé au scrutin national CCMMEP. L'historique ci-dessous liste toutefois tous les imports, nationaux et
+        académiques confondus.
+      </div>
       <Card title="Historique des imports">
         <table className="w-full text-sm">
           <thead>
@@ -265,7 +271,8 @@ function ReferentielsPanel() {
     <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
       <FileUploadCard
         title="Départements / Spelc / Académies"
-        subtitle="Fichier Excel de correspondance"
+        subtitle="Fichier Excel de correspondance. 1re ligne = en-têtes (peu importe leur libellé, seul l'ordre des colonnes compte). Département sur 2 chiffres (971/972/973/974/976/978 pour les DOM)."
+        expectedColumns={["Département", "Spelc de rattachement", "Académie"]}
         accept=".xlsx"
         onUpload={async (file) => {
           const fd = new FormData();
@@ -276,7 +283,8 @@ function ReferentielsPanel() {
       />
       <FileUploadCard
         title="Scrutins académiques"
-        subtitle="Types CCMI/CCMA/CCMD/CCML par académie"
+        subtitle="Types CCMI/CCMA/CCMD/CCML par académie. 1re ligne = en-têtes, une seule feuille prise en compte."
+        expectedColumns={["Académie", "Type scrutin 1er degré", "Type scrutin 2nd degré"]}
         accept=".xlsx"
         onUpload={async (file) => {
           const fd = new FormData();
@@ -287,7 +295,8 @@ function ReferentielsPanel() {
       />
       <FileUploadCard
         title="Présidents des syndicats adhérents (PSA)"
-        subtitle="Fichier Excel de la liste des PSA"
+        subtitle="Fichier Excel de la liste des PSA. 1re ligne = en-têtes. Remplace entièrement la liste précédente."
+        expectedColumns={["Type scrutin (CCMI/CCMA…)", "Nom", "Prénom", "Email", "Mobile"]}
         accept=".xlsx"
         onUpload={async (file) => {
           const fd = new FormData();

@@ -4,12 +4,14 @@ import { Card } from "./Card";
 interface Props {
   title: string;
   subtitle?: string;
+  /** Colonnes attendues, dans l'ordre, affichées sous forme de repère rapide. */
+  expectedColumns?: string[];
   accept: string;
   extraFields?: ReactNode;
   onUpload: (file: File) => Promise<string>;
 }
 
-export function FileUploadCard({ title, subtitle, accept, extraFields, onUpload }: Props) {
+export function FileUploadCard({ title, subtitle, expectedColumns, accept, extraFields, onUpload }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState<{ type: "ok" | "error"; message: string } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -31,6 +33,17 @@ export function FileUploadCard({ title, subtitle, accept, extraFields, onUpload 
   return (
     <Card title={title} subtitle={subtitle}>
       <div className="space-y-2">
+        {expectedColumns && (
+          <div className="rounded-md bg-slate-50 px-2.5 py-2 text-xs text-slate-500">
+            <span className="font-medium text-slate-600">Colonnes attendues, dans l'ordre : </span>
+            {expectedColumns.map((col, i) => (
+              <span key={col}>
+                {i > 0 && <span className="text-slate-300"> · </span>}
+                <code className="rounded bg-slate-200 px-1 py-0.5 text-slate-700">{col}</code>
+              </span>
+            ))}
+          </div>
+        )}
         {extraFields}
         <input
           ref={inputRef}
