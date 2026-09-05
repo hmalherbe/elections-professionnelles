@@ -18,13 +18,22 @@ interface ScrapingConfigResponse {
  * fichiers JSON depuis le portail de gestion. Un seul composant pour les
  * deux cas : national (1 fichier) et académique (1er + 2nd degré).
  */
+// Faux portail de test (service mock-portal, voir docker-compose.yml) : mêmes
+// valeurs par défaut pour le national et les scrutins académiques, à remplacer
+// par les vraies URLs une fois les portails réels ouverts en décembre.
+const DEFAULT_PORTAL_URL = "http://mock-portal:8081/login";
+const DEFAULT_FILE_URLS: Record<"national" | "academique", { url1: string; url2: string }> = {
+  national: { url1: "http://mock-portal:8081/ccmmep.json", url2: "" },
+  academique: { url1: "http://mock-portal:8081/academie/1d.json", url2: "http://mock-portal:8081/academie/2d.json" },
+};
+
 export function ScrapingPanel({ mode }: { mode: "national" | "academique" }) {
   const [configured, setConfigured] = useState(false);
-  const [portalUrl, setPortalUrl] = useState("");
+  const [portalUrl, setPortalUrl] = useState(DEFAULT_PORTAL_URL);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [fileUrl1, setFileUrl1] = useState("");
-  const [fileUrl2, setFileUrl2] = useState("");
+  const [fileUrl1, setFileUrl1] = useState(DEFAULT_FILE_URLS[mode].url1);
+  const [fileUrl2, setFileUrl2] = useState(DEFAULT_FILE_URLS[mode].url2);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [usernameSelector, setUsernameSelector] = useState("");
   const [passwordSelector, setPasswordSelector] = useState("");
