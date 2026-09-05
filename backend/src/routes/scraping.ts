@@ -37,6 +37,20 @@ function resolveTargetAcademie(user: { role: string; academie: string | null }, 
   return null;
 }
 
+/**
+ * Identifiants du faux portail de test (service mock-portal), pour
+ * pré-remplir le formulaire tant qu'aucune configuration réelle n'a été
+ * enregistrée. Lus depuis l'environnement à chaque appel (jamais mis en
+ * cache) pour rester toujours cohérents avec le mock-portal réellement
+ * démarré.
+ */
+router.get("/test-credentials", (_req, res) => {
+  res.json({
+    username: process.env.MOCK_PORTAL_USERNAME || "",
+    password: process.env.MOCK_PORTAL_PASSWORD || "",
+  });
+});
+
 router.get("/config", (req, res) => {
   const academie = resolveTargetAcademie(req.user!, req.query.academie);
   if (academie === null) {

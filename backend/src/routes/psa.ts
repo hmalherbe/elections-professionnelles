@@ -215,12 +215,19 @@ router.post("/relance", async (req, res) => {
 
   if (mailDates.length > 0) {
     const template = emailTemplate!;
-    for (const dateStr of mailDates as string[]) {
+    // Une personne toujours non-votante sur plusieurs dates cochées ne doit
+    // être relancée par mail qu'une seule fois (à la première date où elle
+    // est encore non-votante), pas une fois par date.
+    const seenMail = new Set<number>();
+    const sortedMailDates = [...(mailDates as string[])].sort();
+    for (const dateStr of sortedMailDates) {
       const endOfDay = `${dateStr}T23:59:59.999Z`;
       for (const p of people) {
+        if (seenMail.has(p.psaId)) continue;
         const fields = templateFieldsForPsa(p, endOfDay);
         if (!fields.nonVotantNational && !fields.nonVotantLocal) continue;
         if (!testMode && !p.email) continue;
+        seenMail.add(p.psaId);
         const email = testMode ? testContact!.testEmail! : p.email!;
         const campagneTag = `psa-${dateStr}` + (testMode ? "-test" : "");
         const result = await sendBrevoEmails({
@@ -250,13 +257,20 @@ router.post("/relance", async (req, res) => {
 
   if (smsDates.length > 0) {
     const template = smsTemplate!;
+    // Même règle que pour le mail : une seule relance SMS par personne,
+    // à la première date où elle est encore non-votante — évitent aussi de
+    // gaspiller la limite de crédits sur des doublons de la même personne.
+    const seenSms = new Set<number>();
     const candidates: { dateStr: string; p: PsaVoteInfo }[] = [];
-    for (const dateStr of smsDates as string[]) {
+    const sortedSmsDates = [...(smsDates as string[])].sort();
+    for (const dateStr of sortedSmsDates) {
       const endOfDay = `${dateStr}T23:59:59.999Z`;
       for (const p of people) {
+        if (seenSms.has(p.psaId)) continue;
         const fields = templateFieldsForPsa(p, endOfDay);
         if (!fields.nonVotantNational && !fields.nonVotantLocal) continue;
         if (!testMode && !p.mobile) continue;
+        seenSms.add(p.psaId);
         candidates.push({ dateStr, p });
       }
     }

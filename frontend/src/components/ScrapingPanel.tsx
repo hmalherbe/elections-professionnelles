@@ -53,6 +53,18 @@ export function ScrapingPanel({ mode }: { mode: "national" | "academique" }) {
         setUsernameSelector(r.usernameSelector ?? "");
         setPasswordSelector(r.passwordSelector ?? "");
         setSubmitSelector(r.submitSelector ?? "");
+      } else {
+        // Tant qu'aucune configuration réelle n'a été enregistrée (mode
+        // test contre le faux portail mock-portal), on pré-remplit
+        // l'identifiant et le mot de passe pour éviter d'aller les chercher
+        // dans le .env à chaque essai.
+        api
+          .get<{ username: string; password: string }>("/scraping/test-credentials")
+          .then((creds) => {
+            setUsername(creds.username);
+            setPassword(creds.password);
+          })
+          .catch(() => {});
       }
     });
   }
