@@ -1,0 +1,4005 @@
+{
+  "totalCount": 500,
+  "items": [
+    {
+      "nom": "AASSIM",
+      "prenom": "STEPHANIE",
+      "dateEmargement": "20221206 16:09:32",
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE LA SALLE ST MICHEL 97404 ST DENIS CEDEX",
+      "referenceBulletin": "KKZEPPPJPMBQN213638621"
+    },
+    {
+      "nom": "ABABOU",
+      "prenom": "IBTISSAM",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE BELLEVUE 30100 ALES",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABABSI",
+      "prenom": "CECILE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE FREDERIC OZANAM 59045 LILLE CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABADIE",
+      "prenom": "ANAIS",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "INSTITUT MEDICO-EDUCATIF SAINT-JEAN 31830 PLAISANCE DU TOUCH",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABADIE",
+      "prenom": "AURELIE",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "LYCEE VINCENT DE PAUL 65000 TARBES",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABADIE",
+      "prenom": "AXELLE",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "INSTITUT MEDICO-EDUCATIF IMPRO TROIS MARES 97835 LE TAMPON CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABADIE",
+      "prenom": "CORINNE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE JEANNE D’ARC 71600 PARAY LE MONIAL",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABADIE",
+      "prenom": "FLORENCE",
+      "dateEmargement": "20221201 18:42:24",
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE LA CALANDRETA DE BIGORRA 65310 LALOUBERE",
+      "referenceBulletin": "KKZEPPPPHMBMN209225509"
+    },
+    {
+      "nom": "ABADIE",
+      "prenom": "GENEVIEVE",
+      "dateEmargement": null,
+      "corps": "Professeurs de lycée professionnel enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE MONTPENSIER 64051 PAU CEDEX 9",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABADIE",
+      "prenom": "HELENE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE SAINT-FELIX - LA SALLE 44001 NANTES CEDEX 1",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABADIE",
+      "prenom": "SOPHIE",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "INSTITUT MEDICO-EDUCATIF ASTAZOU - SAINTE-MARIE 65100 LOURDES",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABADIE",
+      "prenom": "STEPHAN",
+      "dateEmargement": "20221205 22:20:38",
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE ST JOSEPH DE CLUNY 97122 BAIE MAHAULT",
+      "referenceBulletin": "KKZEPPPKVZQQN113993334"
+    },
+    {
+      "nom": "ABADIE",
+      "prenom": "STEPHANIE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE LE CAOUSOU 31079 TOULOUSE CEDEX 5",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABADIE BOUYGUES",
+      "prenom": "JEAN PIERRE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE SAINTE MARIE 1500 AMBERIEU EN BUGEY",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABADIE-BOUYGUES",
+      "prenom": "NATHALIE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE STE MARIE 1500 AMBERIEU EN BUGEY",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABADIR",
+      "prenom": "CECILE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE NOTRE-DAME DES OISEAUX 75016 PARIS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABADO",
+      "prenom": "KELLY",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE ST PIERRE 44860 ST AIGNAN GRANDLIEU",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABAIR",
+      "prenom": "RACHIDA",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "LYCEE SAINT JOSEPH 2140 FONTAINE LES VERVINS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABALEA",
+      "prenom": "ANNE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE JAVOUHEY 29238 BREST CEDEX 2",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABALEA",
+      "prenom": "GAELLE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE STE CROIX ST EUVERTE 45000 ORLEANS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABALLAIN",
+      "prenom": "NATHALIE",
+      "dateEmargement": "20221204 17:14:35",
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE GABRIEL DESHAYES 56400 AURAY",
+      "referenceBulletin": "KKZEPPPMBUBVN201797346"
+    },
+    {
+      "nom": "ABALLEA",
+      "prenom": "EMILIE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE NOTRE DAME 29600 MORLAIX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABALLEA",
+      "prenom": "HELENE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE LA CROIX ROUGE LA SALLE 29229 BREST CEDEX 2",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABALLEA",
+      "prenom": "SOPHIE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE NOTRE DAME 92190 MEUDON",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABALOU",
+      "prenom": "OMAR",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "LYCEE NOTRE-DAME -ST VINCENT DE PAUL 75013 PARIS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABANCOURT",
+      "prenom": "MONIQUE",
+      "dateEmargement": "20221206 17:31:42",
+      "corps": "Professeurs de lycée professionnel enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE BLANCHET 97113 GOURBEYRE",
+      "referenceBulletin": "KKZEPPPJPQBVN193347579"
+    },
+    {
+      "nom": "ABA PEREA",
+      "prenom": "CAROLE",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "LYCEE CLAUDE DAUNOT 54052 NANCY CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABARCA GRIMALDI",
+      "prenom": "CLAUDIA MARCELA",
+      "dateEmargement": "20221205 10:19:32",
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE NOTRE-DAME 81101 CASTRES CEDEX",
+      "referenceBulletin": "KKZEPPPKMBVKN155588971"
+    },
+    {
+      "nom": "ABARDAAI",
+      "prenom": "SOUAD",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE ST FRANCOIS D’ASSISE 7203 AUBENAS CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABART",
+      "prenom": "ALEXANDRA",
+      "dateEmargement": null,
+      "corps": "Professeurs de lycée professionnel enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE STE ANNE-ST LOUIS 56400 STE ANNE D AURAY",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABART",
+      "prenom": "BRUNO",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "LYCEE SAINT ESPRIT 60026 BEAUVAIS CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABARZUA",
+      "prenom": "AMINA",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "COLLEGE SACRE COEUR 94480 ABLON SUR SEINE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABASQ",
+      "prenom": "FREDERIQUE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE NOTRE DAME 35120 DOL DE BRETAGNE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABASSETTI",
+      "prenom": "REGIS",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE MARIE PILA 84205 CARPENTRAS CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABATE",
+      "prenom": "MARTHE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE SAINTE-ELISABETH 75015 PARIS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABATI",
+      "prenom": "RACHEL",
+      "dateEmargement": "20221205 00:06:22",
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE COURS SECONDAIRE 91400 ORSAY",
+      "referenceBulletin": "KKZEPPPKPBJKN152004045"
+    },
+    {
+      "nom": "ABAUTRET",
+      "prenom": "ISABELLE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE ST SEBASTIEN 29208 LANDERNEAU CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABAUTRET",
+      "prenom": "YVES",
+      "dateEmargement": null,
+      "corps": "Professeurs éducation physique et sportive enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE ST LOUIS 56105 LORIENT CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABAUZET",
+      "prenom": "FREDERIC",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE SAINTE THERESE 34400 LUNEL",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABAYATEYE",
+      "prenom": "MERCY",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "LYCEE LA PROVIDENCE 41034 BLOIS CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABAZ",
+      "prenom": "NATHALIE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "CENTRE DE FORMATION BILLIERES 31000 TOULOUSE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABAZIOU",
+      "prenom": "YANNICK",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE ST JOSEPH 44540 LE PIN",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABBA",
+      "prenom": "AFEF",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "COLLEGE COURS BAUTAIN 77230 JUILLY",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABBADIE",
+      "prenom": "PAULINE",
+      "dateEmargement": null,
+      "corps": "Professeurs de lycée professionnel enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE ST VINCENT DE PAUL 33074 BORDEAUX CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABBAL",
+      "prenom": "JACQUELINE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE NOTRE DAME DES CHAMPS 26107 ROMANS SUR ISERE CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABBANE",
+      "prenom": "ZINA",
+      "dateEmargement": "20221206 17:21:42",
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "LYCEE LPO PRIVE SAINTE-THERESE 75016 PARIS",
+      "referenceBulletin": "KKZEPPPJPQMBN103577959"
+    },
+    {
+      "nom": "ABBAS",
+      "prenom": "BEATRICE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE LA XAVIERE 69970 CHAPONNAY",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABBAS",
+      "prenom": "MARY",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE NOTRE-DAME 13006 MARSEILLE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABBAS",
+      "prenom": "MOURAD",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE STE ANNE 29200 BREST",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABBAS",
+      "prenom": "SAFA",
+      "dateEmargement": null,
+      "corps": "Professeurs de lycée professionnel enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE ST LOUIS 13015 MARSEILLE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABBASSI",
+      "prenom": "DOUNIA",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "COLLEGE JEAN-BAPTISTE DE LA SALLE 93200 ST DENIS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABBASSI",
+      "prenom": "DRISS",
+      "dateEmargement": "20221205 12:52:07",
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE FENELON 6130 GRASSE",
+      "referenceBulletin": "KKZEPPPKKZMPN174100839"
+    },
+    {
+      "nom": "ABBASSI",
+      "prenom": "MOAD",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE LE SACRE COEUR 49420 OMBREE D ANJOU",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABBATE",
+      "prenom": "CLAIRE",
+      "dateEmargement": "20221201 19:24:50",
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE JEANNE D ARC 45600 SULLY SUR LOIRE",
+      "referenceBulletin": "KKZEPPPPHQZQN213644441"
+    },
+    {
+      "nom": "ABBATE",
+      "prenom": "REMY",
+      "dateEmargement": null,
+      "corps": "Professeurs de lycée professionnel enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE SAINT JEAN L’HERMITAGE 95117 SANNOIS CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABBATTISTA",
+      "prenom": "CLARA",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "LYCEE DU TERTIAIRE LES CHARMILLES 38100 GRENOBLE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABBE",
+      "prenom": "MARIE PIERRE",
+      "dateEmargement": "20221203 10:09:57",
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE BELLEVUE 30100 ALES",
+      "referenceBulletin": "KKZEPPPMMVJPN149085994"
+    },
+    {
+      "nom": "ABBE",
+      "prenom": "SEVERINE",
+      "dateEmargement": "20221204 15:57:28",
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE NOTRE DAME DES FONTAINES 22260 PONTRIEUX",
+      "referenceBulletin": "KKZEPPPMBJUZN148536489"
+    },
+    {
+      "nom": "ABBES",
+      "prenom": "ABBES",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE CHARLES DE FOUCAULD 75018 PARIS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABBIOUI",
+      "prenom": "KHALID",
+      "dateEmargement": "20221206 21:18:58",
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE IMMACULEE CONCEPTION 60111 MERU CEDEX",
+      "referenceBulletin": "KKZEPPPJMUKZN168177049"
+    },
+    {
+      "nom": "ABBOTT",
+      "prenom": "KENNETH",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE ASSOMPTION BELLEVUE 69350 LA MULATIERE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABBOU",
+      "prenom": "JEREMY",
+      "dateEmargement": null,
+      "corps": "Professeurs agrégés du second degré de l'éducation nationale",
+      "affectation": "LYCEE ECOLE ACTIVE JEANNINE MANUEL 75015 PARIS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABBOUB",
+      "prenom": "LOUISE",
+      "dateEmargement": "20221206 16:07:33",
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE SAINT LOUIS-SAINTE CLOTILDE 93340 LE RAINCY",
+      "referenceBulletin": "KKZEPPPJPMVHN179808513"
+    },
+    {
+      "nom": "ABBOUD",
+      "prenom": "HAIFA",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE SAINT BENOIST DE L’EUROPE 93172 BAGNOLET CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABBOUD",
+      "prenom": "NAIMA",
+      "dateEmargement": null,
+      "corps": "Professeurs de lycée professionnel enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE LYCEE MAURICE RONDEAU 77600 BUSSY ST GEORGES",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABBOUD",
+      "prenom": "WALLID",
+      "dateEmargement": null,
+      "corps": "Professeurs agrégés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE LA SALLE SAINT LOUIS SAINTE BA 42000 ST ETIENNE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABDALLAH",
+      "prenom": "GEORGES",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "COLLEGE NOTRE DAME 41350 VINEUIL",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABDALLAH",
+      "prenom": "MOHAMED",
+      "dateEmargement": "20221202 10:39:18",
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE OZANAM 87039 LIMOGES CEDEX 1",
+      "referenceBulletin": "KKZEPPPPBBKBN172167241"
+    },
+    {
+      "nom": "ABDALLAH",
+      "prenom": "NADJETTE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE SAINTE-MARIE DES CHAMPS 31506 TOULOUSE CEDEX 5",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABDALLAH",
+      "prenom": "ZOUBERT",
+      "dateEmargement": null,
+      "corps": "Professeurs de lycée professionnel enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE SAINTE URSULE 14019 CAEN CEDEX 2",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABDALLI",
+      "prenom": "FARIDA",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE LA PROVIDENCE 76400 FECAMP",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABDAT",
+      "prenom": "FERROUDJA",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE BOSSUET 77109 MEAUX CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABDEDOU",
+      "prenom": "SMAIL",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "LYCEE BELSUNCE 13002 MARSEILLE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABDELAZIZ",
+      "prenom": "TAREK",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "COLLEGE ST PIE X 95332 DOMONT CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABDELKADER",
+      "prenom": "GILLES",
+      "dateEmargement": null,
+      "corps": "Professeurs de lycée professionnel enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE PERE GUENEAU (DDEC) 98870 BOURAIL",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABDELKADER",
+      "prenom": "JEROME",
+      "dateEmargement": "20221202 12:13:14",
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "COLLEGE SAINTE MARIE  (DDEC) 98890 PAITA",
+      "referenceBulletin": "KKZEPPPPZKVBN197049293"
+    },
+    {
+      "nom": "ABDELLAOUI",
+      "prenom": "AMELIE",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "COLLEGE SAMARCANDE 78180 MONTIGNY LE BRETONNEUX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABDELLAZIZ",
+      "prenom": "JAMEL",
+      "dateEmargement": null,
+      "corps": "Professeurs de lycée professionnel enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE LPO PRIVE SAINT-NICOLAS 75006 PARIS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABDELLI",
+      "prenom": "ABDERRAZAK",
+      "dateEmargement": "20221202 06:49:42",
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "COLLEGE SAINTE ANNE 59990 SEBOURG",
+      "referenceBulletin": "KKZEPPPPVVUPN129777562"
+    },
+    {
+      "nom": "ABDELLI",
+      "prenom": "SAMIR",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "COLLEGE JEANNE D ARC 24490 LA ROCHE CHALAIS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABDELMOUMEN",
+      "prenom": "AICHA",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "LYCEE LPO PRIVE BEAUSEJOUR 11100 NARBONNE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABDELNOUR",
+      "prenom": "JAMAL",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE JEAN-PAUL II 60200 COMPIEGNE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABDELQARI",
+      "prenom": "ABDELHAQ",
+      "dateEmargement": null,
+      "corps": "Professeurs de chaires supérieures enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE ST JOSEPH LA JOLIVERIE 44232 ST SEBASTIEN SUR LOIRE CED",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABDEL WAHAB",
+      "prenom": "SARA",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE SACRE COEUR (DU) 13001 MARSEILLE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABDENNOUR",
+      "prenom": "FRIDA",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE JUIF DE LYON 69100 VILLEURBANNE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "AB DER HALDEN",
+      "prenom": "ESTELLE",
+      "dateEmargement": "20221204 21:20:00",
+      "corps": "Professeurs éducation physique et sportive enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE STE MARIE BASTIDE 33001 BORDEAUX CEDEX",
+      "referenceBulletin": "KKZEPPPKPPVPN170838438"
+    },
+    {
+      "nom": "ABDERRAHMANI",
+      "prenom": "KAMEL",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "COLLEGE SAINTE MARIE 93240 STAINS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABDERRAHMEN",
+      "prenom": "CLAIRE",
+      "dateEmargement": null,
+      "corps": "Professeurs agrégés du second degré de l'éducation nationale",
+      "affectation": "LYCEE ASSOMPTION BELLEVUE 69350 LA MULATIERE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABDESSATAR",
+      "prenom": "MOURAD",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE FRANCOISE CABRINI 93167 NOISY LE GRAND CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABDESSELAM",
+      "prenom": "BAYA",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE BLOMET 75015 PARIS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABDESSELEM",
+      "prenom": "MOHAMED",
+      "dateEmargement": null,
+      "corps": "Professeurs de lycée professionnel enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE SAINT FRANCOIS D’ASSISE 59060 ROUBAIX CEDEX 1",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABDESSEMED",
+      "prenom": "HADIA",
+      "dateEmargement": null,
+      "corps": "Professeurs de lycée professionnel enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE LPO PRIVE CARCADO SAISSEVAL 75006 PARIS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABDI",
+      "prenom": "ESTELLE",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "ECOLE LE SACRE COEUR 91600 SAVIGNY SUR ORGE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABDI",
+      "prenom": "FAIZA",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "LYCEE CLAUDE-NICOLAS LEDOUX 94307 VINCENNES CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABDILLAHI ISSE",
+      "prenom": "MOUSTAFA",
+      "dateEmargement": "20221204 10:59:42",
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE JOSEPHINE-BAKHITA 35000 RENNES",
+      "referenceBulletin": "KKZEPPPMQZMZN146386969"
+    },
+    {
+      "nom": "ABDO",
+      "prenom": "ALINE",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "ECOLE JEANNINE MANUEL 75015 PARIS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABDO",
+      "prenom": "JULIA",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE STE AGNES ST MARTIN 28500 MEZIERES EN DROUAIS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABDOU",
+      "prenom": "ANTOUFIKA",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "LYCEE ENSEIGNEMENT ADAPTE ESPERANCE 97600 MAMOUDZOU",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABDOU",
+      "prenom": "DAVID",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "LYCEE PRADEAU-LA SEDE SAINT-PIERRE 65912 TARBES CEDEX 9",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABDOU",
+      "prenom": "IBRAHIM",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE SAINT JOSEPH 79200 PARTHENAY",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABDOULAYE",
+      "prenom": "ALEXANDRA",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "ECOLE SAINTE THERESE 14170 ST PIERRE EN AUGE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABDOULAYE HAMA",
+      "prenom": "WAYADI",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "INSTITUT MEDICO-EDUCATIF EME LADOUCETTE DRANCY 93700 DRANCY",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABDOUL HAFOUR",
+      "prenom": "MOHAMED",
+      "dateEmargement": "20221206 11:02:37",
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "LYCEE ENSEIGNEMENT ADAPTE ESPERANCE 97600 MAMOUDZOU",
+      "referenceBulletin": "KKZEPPPKZHJVN252476063"
+    },
+    {
+      "nom": "ABDOULMALIK",
+      "prenom": "KARIMA",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "LYCEE NOTRE DAME 57245 PELTRE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABDOU RAHAMANE",
+      "prenom": "BEN SOULAIMANA",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE DON BOSCO 13006 MARSEILLE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABDOUS",
+      "prenom": "KAMEL",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "LYCEE SAINT DOMINIQUE 92203 NEUILLY SUR SEINE CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABDUL JALIL",
+      "prenom": "ISABELLE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE NOTRE DAME DU GRANDCHAMP 78000 VERSAILLES",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABDUSALAM MAHAMOUD",
+      "prenom": "DAOUD",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE SAINT JEAN GABRIEL 75004 PARIS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABECASSIS",
+      "prenom": "ILANIT",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE LES BENJAMINS 93500 PANTIN",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABECASSIS",
+      "prenom": "KATIA",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE CHARLES DE FOUCAULD 69003 LYON",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABECASSIS DUR",
+      "prenom": "AMELIE",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "COLLEGE CAMPUS SAINTE THERESE 77330 OZOIR LA FERRIERE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABECIDAN",
+      "prenom": "DIANE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE RAMBAM 92100 BOULOGNE BILLANCOURT",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABED",
+      "prenom": "PAULINE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE NOTRE-DAME 44260 SAVENAY",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABED BOUDJADA",
+      "prenom": "FAHIMA",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "LYCEE E. NAPOLEON ST PIERRE FOURIER 75012 PARIS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABEGG",
+      "prenom": "CHRISTELLE",
+      "dateEmargement": null,
+      "corps": "Professeurs éducation physique et sportive enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE DON BOSCO 68440 LANDSER",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABEGUIE",
+      "prenom": "DIANE",
+      "dateEmargement": "20221205 11:00:54",
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE LA SALLE 10000 TROYES",
+      "referenceBulletin": "KKZEPPPKKPZPN103497837"
+    },
+    {
+      "nom": "ABEGUILE",
+      "prenom": "MARYLINE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE ESTRAN CHARLES DE FOUCAULD 29238 BREST CEDEX 2",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABEHSIRA",
+      "prenom": "MARC",
+      "dateEmargement": null,
+      "corps": "Professeurs agrégés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE STANISLAS 75006 PARIS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABEILLE",
+      "prenom": "SYLVIE",
+      "dateEmargement": "20221203 21:33:54",
+      "corps": "Professeurs agrégés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE ST VINCENT DE PAUL 30020 NIMES CEDEX 1",
+      "referenceBulletin": "KKZEPPPMHZBJN138499026"
+    },
+    {
+      "nom": "ABEL",
+      "prenom": "AMANDINE",
+      "dateEmargement": "20221205 21:16:19",
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE FLEURY MARCEAU 69600 OULLINS",
+      "referenceBulletin": "KKZEPPPKVHMMN211609575"
+    },
+    {
+      "nom": "ABEL",
+      "prenom": "ANNE-CAROLINE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE SAINT-GEORGES 75019 PARIS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABEL",
+      "prenom": "BARBARA",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE STE MARIE BASTIDE 33072 BORDEAUX CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABEL",
+      "prenom": "FREDERIC",
+      "dateEmargement": null,
+      "corps": "Professeurs de lycée professionnel enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE DON BOSCO 69322 LYON CEDEX 05",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABEL",
+      "prenom": "MATTHIEU",
+      "dateEmargement": null,
+      "corps": "Professeurs éducation physique et sportive enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE LA PROVIDENCE 31250 REVEL",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABELA",
+      "prenom": "MAXIME",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "LYCEE SAINT-ETIENNE 46000 CAHORS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABELA",
+      "prenom": "VALENTIN",
+      "dateEmargement": "20221206 14:05:39",
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE ECOLE ACTIVE JEANNINE MANUEL 75015 PARIS",
+      "referenceBulletin": "KKZEPPPKUHZJN103588047"
+    },
+    {
+      "nom": "ABELARD",
+      "prenom": "BEATRICE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE ST CHRISTOPHE A 49410 MAUGES SUR LOIRE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABELARD",
+      "prenom": "CAMILLE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE ST YVES 44650 CORCOUE SUR LOGNE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABELARD",
+      "prenom": "MYRIAM",
+      "dateEmargement": "20221205 07:00:34",
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE SAINT JEAN A 49310 LYS HAUT LAYON",
+      "referenceBulletin": "KKZEPPPKPUKMN200124387"
+    },
+    {
+      "nom": "ABELE",
+      "prenom": "DIANE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE ST MICHEL 51100 REIMS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABELL",
+      "prenom": "BENEDICTE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE SAINTE-THERESE 77860 COUILLY PONT AUX DAMES",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABELLA",
+      "prenom": "ERIC",
+      "dateEmargement": "20221205 10:07:58",
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE NOTRE DAME DE LA VICTOIRE 22102 DINAN CEDEX",
+      "referenceBulletin": "KKZEPPPKMVBBN240730042"
+    },
+    {
+      "nom": "ABELLA",
+      "prenom": "MURIEL",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE SAINT PIERRE DE LA MER 66750 ST CYPRIEN",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABELLARD",
+      "prenom": "OLIVIER",
+      "dateEmargement": null,
+      "corps": "Professeurs éducation physique et sportive enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE ST LOUIS 49400 SAUMUR",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABELLI",
+      "prenom": "DOMINIQUE",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "LYCEE BLANCHET 97113 GOURBEYRE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABELLO",
+      "prenom": "MARIA",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE HENRI MARGALHAN 13014 MARSEILLE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABELS",
+      "prenom": "PATRICK",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "COLLEGE CHEVREUL LESTONNAC 69007 LYON",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABEL SOCHARD",
+      "prenom": "SOPHIE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE ST PAUL 44401 REZE CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABEN",
+      "prenom": "MARIE-PHILOMENE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE SACRE-COEUR NOUMEA (DDEC) 98800 NOUMEA",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABEN",
+      "prenom": "PAUL",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE ST-MICHEL OUVEA (DDEC) 98814 FAYAOUE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABEN",
+      "prenom": "SANDRA",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "LYCEE NOTRE DAME DU GRANDCHAMP 78000 VERSAILLES",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABEN",
+      "prenom": "YVANE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE ST-MICHEL OUVEA (DDEC) 98814 FAYAOUE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABENAQUI",
+      "prenom": "ANAIS",
+      "dateEmargement": "20221205 16:05:56",
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE AMEP 97204 FORT DE FRANCE CEDEX",
+      "referenceBulletin": "KKZEPPPKHMHUN192826883"
+    },
+    {
+      "nom": "ABENON",
+      "prenom": "PRISCA",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE NOTRE DAME 97112 GRAND BOURG",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABENSOUR",
+      "prenom": "ALEXANDRE",
+      "dateEmargement": null,
+      "corps": "Professeurs agrégés du second degré de l'éducation nationale",
+      "affectation": "LYCEE SAINT JEAN 59506 DOUAI CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABENZOAR",
+      "prenom": "VERONIQUE",
+      "dateEmargement": null,
+      "corps": "Professeurs agrégés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE ISAAC DE L’ETOILE (FEUILLANTS) 86001 POITIERS CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABERGEL",
+      "prenom": "BRIGITTE",
+      "dateEmargement": "20221204 13:31:37",
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE FENELON 63037 CLERMONT FERRAND CEDEX 1",
+      "referenceBulletin": "KKZEPPPMVVVMN118211476"
+    },
+    {
+      "nom": "ABERGEL",
+      "prenom": "GEOULA",
+      "dateEmargement": null,
+      "corps": "Professeurs agrégés du second degré de l'éducation nationale",
+      "affectation": "COLLEGE RACHI 75017 PARIS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABERGEL",
+      "prenom": "LINDA",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE RAMBAM 92100 BOULOGNE BILLANCOURT",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABERGEL",
+      "prenom": "MARIE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE HEIKHAL MENAHEM SINAI 75020 PARIS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABERGEL",
+      "prenom": "SYLVIA",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "COLLEGE BETH HANNA 75019 PARIS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABERKANE",
+      "prenom": "CARINE SAMIA",
+      "dateEmargement": "20221203 10:23:18",
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE INSTITUT SAINT PIERRE 14067 CAEN CEDEX 4",
+      "referenceBulletin": "KKZEPPPMMBMZN114897568"
+    },
+    {
+      "nom": "ABERKANE",
+      "prenom": "CLEMENTINE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE NOTRE DAME 54705 PONT A MOUSSON CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABERT",
+      "prenom": "CHARLOTTE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE SAINT ANDRE 68000 COLMAR",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABES",
+      "prenom": "LENDA",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE LES FRANCS BOURGEOIS 75004 PARIS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABEZIZ",
+      "prenom": "CATHY",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE O R T 95400 VILLIERS LE BEL",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABGRALL",
+      "prenom": "BENEDICTE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE LES SAINTS ANGES 56306 PONTIVY CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABGRALL",
+      "prenom": "ESTELLE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE SAINTE MARIE 85140 ESSARTS EN BOCAGE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABGRALL",
+      "prenom": "FLORENCE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE SAINTE ANNE 29800 LA FOREST LANDERNEAU",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABGRALL",
+      "prenom": "GWENAELLE",
+      "dateEmargement": "20221201 10:25:51",
+      "corps": "Professeurs éducation physique et sportive enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE ST JOSEPH - BOSSUET 22304 LANNION CEDEX",
+      "referenceBulletin": "KKZEPPPPMMJKN241042382"
+    },
+    {
+      "nom": "ABGRALL",
+      "prenom": "JEAN-PHILIPPE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE ST GABRIEL 29125 PONT L ABBE CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABGRALL",
+      "prenom": "MARIE-RENEE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE ST STANISLAS 29290 ST RENAN",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABGRALL",
+      "prenom": "NATHALIE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE ST GABRIEL 29125 PONT L ABBE CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABGRALL",
+      "prenom": "PASCALE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE ST JOSEPH 29403 LANDIVISIAU CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABGRALL",
+      "prenom": "SARAH",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE ST JOSEPH 44700 ORVAULT",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABGRALL",
+      "prenom": "SOLENE",
+      "dateEmargement": "20221205 10:23:50",
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE JAVOUHEY 29238 BREST CEDEX 2",
+      "referenceBulletin": "KKZEPPPKMBUKN148722438"
+    },
+    {
+      "nom": "ABGRALL",
+      "prenom": "YANN",
+      "dateEmargement": "20221206 11:10:19",
+      "corps": "Professeurs de lycée professionnel enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE NOTRE-DAME 48000 MENDE",
+      "referenceBulletin": "KKZEPPPKZHUPN138539087"
+    },
+    {
+      "nom": "ABGRALL-GICQUEL",
+      "prenom": "SOPHIE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE NOTRE DAME DES VICTOIRES 29430 PLOUESCAT",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABGRALL-NICOLAS",
+      "prenom": "MARYVONNE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE SAINTE ANNE 29860 PLABENNEC",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABGUEGUEN",
+      "prenom": "SYLVIANE",
+      "dateEmargement": null,
+      "corps": "Professeurs de lycée professionnel enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE LE PORSMEUR 29201 MORLAIX CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABGUILLERM",
+      "prenom": "EDWIGE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE ST SEBASTIEN 29208 LANDERNEAU CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABHERVE",
+      "prenom": "AGNES",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE DIWAN 29800 LANDERNEAU",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABHERVE",
+      "prenom": "KARINE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE SAINTE JEANNE D’ARC 29880 GUISSENY",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABI AAD",
+      "prenom": "CAROLE",
+      "dateEmargement": null,
+      "corps": "Professeurs de lycée professionnel enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE INSTITUT NICOLAS BARRE 59427 ARMENTIERES CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABIB ROZENBERG",
+      "prenom": "SOPHIE",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "COLLEGE NOTRE-DAME DE SION 75006 PARIS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABID",
+      "prenom": "AYA",
+      "dateEmargement": "20221202 13:27:31",
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "LYCEE L’INITIATIVE 75019 PARIS",
+      "referenceBulletin": "KKZEPPPPZVMPN248805680"
+    },
+    {
+      "nom": "ABID",
+      "prenom": "BELHASSEN",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE SAINT BARTHELEMY 6100 NICE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABID",
+      "prenom": "YASSINE",
+      "dateEmargement": "20221201 21:50:08",
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "LYCEE ST ELOI 13626 AIX EN PROVENCE CEDEX 1",
+      "referenceBulletin": "KKZEPPPPQUJKN239814750"
+    },
+    {
+      "nom": "ABID",
+      "prenom": "YOUSSEF",
+      "dateEmargement": null,
+      "corps": "Professeurs agrégés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE NOTRE DAME 21000 DIJON",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABIDAR",
+      "prenom": "ANNE-LAURE",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "LYCEE LA PROVIDENCE 41034 BLOIS CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABIDI",
+      "prenom": "EMILIE",
+      "dateEmargement": "20221206 17:20:53",
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "INSTITUT MEDICO-EDUCATIF L’EPANOU 74600 ANNECY",
+      "referenceBulletin": "KKZEPPPJPQMMN213014038"
+    },
+    {
+      "nom": "ABIDI",
+      "prenom": "HUGUETTE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE SAINT ELOI 59100 ROUBAIX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABIDI",
+      "prenom": "IMED",
+      "dateEmargement": "20221201 08:37:22",
+      "corps": "Professeurs de lycée professionnel enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE CELONY 13090 AIX EN PROVENCE",
+      "referenceBulletin": "KKZEPPPPPJMHN108306321"
+    },
+    {
+      "nom": "ABIDI",
+      "prenom": "NEJIB",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "COLLEGE IMMACULEE CONCEPTION 53000 LAVAL",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABID OLIVRY",
+      "prenom": "SAMIA",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE ENSEMBLE SCOLAIRE SAINT JACQUE 86036 POITIERS CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABIDRI",
+      "prenom": "MYRIAM",
+      "dateEmargement": "20221205 17:55:38",
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE FENELON NOTRE-DAME 17005 LA ROCHELLE CEDEX 1",
+      "referenceBulletin": "KKZEPPPKHZPBN179680570"
+    },
+    {
+      "nom": "ABIGOYIKI",
+      "prenom": "THEOGENE",
+      "dateEmargement": "20221206 12:07:03",
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE INSTITUT LEMONNIER 14013 CAEN CEDEX 1",
+      "referenceBulletin": "KKZEPPPKZZQHN115960106"
+    },
+    {
+      "nom": "ABIJMIL",
+      "prenom": "DELPHINE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE SINAI 75018 PARIS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABIKER",
+      "prenom": "RUTH",
+      "dateEmargement": "20221202 15:56:27",
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE GEORGES LEVEN 75012 PARIS",
+      "referenceBulletin": "KKZEPPPPUMJMN103368924"
+    },
+    {
+      "nom": "ABI KHALIL",
+      "prenom": "MARIE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE STE MARIE 35304 FOUGERES CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABIKHZER",
+      "prenom": "GUEOULA",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE SINAI 75018 PARIS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABILA",
+      "prenom": "AMANDINE",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "ECOLE NOTRE DAME SAINT JOSEPH 69007 LYON",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABILA",
+      "prenom": "MARIE",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "ECOLE NOTRE DAME 81100 CASTRES",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABILIOU",
+      "prenom": "JENNIFER",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE NOTRE DAME 85300 CHALLANS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABILLARD",
+      "prenom": "NATHALIE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE NOTRE DAME DE BORDEVERT 85230 ST GERVAIS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABILY",
+      "prenom": "FLORENCE",
+      "dateEmargement": null,
+      "corps": "Professeurs éducation physique et sportive enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE BOSSUET-NOTRE-DAME 75010 PARIS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABILY",
+      "prenom": "SEGOLENE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE FREDERIC OZANAM 35577 CESSON SEVIGNE CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABINA",
+      "prenom": "SONIA",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "LYCEE LPO PRIVE SAINT-NICOLAS 75006 PARIS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABI NADER",
+      "prenom": "JOSETTE",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "ECOLE ST MARTIN 78500 SARTROUVILLE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABINA LAMRANI",
+      "prenom": "YAMINA",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE ST VINCENT DE PAUL 93200 ST DENIS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABI RAMIA",
+      "prenom": "DORIANE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE MARIE AUXILIATRICE 59100 ROUBAIX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABI SAAD",
+      "prenom": "ROGER",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "COLLEGE BIENHEUREUX CHARLES DE FOUCAUL 92800 PUTEAUX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABI SALLOUM",
+      "prenom": "NATHALIE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE ST LOUIS DE MONTFORT 44470 THOUARE SUR LOIRE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABISSI",
+      "prenom": "ANNE SOPHIE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE LA SOURCE 38200 ST SORLIN DE VIENNE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABISUR",
+      "prenom": "HONORE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE INSTITUTION JEANNE-D ARC 97100 BASSE TERRE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABIT",
+      "prenom": "LAURENT",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "COLLEGE JEAN YOLE 85500 LES HERBIERS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABITAN",
+      "prenom": "ANAELLE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE BETH HANNA 69100 VILLEURBANNE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABITBOL",
+      "prenom": "HANNA",
+      "dateEmargement": "20221206 20:06:46",
+      "corps": "Professeurs agrégés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE OZAR HATORAH FILLES 94000 CRETEIL",
+      "referenceBulletin": "KKZEPPPJMHUQN179692695"
+    },
+    {
+      "nom": "ABITBOL",
+      "prenom": "SANDRA",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "ECOLE OR THORA 75020 PARIS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABITBOUL",
+      "prenom": "LAURENCE",
+      "dateEmargement": "20221201 15:43:12",
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE CHNE OR 93300 AUBERVILLIERS",
+      "referenceBulletin": "KKZEPPPPJPMVN213953386"
+    },
+    {
+      "nom": "ABITON",
+      "prenom": "JULIE",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "COLLEGE BETH RIVKAH 91330 YERRES",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABITTEBOUL",
+      "prenom": "LESLIE",
+      "dateEmargement": "20221205 13:25:46",
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE LE SAUVEUR 87700 AIXE SUR VIENNE",
+      "referenceBulletin": "KKZEPPPKJPQVN172186738"
+    },
+    {
+      "nom": "ABIVEN",
+      "prenom": "ANDRE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE LA CROIX ROUGE LA SALLE 29229 BREST CEDEX 2",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABIVEN",
+      "prenom": "BERNADETTE",
+      "dateEmargement": "20221201 09:15:45",
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE ESTRAN CHARLES DE FOUCAULD 29238 BREST CEDEX 2",
+      "referenceBulletin": "KKZEPPPPPQZVN148894128"
+    },
+    {
+      "nom": "ABIVEN",
+      "prenom": "DANIEL",
+      "dateEmargement": "20221206 05:06:03",
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE CATHOLIQUE LEVAVASSEUR 97400 ST DENIS",
+      "referenceBulletin": "KKZEPPPKBJJPN190295474"
+    },
+    {
+      "nom": "ABIVEN",
+      "prenom": "ELISE",
+      "dateEmargement": "20221206 17:18:34",
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE DON BOSCO 53102 MAYENNE CEDEX",
+      "referenceBulletin": "KKZEPPPJPQPJN159304459"
+    },
+    {
+      "nom": "ABIVEN",
+      "prenom": "ERIC",
+      "dateEmargement": "20221206 08:06:40",
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE SACRE-COEUR 22001 ST BRIEUC CEDEX 1",
+      "referenceBulletin": "KKZEPPPKBHBJN148914983"
+    },
+    {
+      "nom": "ABIVEN",
+      "prenom": "FRANCOISE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE ST FRANCOIS-NOTRE DAME 29260 LESNEVEN",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABIVEN",
+      "prenom": "GAIT",
+      "dateEmargement": null,
+      "corps": "Professeurs de lycée professionnel enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE FENELON 29238 BREST CEDEX 2",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABIVEN",
+      "prenom": "JEAN-MICHEL",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE MARCEL CALLO 35603 REDON CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABIVEN",
+      "prenom": "MARIE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE LE GYMNASE L.BERGER  J. STURM 67000 STRASBOURG",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABIVEN",
+      "prenom": "MORGANE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE SAINTE JEANNE D’ARC 29880 GUISSENY",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABIVEN",
+      "prenom": "MYRIAM",
+      "dateEmargement": null,
+      "corps": "Professeurs éducation physique et sportive enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE SAINT JOSEPH 76270 MESNIERES EN BRAY",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABIVEN",
+      "prenom": "STEPHANIE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE ST JOSEPH 29860 PLABENNEC",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABIVEN-QUINQUIS",
+      "prenom": "ANGELIQUE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE LA CROIX ROUGE LA SALLE 29229 BREST CEDEX 2",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABJEAN",
+      "prenom": "BENOIT",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE ST ANTOINE 29870 LANNILIS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABJEAN",
+      "prenom": "CLAIRE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE SAINTE ANNE NOTRE DAME 29260 LE FOLGOET",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABJEAN",
+      "prenom": "PIERRE",
+      "dateEmargement": "20221204 13:45:20",
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE ST JEAN DE LA CROIX 29480 LE RELECQ KERHUON",
+      "referenceBulletin": "KKZEPPPMVBMBN240926273"
+    },
+    {
+      "nom": "ABJEAN",
+      "prenom": "SANDRINE",
+      "dateEmargement": null,
+      "corps": "Professeurs de lycée professionnel enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE ST SEBASTIEN 29208 LANDERNEAU CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABLAIN",
+      "prenom": "GREGORY",
+      "dateEmargement": null,
+      "corps": "Professeurs éducation physique et sportive enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE IMMAC.CONCEPT.BEAU FRENE 64051 PAU CEDEX 9",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABLARD",
+      "prenom": "JENNY MAY",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "COLLEGE YAVNE 13013 MARSEILLE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABLINE",
+      "prenom": "BEATRICE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE ST JOSEPH 44522 MESANGER",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABLINE RETAILLEAU",
+      "prenom": "MARIE-LAURE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE ST JOSEPH 49620 MAUGES SUR LOIRE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABLITZER",
+      "prenom": "CELINE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE ST THOMAS D’AQUIN 72600 MAMERS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABOLLIVIER",
+      "prenom": "ANNE-PAULE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE LA CROIX ROUGE 29229 BREST CEDEX 2",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABONNEAU",
+      "prenom": "NATHALIE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE SAINT-FELIX - LA SALLE 44001 NANTES CEDEX 1",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABOT",
+      "prenom": "AUDREY",
+      "dateEmargement": "20221206 08:43:24",
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE SAINT PAUL 25000 BESANCON",
+      "referenceBulletin": "KKZEPPPKBQUZN165231159"
+    },
+    {
+      "nom": "ABOU",
+      "prenom": "CAMILLE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE ORATOIRE SAINTE-MARIE 32002 AUCH CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABOU",
+      "prenom": "NOURDINE",
+      "dateEmargement": null,
+      "corps": "Professeurs de lycée professionnel enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE CHARLES DE FOUCAULD 54000 NANCY",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABOU",
+      "prenom": "VIRGINIE",
+      "dateEmargement": "20221202 09:50:35",
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE LA MERCI LITTORAL 34280 LA GRANDE MOTTE",
+      "referenceBulletin": "KKZEPPPPBJUMN138359928"
+    },
+    {
+      "nom": "ABOUAB",
+      "prenom": "NICOLE",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "ECOLE PARDESS HANNA 75019 PARIS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABOUBACAR YENIKOYE",
+      "prenom": "MARIAMA",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "SEGPA CLG PR ALEXANDRE MONNET 97470 ST BENOIT",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABOUBEKER",
+      "prenom": "NAIMA",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE ST VINCENT DE PAUL 93200 ST DENIS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABOUCAYA",
+      "prenom": "MICHAEL",
+      "dateEmargement": "20221203 15:34:27",
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE FRANCOISE CABRINI 93167 NOISY LE GRAND CEDEX",
+      "referenceBulletin": "KKZEPPPMJJPJN179939463"
+    },
+    {
+      "nom": "ABOUD",
+      "prenom": "IRENE",
+      "dateEmargement": "20221201 18:39:29",
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE SAINTE MARIE 6400 CANNES",
+      "referenceBulletin": "KKZEPPPPHMHHN174069120"
+    },
+    {
+      "nom": "ABOUDA",
+      "prenom": "MOHAMED",
+      "dateEmargement": null,
+      "corps": "Professeurs agrégés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE SAINTE-MARIE 90006 BELFORT CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABOUDI",
+      "prenom": "LAURENCE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE BLOMET 75015 PARIS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABOU EDOU",
+      "prenom": "DANIEL",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE NOTRE DAME DES ANGES 90000 BELFORT",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABOUHAFS",
+      "prenom": "MOURAD",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE NOTRE DAME DES AYDES 41000 BLOIS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABOUKALIL",
+      "prenom": "VERONIQUE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE FREDERIC OZANAM 35577 CESSON SEVIGNE CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABOUKASSEM",
+      "prenom": "RAGHDA",
+      "dateEmargement": null,
+      "corps": "Professeurs de lycée professionnel enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE LES FAUVETTES 6400 CANNES",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABOU KHALIL MALLAH",
+      "prenom": "GRACIA",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE NOTRE DAME 91170 VIRY CHATILLON",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABOULIN",
+      "prenom": "ANNICK",
+      "dateEmargement": "20221204 08:32:40",
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE LA SOURCE 43700 ST GERMAIN LAPRADE",
+      "referenceBulletin": "KKZEPPPMQMUMN198358405"
+    },
+    {
+      "nom": "ABOUPA",
+      "prenom": "MARIE FABIENNE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE ANNE MARIE JAVOUHEY 97441 STE SUZANNE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABOUQUIR",
+      "prenom": "EMMANUEL",
+      "dateEmargement": "20221202 20:01:39",
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE FRANCOIS D’ESTAING 12001 RODEZ CEDEX",
+      "referenceBulletin": "KKZEPPPMPHBHN155545224"
+    },
+    {
+      "nom": "ABOURIZK",
+      "prenom": "CORINNE",
+      "dateEmargement": null,
+      "corps": "Professeurs agrégés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE LA SALLE 59000 LILLE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABOUROU ELLA",
+      "prenom": "APPOLINAIRE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE ORATOIRE SAINTE-MARIE 32002 AUCH CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABOUSHRIF",
+      "prenom": "KAREN",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "COLLEGE ST JOSEPH 95100 ARGENTEUIL",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABOUT",
+      "prenom": "MARIE-NOEM",
+      "dateEmargement": "20221206 12:01:47",
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE SAINT-MICHEL DES BATIGNOLLES 75017 PARIS",
+      "referenceBulletin": "KKZEPPPKZZMVN179723832"
+    },
+    {
+      "nom": "ABOUT",
+      "prenom": "NATHALIE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE SAINT PIERRE 14000 CAEN",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABOUZAID",
+      "prenom": "NOUREDDINE",
+      "dateEmargement": null,
+      "corps": "Professeurs de lycée professionnel enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE INSTITUT LEMONNIER 14013 CAEN CEDEX 1",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABOUZEID",
+      "prenom": "CHRISTINE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE SAINT-LOUIS SAINT-CLEMENT 91170 VIRY CHATILLON",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABOUZLAM",
+      "prenom": "MANHAL",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "LYCEE SACRE COEUR  NOTRE DAME 7000 PRIVAS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABOYE",
+      "prenom": "RUTH",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE FREDERIC OZANAM 35577 CESSON SEVIGNE CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABRADOR",
+      "prenom": "SATYA",
+      "dateEmargement": "20221203 10:37:49",
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "ECOLE CATHOLIQUE STE ANNE 97480 ST JOSEPH",
+      "referenceBulletin": "KKZEPPPMMZPQN251754383"
+    },
+    {
+      "nom": "ABRAHAM",
+      "prenom": "ANGELIQUE",
+      "dateEmargement": null,
+      "corps": "enseignant contractuel alternant du second degré du privé",
+      "affectation": "LYCEE JEAN PAUL II 50200 COUTANCES",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABRAHAM",
+      "prenom": "BRIGITTE",
+      "dateEmargement": null,
+      "corps": "Professeurs de lycée professionnel enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE SAINTE URSULE 14019 CAEN CEDEX 2",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABRAHAM",
+      "prenom": "BRUNO",
+      "dateEmargement": "20221202 08:09:40",
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE INSTITUT SONNENBERG 68130 CARSPACH",
+      "referenceBulletin": "KKZEPPPPVZVVN141925260"
+    },
+    {
+      "nom": "ABRAHAM",
+      "prenom": "CATHERINE",
+      "dateEmargement": "20221201 12:14:42",
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE MAITRISE DE MASSABIELLE 97157 POINTE A PITRE CEDEX",
+      "referenceBulletin": "KKZEPPPPMUKMN193357764"
+    },
+    {
+      "nom": "ABRAHAM",
+      "prenom": "CLAUDE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE LE PRIEURE 41120 SAMBIN",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABRAHAM",
+      "prenom": "CORINNE",
+      "dateEmargement": "20221206 09:51:44",
+      "corps": "Professeurs de lycée professionnel enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE L’OASIS 14000 CAEN",
+      "referenceBulletin": "KKZEPPPKZPPMN186996892"
+    },
+    {
+      "nom": "ABRAHAM",
+      "prenom": "CORINNE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE SAINT PAUL 59000 LILLE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABRAHAM",
+      "prenom": "GREGORY",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE STE MARIE ST DOMINIQUE 18001 BOURGES CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABRAHAM",
+      "prenom": "ISABELLE",
+      "dateEmargement": null,
+      "corps": "Professeurs de lycée professionnel enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE SAINTE URSULE 14019 CAEN CEDEX 2",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABRAHAM",
+      "prenom": "ISABELLE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE LA PROVIDENCE 76200 DIEPPE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABRAHAM",
+      "prenom": "JEAN FRANCOIS",
+      "dateEmargement": "20221204 17:19:15",
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE SEMINAIRE DE JEUNES 67360 WALBOURG",
+      "referenceBulletin": "KKZEPPPMZPPJN151735743"
+    },
+    {
+      "nom": "ABRAHAM",
+      "prenom": "JEAN-MICHEL",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "COLLEGE CECILE CHEVIET 97320 ST LAURENT DU MARONI",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABRAHAM",
+      "prenom": "LYNDA",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE SAINTE MARIE - UNION CHRETIENN 86000 POITIERS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABRAHAM",
+      "prenom": "MANON",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE ECOLE INTERPAROISSIAL 50000 ST LO",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABRAHAM",
+      "prenom": "NICOLAS",
+      "dateEmargement": "20221206 16:50:29",
+      "corps": "Professeurs de lycée professionnel enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE SAINTE MARIE 62310 FRUGES",
+      "referenceBulletin": "KKZEPPPJPJVVN130137335"
+    },
+    {
+      "nom": "ABRAHAM",
+      "prenom": "NICOLAS",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "LYCEE SAINT-EXUPERY 78180 MONTIGNY LE BRETONNEUX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABRAHAM",
+      "prenom": "PATRICIA",
+      "dateEmargement": "20221202 09:05:38",
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "COLLEGE JEANNE D ARC 60600 AGNETZ",
+      "referenceBulletin": "KKZEPPPPBMJZN168023789"
+    },
+    {
+      "nom": "ABRAHAM",
+      "prenom": "SALOME",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE SAINTE URSULE 37000 TOURS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABRAHAM",
+      "prenom": "SANDRINE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE SAINT-MICHEL 14200 HEROUVILLE ST CLAIR",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABRAHAMI",
+      "prenom": "DANIEL",
+      "dateEmargement": null,
+      "corps": "Professeurs de lycée professionnel enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE LYCEE JB DE LA SALLE 93200 ST DENIS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABRAIM",
+      "prenom": "CLAUDINE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE SACRE COEUR 37000 TOURS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABRAM",
+      "prenom": "ANNABELLE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE NOTRE-DAME DES VALLONS 69670 VAUGNERAY",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABRAM",
+      "prenom": "NICOLAS",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE LOUIS QUERBES 69390 VOURLES",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABRAMOVICZ",
+      "prenom": "FLORENCE",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "LYCEE JULES FROMENT 7201 AUBENAS CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABRAMS",
+      "prenom": "DEIRDRE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE DIWAN 22720 PLESIDY",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABRAN",
+      "prenom": "GERMAIN",
+      "dateEmargement": null,
+      "corps": "Professeurs éducation physique et sportive enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE INDUSTRIES LILLOISES (E.P.I.L. 59000 LILLE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABRAN-DUVAL",
+      "prenom": "VALERIE",
+      "dateEmargement": "20221204 14:55:20",
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE SACRE COEUR (LE) 13100 AIX EN PROVENCE",
+      "referenceBulletin": "KKZEPPPMVUQUN108284981"
+    },
+    {
+      "nom": "ABRASSART",
+      "prenom": "CHRISTINE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE NOTRE-DAME 92500 RUEIL MALMAISON",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABREU",
+      "prenom": "JULIE",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "LYCEE DES ROCHES 27137 VERNEUIL SUR AVRE CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABRIAL",
+      "prenom": "FLORENT",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE SAINT JOSEPH 69160 TASSIN LA DEMI LUNE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABRIAL",
+      "prenom": "LAURENT",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE SAINT JOSEPH 43260 ST JULIEN CHAPTEUIL",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABRIAL",
+      "prenom": "MARION",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE SAINTE-MARIE LE CALVAIRE 81100 CASTRES",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABRIAL",
+      "prenom": "NADINE",
+      "dateEmargement": "20221205 15:23:17",
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE NOTRE-DAME 81101 CASTRES CEDEX",
+      "referenceBulletin": "KKZEPPPKJZVBN155682867"
+    },
+    {
+      "nom": "ABRIBAT",
+      "prenom": "ANNE",
+      "dateEmargement": null,
+      "corps": "Professeurs éducation physique et sportive enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE ST GENES LA SALLE 33081 BORDEAUX CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABRIGADA",
+      "prenom": "THIBAULT",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE PASSY-SAINT-HONORE 75016 PARIS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABRISKA",
+      "prenom": "MARIE PAULE",
+      "dateEmargement": null,
+      "corps": "Professeurs de lycée professionnel enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE SAINT-FRANCOIS-XAVIER 97417 ST DENIS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABRIVARD",
+      "prenom": "FLORINE",
+      "dateEmargement": null,
+      "corps": "Professeurs agrégés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE ST BLAISE 44120 VERTOU",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABRY",
+      "prenom": "CAMILLE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE CHARLES DE FOUCAULD 69003 LYON",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABRY",
+      "prenom": "JANINE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE NOTRE-DAME 25000 BESANCON",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABRY",
+      "prenom": "LAURENT",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE LES ARCADES 21018 DIJON CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABRY",
+      "prenom": "PATRICIA",
+      "dateEmargement": "20221202 19:15:09",
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE SAINTE ANNE 1300 BELLEY",
+      "referenceBulletin": "KKZEPPPMPKBPN212669300"
+    },
+    {
+      "nom": "ABSALON",
+      "prenom": "XAVIER",
+      "dateEmargement": "20221206 13:49:22",
+      "corps": "Professeurs de lycée professionnel enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE BLANCHET 97113 GOURBEYRE",
+      "referenceBulletin": "KKZEPPPKUHMPN193360771"
+    },
+    {
+      "nom": "ABSAY",
+      "prenom": "M'HAMED",
+      "dateEmargement": "20221201 15:15:50",
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE LPO NOTRE DAME 44401 REZE CEDEX",
+      "referenceBulletin": "KKZEPPPPKZBZN159928266"
+    },
+    {
+      "nom": "ABSIN",
+      "prenom": "PIERRE",
+      "dateEmargement": "20221206 11:44:47",
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE SAINTE CECILE 38260 LA COTE ST ANDRE",
+      "referenceBulletin": "KKZEPPPKZBMPN123807891"
+    },
+    {
+      "nom": "ABSOLUT DE LA GASTIN",
+      "prenom": "STEPHANIE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE SAINT-JOSEPH - LA SALLE 31079 TOULOUSE CEDEX 5",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABT",
+      "prenom": "HELENE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE SAINTE CROIX 77160 PROVINS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABT",
+      "prenom": "MARIE-LAURENCE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE SAINTE-THERESE 89000 AUXERRE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABT",
+      "prenom": "OPHELIE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE INSTITUTION SAINT JEAN 68025 COLMAR CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABTAN",
+      "prenom": "JULIA",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE SEVIGNE 75014 PARIS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ABU AHMAD",
+      "prenom": "YOUSSEF",
+      "dateEmargement": "20221204 22:06:30",
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "COLLEGE STE MARIE 35501 VITRE CEDEX",
+      "referenceBulletin": "KKZEPPPKPHMMN240957992"
+    },
+    {
+      "nom": "ABU AMAR",
+      "prenom": "ABDEREMANE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE SAINTE MARIE 93240 STAINS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACAMA-VIRAMA",
+      "prenom": "LUCIE",
+      "dateEmargement": "20221204 09:32:01",
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE CATHOLIQUE ROSALIE JAVOUHEY 97460 ST PAUL",
+      "referenceBulletin": "KKZEPPPMQJHBN245573349"
+    },
+    {
+      "nom": "ACAR",
+      "prenom": "MICHELLE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE ST EREMBERT 78100 ST GERMAIN EN LAYE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACART",
+      "prenom": "CATHERINE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE SAINT JOSEPH 22650 BEAUSSAIS SUR MER",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACCARD",
+      "prenom": "JULIEN",
+      "dateEmargement": "20221206 14:27:28",
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE SAINT PIERRE 1000 BOURG EN BRESSE",
+      "referenceBulletin": "KKZEPPPKUVMMN134722137"
+    },
+    {
+      "nom": "ACCARDI",
+      "prenom": "CLAUDE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE NOTRE-DAME DE L’HUVEAUNE 13008 MARSEILLE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACCARIE",
+      "prenom": "MARIA",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE L’ ANNONCIATION 31840 SEILH",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACCARIES",
+      "prenom": "EMMA",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE PETIT VAL 94370 SUCY EN BRIE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACCART",
+      "prenom": "AURORE",
+      "dateEmargement": null,
+      "corps": "Professeurs de lycée professionnel enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE ST VINCENT DE PAUL 60000 BEAUVAIS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACCART",
+      "prenom": "CAMILLE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE LA MALASSISE 62968 LONGUENESSE CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACCART",
+      "prenom": "JORDAN",
+      "dateEmargement": null,
+      "corps": "Professeurs de lycée professionnel enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE JEAN-PAUL II 60200 COMPIEGNE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACCART",
+      "prenom": "MARIE-CLAUDE",
+      "dateEmargement": "20221201 22:41:05",
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE LA MERCI LITTORAL 34280 LA GRANDE MOTTE",
+      "referenceBulletin": "KKZEPPPPVKKBN136666890"
+    },
+    {
+      "nom": "ACCARY",
+      "prenom": "CHRISTINE",
+      "dateEmargement": "20221202 21:45:03",
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE JEANNE D’ARC 71600 PARAY LE MONIAL",
+      "referenceBulletin": "KKZEPPPMPBZHN212165579"
+    },
+    {
+      "nom": "ACCARY",
+      "prenom": "STEPHANIE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE LES CHARTREUX-SAINTE BLANDINE 69450 ST CYR AU MONT D OR",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACCARY BARBIER",
+      "prenom": "TIPHAINE",
+      "dateEmargement": null,
+      "corps": "Professeurs agrégés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE ICOF 69005 LYON",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACCENSI",
+      "prenom": "ALIZEE",
+      "dateEmargement": null,
+      "corps": "Professeurs éducation physique et sportive enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE ST JEAN DE LA CROIX 29480 LE RELECQ KERHUON",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACCORSO",
+      "prenom": "JEAN-CHRISTOPHE",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "LYCEE SAINT PIERRE 59612 FOURMIES CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACCOT",
+      "prenom": "ROBIN",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "COLLEGE DE NOTRE DAME DES ANGES 98704 FAAA",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACEBO",
+      "prenom": "BERNADETTE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE STE MARIE 13700 MARIGNANE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACEBO",
+      "prenom": "MICHAEL",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE FELIX AUNAC 47000 AGEN",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACERA",
+      "prenom": "JOSE",
+      "dateEmargement": "20221201 15:24:57",
+      "corps": "Professeurs éducation physique et sportive enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE SAINT DOMINIQUE 3200 VICHY",
+      "referenceBulletin": "KKZEPPPPKUJUN116669758"
+    },
+    {
+      "nom": "ACERO BORBON",
+      "prenom": "LIBIA",
+      "dateEmargement": "20221204 21:33:32",
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "LYCEE SAINTE-THERESE 75016 PARIS",
+      "referenceBulletin": "KKZEPPPKPMVHN103714244"
+    },
+    {
+      "nom": "ACEVEDO",
+      "prenom": "ASTRID",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE LES GOELANDS 26140 ST RAMBERT D ALBON",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACEVEDO CAPARROS",
+      "prenom": "MARIA",
+      "dateEmargement": null,
+      "corps": "Professeurs de lycée professionnel enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE ST MICHEL 33290 BLANQUEFORT",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACHA",
+      "prenom": "MARIE CECILE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE STE MARIE DES BOURDONNAIS 78000 VERSAILLES",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACHACHE",
+      "prenom": "NATHALIE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE LUCIEN DE HIRSCH 75019 PARIS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACHACHE",
+      "prenom": "NOEMIE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE SINAI 75018 PARIS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACHA JACQUIN",
+      "prenom": "VERONIQUE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE NOTRE DAME 1000 BOURG EN BRESSE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACHALLE",
+      "prenom": "CAMILLE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE SAINTE MARIE 85320 MAREUIL SUR LAY DISSAIS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACHALME",
+      "prenom": "BRUNO",
+      "dateEmargement": null,
+      "corps": "Professeurs éducation physique et sportive enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE SAINT JOSEPH 63450 ST SATURNIN",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACHARD",
+      "prenom": "AGNES",
+      "dateEmargement": "20221206 16:54:17",
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE NOTRE DAME 58000 NEVERS",
+      "referenceBulletin": "KKZEPPPJPJZQN120397759"
+    },
+    {
+      "nom": "ACHARD",
+      "prenom": "AMELIE",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "ECOLE NOTRE DAME 26150 DIE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACHARD",
+      "prenom": "AURELIE",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "INSTITUT MEDICO-EDUCATIF IRPP CHATEAU DU CROISSANT 1320 CHATILLON LA PALUD",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACHARD",
+      "prenom": "DAVID",
+      "dateEmargement": "20221206 09:57:57",
+      "corps": "Professeurs de lycée professionnel enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE SAINTE CLAIRE 42450 SURY LE COMTAL",
+      "referenceBulletin": "KKZEPPPKZPHHN134582263"
+    },
+    {
+      "nom": "ACHARD",
+      "prenom": "DENIS",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE LA SALLE SAINT-CHARLES 97458 ST PIERRE CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACHARD",
+      "prenom": "ELODIE",
+      "dateEmargement": "20221204 18:25:08",
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE LA COLOMBIERE 71100 CHALON SUR SAONE",
+      "referenceBulletin": "KKZEPPPMZQKQN171042332"
+    },
+    {
+      "nom": "ACHARD",
+      "prenom": "HELENE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE MADELEINE DANIELOU 92500 RUEIL MALMAISON",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACHARD",
+      "prenom": "JULIE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE BAYARD 38000 GRENOBLE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACHARD",
+      "prenom": "LEA",
+      "dateEmargement": "20221204 17:57:50",
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE SANCTA-MARIA 30400 VILLENEUVE LES AVIGNON",
+      "referenceBulletin": "KKZEPPPMZJPJN218463110"
+    },
+    {
+      "nom": "ACHARD",
+      "prenom": "ODILE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE SAINTE MARTHE-CHAVAGNES 16025 ANGOULEME CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACHARD",
+      "prenom": "OLIVIER",
+      "dateEmargement": "20221203 11:28:13",
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "LYCEE INSTITUT LEMONNIER 14013 CAEN CEDEX 1",
+      "referenceBulletin": "KKZEPPPMKMMJN115976693"
+    },
+    {
+      "nom": "ACHARD",
+      "prenom": "SOPHIE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE BLOMET 75015 PARIS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACHARD",
+      "prenom": "THERESE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE SAINT ETIENNE 33180 ST ESTEPHE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACHARD",
+      "prenom": "VALERIE",
+      "dateEmargement": "20221204 14:55:04",
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE ST JOSEPH DE TIVOLI 33073 BORDEAUX CEDEX",
+      "referenceBulletin": "KKZEPPPMVUQHN113677017"
+    },
+    {
+      "nom": "ACHARD-ARRIBERT",
+      "prenom": "FLORIAN",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "LYCEE LYCEE JB DE LA SALLE 93200 ST DENIS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACHARD DE LA VENTE",
+      "prenom": "ADELINE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE ST DOMINIQUE 44807 ST HERBLAIN CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACHARI",
+      "prenom": "ASSIA",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "LYCEE NOTRE-DAME DES OISEAUX 75016 PARIS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACHBAROU",
+      "prenom": "ABDERRAHIM",
+      "dateEmargement": "20221201 18:36:51",
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE SAINT-LOUIS SAINT-CLEMENT 91170 VIRY CHATILLON",
+      "referenceBulletin": "KKZEPPPPHMMVN103431295"
+    },
+    {
+      "nom": "ACHCHAQ",
+      "prenom": "MANAL",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE SAINT-JOSEPH 21000 DIJON",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACHECH",
+      "prenom": "MORSI",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE SAINTE MARIE 49307 CHOLET CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACHEK",
+      "prenom": "OLFA",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE NOTRE DAME DE LA PROVIDENCE 95880 ENGHIEN LES BAINS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACHENKOUR",
+      "prenom": "MARILOU",
+      "dateEmargement": null,
+      "corps": "Professeurs de lycée professionnel enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE LPO ST JOSEPH LA SALLE 72700 PRUILLE LE CHETIF",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACHER",
+      "prenom": "ANAIS",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "COLLEGE SAINT GEORGES 41300 SALBRIS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACHER",
+      "prenom": "REGINE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE LARGENTE 64100 BAYONNE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACHER DUBOIS",
+      "prenom": "SOPHIE",
+      "dateEmargement": null,
+      "corps": "Professeurs de lycée professionnel enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE SAINT-FELIX - LA SALLE 44001 NANTES CEDEX 1",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACHER-DUBOIS",
+      "prenom": "SONIA",
+      "dateEmargement": "20221204 18:05:16",
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE SAINT AUBIN LA SALLE 49480 VERRIERES EN ANJOU",
+      "referenceBulletin": "KKZEPPPMZJVZN159564710"
+    },
+    {
+      "nom": "ACHERE",
+      "prenom": "CLAIRE",
+      "dateEmargement": null,
+      "corps": "Professeurs éducation physique et sportive enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE STAM - SAINT ANDRE SAINTE MARI 33240 ST ANDRE DE CUBZAC",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACHERE",
+      "prenom": "VALERIE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE NOTRE-DAME DE GRACE 62610 ARDRES",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACHERITOGARAY",
+      "prenom": "NADIA",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE DONOSTEI 64430 ST ETIENNE DE BAIGORRY",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACHERITOGARAY",
+      "prenom": "VERONIQUE",
+      "dateEmargement": null,
+      "corps": "Professeurs de lycée professionnel enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE ISSEC PIGIER 31000 TOULOUSE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACHERY",
+      "prenom": "NORBERT",
+      "dateEmargement": "20221205 18:00:57",
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE ST JOSEPH 84000 AVIGNON",
+      "referenceBulletin": "KKZEPPPKHZHUN108249188"
+    },
+    {
+      "nom": "ACHETTE",
+      "prenom": "FLORENT",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "COLLEGE ST LOUIS 84100 ORANGE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACHI",
+      "prenom": "BOUBEKEUR",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "COLLEGE VALSAINTE 30000 NIMES",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACHIARY",
+      "prenom": "BERANGERE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE SAINT-BERNARD SAINTE-MARIE 75018 PARIS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACHIBA",
+      "prenom": "JESSICA",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE SACRE COEUR - SAINT THOMAS 59200 TOURCOING",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACHIKIAN",
+      "prenom": "SEBASTIEN",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE NOTRE DAME 92100 BOULOGNE BILLANCOURT",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACHILLE",
+      "prenom": "BERTHILDE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE LA PERSEVERANCE 97300 CAYENNE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACHILLE",
+      "prenom": "BRIGITTE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE LA PERSEVERANCE 97300 CAYENNE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACHILLEO",
+      "prenom": "VALENTIN",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "LYCEE JEANNE D’ARC 89200 AVALLON",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACHINE",
+      "prenom": "CORINNE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "CENTRE DE FORMATION SALIEGE 31131 BALMA CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACHIR",
+      "prenom": "NAIMA",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "COLLEGE ST JOSEPH 95100 ARGENTEUIL",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACHIR",
+      "prenom": "SAMIRA",
+      "dateEmargement": "20221201 21:51:48",
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE TEILHARD DE CHARDIN 94100 ST MAUR DES FOSSES",
+      "referenceBulletin": "KKZEPPPPQUHUN179915213"
+    },
+    {
+      "nom": "ACHKIR",
+      "prenom": "SOUKAINA",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "COLLEGE AL KINDI 69150 DECINES CHARPIEU",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACHMAOUI",
+      "prenom": "SALIHA",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE LE ROSAIRE 95320 ST LEU LA FORET",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACHOUCHE",
+      "prenom": "FARID",
+      "dateEmargement": null,
+      "corps": "Professeurs de lycée professionnel enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE SAINT FRANCOIS D’ASSISE 59060 ROUBAIX CEDEX 1",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACHOUCHI",
+      "prenom": "MEJDA",
+      "dateEmargement": "20221204 18:02:59",
+      "corps": "Professeurs de lycée professionnel enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE L’OASIS 14000 CAEN",
+      "referenceBulletin": "KKZEPPPMZJHQN115888617"
+    },
+    {
+      "nom": "ACHOUIL",
+      "prenom": "DOMINIQUE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE MERKAZ OHR JOSEPH 75019 PARIS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACHOUR",
+      "prenom": "ANIS",
+      "dateEmargement": "20221205 10:19:54",
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE SAINT ANDRE 94600 CHOISY LE ROI",
+      "referenceBulletin": "KKZEPPPKMBVHN101103295"
+    },
+    {
+      "nom": "ACHOUR",
+      "prenom": "AYA",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "COLLEGE SAINT-MICHEL DES BATIGNOLLES 75017 PARIS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACHOUR",
+      "prenom": "CARINE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE STE JEANNE D’ARC 93220 GAGNY",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACHOUR",
+      "prenom": "FARID",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "COLLEGE NAZARETH 77950 VOISENON",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACI",
+      "prenom": "NADIA",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE SAINT BENOIST DE L’EUROPE 93172 BAGNOLET CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACKER",
+      "prenom": "CELINE",
+      "dateEmargement": null,
+      "corps": "Professeurs agrégés du second degré de l'éducation nationale",
+      "affectation": "CENTRE DE FORMATION JEANNE PERRIMOND 13007 MARSEILLE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACKER",
+      "prenom": "HELENE",
+      "dateEmargement": "20221205 10:17:04",
+      "corps": "Professeurs de lycée professionnel enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE ST VINCENT DE PAUL 24000 PERIGUEUX",
+      "referenceBulletin": "KKZEPPPKMBJQN113720958"
+    },
+    {
+      "nom": "ACKER",
+      "prenom": "PAULINE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE STE MARIE 35176 CHARTRES DE BRETAGNE CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACKER",
+      "prenom": "VINCENT",
+      "dateEmargement": null,
+      "corps": "Professeurs éducation physique et sportive enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE INSTITUTION STE PHILOMENE 67504 HAGUENAU CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACKERMANN",
+      "prenom": "BRUNO",
+      "dateEmargement": "20221205 22:28:25",
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE SAINTE MARIE 6400 CANNES",
+      "referenceBulletin": "KKZEPPPKVZUJN174103264"
+    },
+    {
+      "nom": "ACKERMANN",
+      "prenom": "CAROLINE",
+      "dateEmargement": null,
+      "corps": "Professeurs agrégés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE SAINT JEAN DE GARGUIER 13420 GEMENOS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACKERMANN BLUM",
+      "prenom": "KEYLA",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "COLLEGE TALMUDIQUE 73100 AIX LES BAINS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACOSTA",
+      "prenom": "CARMEN",
+      "dateEmargement": null,
+      "corps": "Professeurs de lycée professionnel enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE VINCENT DE PAUL 65000 TARBES",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACOU",
+      "prenom": "JULIEN",
+      "dateEmargement": "20221202 16:00:58",
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE SAINT JOSEPH 41100 VENDOME",
+      "referenceBulletin": "KKZEPPPPUMQVN144989393"
+    },
+    {
+      "nom": "ACOUNES",
+      "prenom": "RACHEL",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "LYCEE PAUL CLAUDEL D’HULST 75007 PARIS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACQUAERT",
+      "prenom": "CELINE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE SAINTE-THERESE 62840 LAVENTIE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACQUART",
+      "prenom": "ISABELLE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE SAINT JACQUES 59190 HAZEBROUCK",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACQUART",
+      "prenom": "KARINE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE DEFOREST DE LEWARDE 59500 DOUAI",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACQUART",
+      "prenom": "THOMAS",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE SAINT JOSEPH 59960 NEUVILLE EN FERRAIN",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACQUAVIVA",
+      "prenom": "ANNE CAROLE",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "ECOLE ABCM BEAUSOLEIL 57200 SARREGUEMINES",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACQUAVIVA",
+      "prenom": "CAROLE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE SAINT-GEORGES 75019 PARIS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACQUAVIVA",
+      "prenom": "JONATHAN",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "LYCEE INSTITUTION DES CHARTREUX 69283 LYON CEDEX 01",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACQUIER",
+      "prenom": "JEAN-CHRISTOPHE",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "COLLEGE SAINT-ANTOINE 82301 CAUSSADE CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACQUILINA",
+      "prenom": "BRIGITTE",
+      "dateEmargement": "20221201 22:17:24",
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE NAZARETH 6100 NICE",
+      "referenceBulletin": "KKZEPPPPVPZJN118381808"
+    },
+    {
+      "nom": "ACQUILINA",
+      "prenom": "MAELLE",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "ECOLE ASSOMPTION LOCHABAIR 6414 CANNES CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACQUISTAPACE",
+      "prenom": "LAURELINE",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "ECOLE NOTRE DAME DES NEIGES 39220 LES ROUSSES",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACQUITTER",
+      "prenom": "BRUNO",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE ESTRAN CHARLES DE FOUCAULD 29238 BREST CEDEX 2",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACQUITTER",
+      "prenom": "CATHERINE",
+      "dateEmargement": null,
+      "corps": "Professeurs de lycée professionnel enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE JAVOUHEY 29238 BREST CEDEX 2",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACQUITTER",
+      "prenom": "GENEVIEVE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE NOTRE DAME DES GRACES 29700 PLUGUFFAN",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACREMANN",
+      "prenom": "SARA",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE PASSY-SAINT-HONORE 75016 PARIS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACRIZ",
+      "prenom": "LAURA",
+      "dateEmargement": null,
+      "corps": "Professeurs de lycée professionnel enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE LPO PRIVE STE L DE MARILLAC 66000 PERPIGNAN",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACTIF",
+      "prenom": "VERONIQUE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE MARIE RIVIER 7700 BOURG ST ANDEOL",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ACUNZO",
+      "prenom": "JULIE",
+      "dateEmargement": "20221206 17:24:35",
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "LYCEE CHIMIE ET BIOLOGIE LA FORBINE 13011 MARSEILLE",
+      "referenceBulletin": "KKZEPPPJPQJBN106028955"
+    },
+    {
+      "nom": "ADABEY KOTOKLO",
+      "prenom": "BIJOUX PAULIN",
+      "dateEmargement": "20221205 20:17:27",
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE SAINT STANISLAS 30906 NIMES CEDEX 2",
+      "referenceBulletin": "KKZEPPPKQUHQN138474970"
+    },
+    {
+      "nom": "ADABIA",
+      "prenom": "SAMUEL KODJO",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE NOTRE DAME DE LA PROVIDENCE 19200 USSEL",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ADAFER",
+      "prenom": "FARID",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "LYCEE JEANNE D’ARC 95130 FRANCONVILLE LA GARENNE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ADAIME",
+      "prenom": "JOANNA",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "COLLEGE ST EREMBERT 78100 ST GERMAIN EN LAYE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ADALIE",
+      "prenom": "MADINA",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE NOTRE DAME DE LA MERCI 34965 MONTPELLIER CEDEX 2",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ADAM",
+      "prenom": "ANAELLE",
+      "dateEmargement": null,
+      "corps": "Enseignant contractuel alternant premier degré du privé",
+      "affectation": "ECOLE SAINTE THERESE 53410 ST OUEN DES TOITS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ADAM",
+      "prenom": "ANNE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE LACORDAIRE 59370 MONS EN BAROEUL",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ADAM",
+      "prenom": "ANNE-MARIE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE NOTRE DAME 56800 TAUPONT",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ADAM",
+      "prenom": "ANNE SOPHIE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE COURS BAUTAIN 77230 JUILLY",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ADAM",
+      "prenom": "AUDE",
+      "dateEmargement": null,
+      "corps": "Professeurs de lycée professionnel enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE SAINTE FAMILLE 25000 BESANCON",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ADAM",
+      "prenom": "AUDREY",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE SAINT JEAN-BAPTISTE 59100 ROUBAIX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ADAM",
+      "prenom": "JULIE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE STE MARIE 35650 LE RHEU",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ADAM",
+      "prenom": "KARINE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE ST BERNARD 10000 TROYES",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ADAM",
+      "prenom": "LAURENCE",
+      "dateEmargement": null,
+      "corps": "Professeurs de lycée professionnel enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE INDUSTRIES LILLOISES (E.P.I.L. 59000 LILLE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ADAM",
+      "prenom": "LAURENCE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE NOTRE DAME 35540 PLERGUER",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ADAM",
+      "prenom": "LAURENCE",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "ECOLE NOTRE-DAME DE NANTILLY A 49400 SAUMUR",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ADAM",
+      "prenom": "LOIC",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "COLLEGE INSTITUT DE L’ASSOMPTION 68000 COLMAR",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ADAM",
+      "prenom": "LUCIE",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "ECOLE SAINT DENIS 69004 LYON",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ADAM",
+      "prenom": "LUCILE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE SAINTE AGNES 92600 ASNIERES SUR SEINE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ADAM",
+      "prenom": "LUDMILLA",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE NOTRE DAME DE LA PROVIDENCE 57126 THIONVILLE CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ADAM",
+      "prenom": "MAGALI",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE LE BON SAUVEUR 50001 ST LO CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ADAM",
+      "prenom": "MARC",
+      "dateEmargement": "20221202 20:27:49",
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE NOTRE-DAME DE LA PROVIDENCE 88100 ST DIE DES VOSGES",
+      "referenceBulletin": "KKZEPPPMPQQUN219310696"
+    },
+    {
+      "nom": "ADAM",
+      "prenom": "MARIE FRANCOISE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE JEANNE DU LYS-SAINT-VINCENT 54000 NANCY",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ADAM",
+      "prenom": "MARION",
+      "dateEmargement": null,
+      "corps": "Enseignant contractuel alternant premier degré du privé",
+      "affectation": "ECOLE SAINT JOSEPH 72530 YVRE L EVEQUE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ADAM",
+      "prenom": "MATHILDE",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "COLLEGE ST LAURENT-LA PAIX NOTRE DAME 77400 LAGNY SUR MARNE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ADAM",
+      "prenom": "MELANIE",
+      "dateEmargement": "20221202 17:47:05",
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE SAINT-JOSEPH 66500 PRADES",
+      "referenceBulletin": "KKZEPPPPUBQHN138391356"
+    },
+    {
+      "nom": "ADAM",
+      "prenom": "ELISABETH",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE SAINT-CHARLES SAINTE-CROIX 72000 LE MANS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ADAM",
+      "prenom": "FLORIE",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "ECOLE SAINT HENRY 53200 CHEMAZE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ADAM",
+      "prenom": "FRANCOIS",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE SAINT AUGUSTIN 59100 ROUBAIX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ADAM",
+      "prenom": "FRANCOISE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE ST JOSEPH 85303 CHALLANS CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ADAM",
+      "prenom": "FREDERIC",
+      "dateEmargement": null,
+      "corps": "Professeurs de lycée professionnel enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE SAINTE ANNE - SAVOISIENNE 73290 LA MOTTE SERVOLEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ADAM",
+      "prenom": "GERALDINE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE ANNE-MARIE MARTEL 16110 LA ROCHEFOUCAULD EN ANGOUM",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ADAM",
+      "prenom": "GREGORY",
+      "dateEmargement": "20221201 09:15:08",
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE CHAVAGNES SAINT JOSEPH 86200 LOUDUN",
+      "referenceBulletin": "KKZEPPPPPQBZN217064176"
+    },
+    {
+      "nom": "ADAM",
+      "prenom": "GUILLAUME",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE NOTRE DAME LA RICHE 37058 TOURS CEDEX 1",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ADAM",
+      "prenom": "HELENE",
+      "dateEmargement": "20221206 11:55:16",
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE JEANNE D’ARC 76310 STE ADRESSE",
+      "referenceBulletin": "KKZEPPPKZBBHN168935492"
+    },
+    {
+      "nom": "ADAM",
+      "prenom": "ISABELLE",
+      "dateEmargement": "20221201 21:07:41",
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE CATHOLIQUE LAMARTINE 73100 AIX LES BAINS",
+      "referenceBulletin": "KKZEPPPPQQQUN123994810"
+    },
+    {
+      "nom": "ADAM",
+      "prenom": "ISABELLE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE SACRE COEUR 60120 BRETEUIL",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ADAM",
+      "prenom": "JEROME",
+      "dateEmargement": null,
+      "corps": "Professeurs éducation physique et sportive enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE SAINTE THERESE 14170 ST PIERRE EN AUGE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ADAM",
+      "prenom": "AURORE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE DON BOSCO 53100 MAYENNE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ADAM",
+      "prenom": "BRUNO",
+      "dateEmargement": "20221201 20:55:55",
+      "corps": "Adjoints d'enseignement enseignement privé",
+      "affectation": "COLLEGE ST JOSEPH 85303 CHALLANS CEDEX",
+      "referenceBulletin": "KKZEPPPPQHJUN159898293"
+    },
+    {
+      "nom": "ADAM",
+      "prenom": "CEDRIC",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "ECOLE STE JEANNE D’ARC 35370 ST GERMAIN DU PINEL",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ADAM",
+      "prenom": "CHRISTELLE",
+      "dateEmargement": "20221206 20:16:11",
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE NOTRE-DAME 59480 LA BASSEE",
+      "referenceBulletin": "KKZEPPPJMQHKN134662191"
+    },
+    {
+      "nom": "ADAM",
+      "prenom": "CHRISTELLE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE LA SALLE 31820 PIBRAC",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ADAM",
+      "prenom": "CHRISTELLE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE NOTRE DAME 22190 PLERIN",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ADAM",
+      "prenom": "CINDY",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE SAINTE-MARIE 88340 LE VAL D AJOL",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ADAM",
+      "prenom": "CLAIRE",
+      "dateEmargement": null,
+      "corps": "Professeurs de lycée professionnel enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE LPO SAINT PAUL 8000 CHARLEVILLE MEZIERES",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ADAM",
+      "prenom": "CLAUDE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE JEANNE D’ARC 76310 STE ADRESSE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ADAM",
+      "prenom": "PALMYREINE",
+      "dateEmargement": "20221202 22:32:18",
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE STANISLAS 6008 NICE CEDEX 1",
+      "referenceBulletin": "KKZEPPPMPZUHN174092594"
+    },
+    {
+      "nom": "ADAM",
+      "prenom": "SEGOLENE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE SAINT ADRIEN LA SALLE 59653 VILLENEUVE D ASCQ CEDEX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ADAM",
+      "prenom": "SEHER",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "ECOLE DU SACRE-COEUR 48000 BADAROUX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ADAM",
+      "prenom": "SEVERINE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE NOTRE DAME 14100 LISIEUX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ADAM",
+      "prenom": "SEVERINE",
+      "dateEmargement": null,
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "ECOLE ST MAURICE LA PROVIDENCE 35360 MONTAUBAN DE BRETAGNE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ADAM",
+      "prenom": "SEVERINE",
+      "dateEmargement": "20221203 15:38:26",
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE CHAVAGNES SAINT JOSEPH 86200 LOUDUN",
+      "referenceBulletin": "KKZEPPPMJJKKN218753722"
+    },
+    {
+      "nom": "ADAM",
+      "prenom": "SOLENNE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE ST GILDAS 56120 GUEGON",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ADAM",
+      "prenom": "STEPHANIE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE L’ALLIANCE 74370 FILLIERE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ADAM",
+      "prenom": "SYBILLE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE L’ASSOMPTION 75016 PARIS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ADAM",
+      "prenom": "SYLVIE",
+      "dateEmargement": "20221201 16:51:02",
+      "corps": "Professeurs de lycée professionnel enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE NOTRE-DAME -ST VINCENT DE PAUL 75013 PARIS",
+      "referenceBulletin": "KKZEPPPPJHBQN130153340"
+    },
+    {
+      "nom": "ADAM",
+      "prenom": "VALERIE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE SAINTE ANNE-SAINT JOACHIM 59800 LILLE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ADAM",
+      "prenom": "VINCENT",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE SAINT CHARLES 2300 CHAUNY",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ADAM",
+      "prenom": "YANN",
+      "dateEmargement": null,
+      "corps": "Professeurs agrégés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE NAZARETH 6100 NICE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ADAM",
+      "prenom": "YVELISE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "INSTITUT MEDICO-EDUCATIF LES MORIERES 83210 SOLLIES TOUCAS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ADAM-CARDOSO",
+      "prenom": "NADEGE",
+      "dateEmargement": "20221206 16:50:02",
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE SAINT REMI 61800 TINCHEBRAY BOCAGE",
+      "referenceBulletin": "KKZEPPPJPJVKN115944392"
+    },
+    {
+      "nom": "ADAMCZEWSKI",
+      "prenom": "CORINNE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE IMMACULEE CONCEPTION 59270 BAILLEUL",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ADAMCZEWSKI",
+      "prenom": "ISABELLE",
+      "dateEmargement": "20221205 13:55:25",
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE SAINTE CROIX 77160 PROVINS",
+      "referenceBulletin": "KKZEPPPKJKZHN168180250"
+    },
+    {
+      "nom": "ADAMCZEWSKI",
+      "prenom": "JEAN-CHRISTIAN",
+      "dateEmargement": null,
+      "corps": "Professeurs éducation physique et sportive enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE NOTRE DAME 74470 BELLEVAUX",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ADAMCZEWSKI",
+      "prenom": "STEPHANIE",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "INSTITUT MEDICO-EDUCATIF ITEP MASSIP - ANRAS 12700 CAPDENAC GARE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ADAMCZYK",
+      "prenom": "CAROLINE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE JEAN-BAPTISTE DE LA SALLE 69283 LYON CEDEX 01",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ADAM DE VILLIERS",
+      "prenom": "CHRISTINE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE SAINT THOMAS DE VILLENEUVE 92370 CHAVILLE",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ADAM DE VILLIERS",
+      "prenom": "LAURENT",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE STANISLAS 75006 PARIS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ADAM DE VILLIERS",
+      "prenom": "VANESSA",
+      "dateEmargement": null,
+      "corps": "Professeurs des écoles enseignement privé de l'éducation nationale",
+      "affectation": "ECOLE ST-JOSEPH BOURAIL (DDEC) 98870 BOURAIL",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ADAM-HUEBER",
+      "prenom": "ANNE CECILE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE NOTRE DAME 28000 CHARTRES",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ADAMI",
+      "prenom": "SONIA",
+      "dateEmargement": "20221201 20:00:40",
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "LYCEE NOTRE DAME 57245 PELTRE",
+      "referenceBulletin": "KKZEPPPPHUQPN139861973"
+    },
+    {
+      "nom": "ADAMI",
+      "prenom": "VIRGINIE",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "COLLEGE LA PERVERIE SACRE COEUR 44322 NANTES CEDEX 3",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ADAMIAK",
+      "prenom": "BENOIT",
+      "dateEmargement": null,
+      "corps": "Professeurs certifiés enseignement privé de l'éducation nationale",
+      "affectation": "LYCEE BAUDIMONT 62000 ARRAS",
+      "referenceBulletin": ""
+    },
+    {
+      "nom": "ADAMIEC",
+      "prenom": "SANDRINE",
+      "dateEmargement": "20221204 15:27:17",
+      "corps": "Maîtres auxiliaires enseignement privé",
+      "affectation": "LYCEE CEVENOL 30100 ALES",
+      "referenceBulletin": "KKZEPPPMBMZBN138481954"
+    }
+  ]
+}

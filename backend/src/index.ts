@@ -8,6 +8,7 @@ import adherentsRoutes from "./routes/adherents.js";
 import statsRoutes from "./routes/stats.js";
 import brevoRoutes from "./routes/brevo.js";
 import psaRoutes from "./routes/psa.js";
+import scrapingRoutes from "./routes/scraping.js";
 
 migrate();
 
@@ -24,6 +25,7 @@ app.use("/api/adherents", adherentsRoutes);
 app.use("/api/stats", statsRoutes);
 app.use("/api/brevo", brevoRoutes);
 app.use("/api/psa", psaRoutes);
+app.use("/api/scraping", scrapingRoutes);
 
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error(err);

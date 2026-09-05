@@ -8,10 +8,26 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL}
       SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD}
+      SCRAPING_SECRET_KEY: ${SCRAPING_SECRET_KEY}
     volumes:
       - backend_data:/app/data
     expose:
       - "4000"
+
+  # Faux portail de connexion, utilisé uniquement pour tester le scraping
+  # Playwright avant l'ouverture des vrais portails de gestion en décembre.
+  # Non exposé publiquement : accessible seulement depuis le conteneur
+  # backend, via http://mock-portal:8081/...
+  mock-portal:
+    build:
+      context: .
+      dockerfile: infra/Dockerfile.mockportal
+    restart: unless-stopped
+    environment:
+      PORTAL_USERNAME: ${MOCK_PORTAL_USERNAME}
+      PORTAL_PASSWORD: ${MOCK_PORTAL_PASSWORD}
+    expose:
+      - "8081"
 
   frontend:
     build:

@@ -12,6 +12,10 @@ COPY package.json package-lock.json ./
 COPY backend/package.json backend/package.json
 RUN npm ci --workspace backend
 
+# Chromium headless pour le scraping Playwright des portails de gestion
+# (CCMMEP national + portails académiques).
+RUN npx --prefix backend playwright install --with-deps chromium
+
 COPY backend ./backend
 COPY seed-data ./seed-data
 RUN npm run build --workspace backend

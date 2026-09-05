@@ -4,6 +4,7 @@ import { Card } from "../components/Card";
 import { CourbeCard } from "../components/CourbeCard";
 import { FileUploadCard } from "../components/FileUploadCard";
 import { PivotTree } from "../components/PivotTree";
+import { ScrapingPanel } from "../components/ScrapingPanel";
 import { ScrutinsTab } from "../components/ScrutinsTab";
 import { api } from "../lib/api";
 import type { AcademieNode, CourbePoint, ImportRecord, ManagedUser } from "../lib/types";
@@ -84,6 +85,7 @@ function ImportsPanel() {
 
   return (
     <div className="space-y-4">
+      <ScrapingPanel mode="national" />
       <FileUploadCard
         title="Import quotidien CCMMEP"
         subtitle="Fichier JSON des émargements du scrutin national (champs : nom, prenom, dateEmargement, corps, affectation, referenceBulletin)."

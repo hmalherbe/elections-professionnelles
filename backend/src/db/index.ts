@@ -182,6 +182,22 @@ export function migrate(): void {
       body TEXT NOT NULL DEFAULT '',
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
+
+    -- Configuration du scraping Playwright des portails de gestion CCMMEP
+    -- (academie = '' pour le national) / académiques. Mot de passe chiffré
+    -- au repos (voir lib/crypto.ts), jamais stocké ni renvoyé en clair.
+    CREATE TABLE IF NOT EXISTS scraping_config (
+      academie TEXT PRIMARY KEY,
+      portal_url TEXT NOT NULL,
+      username TEXT NOT NULL,
+      password_encrypted TEXT NOT NULL,
+      file_url_1 TEXT NOT NULL,
+      file_url_2 TEXT,
+      username_selector TEXT,
+      password_selector TEXT,
+      submit_selector TEXT,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
   `);
 
   addColumnIfMissing("relances_mail", "is_test", "INTEGER NOT NULL DEFAULT 0");

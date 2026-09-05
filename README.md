@@ -87,6 +87,7 @@ Le compte admin général créé par le seed :
 | `JWT_SECRET` | Secret de signature des sessions | `dev-secret-change-me` (à changer en prod) |
 | `DATABASE_PATH` | Emplacement du fichier SQLite | `backend/data/elections.sqlite` |
 | `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` | Identifiants du compte admin général créé par le seed | voir ci-dessus |
+| `SCRAPING_SECRET_KEY` | Clé de chiffrement des mots de passe des portails de scraping | reprend `JWT_SECRET` si absent |
 
 ## Rôles
 
@@ -179,3 +180,33 @@ journalisé dans `backend/data/relances.log` (NDJSON, un envoi par ligne :
 horodatage, type, périmètre, campagne, nom, prénom, contact utilisé, mode
 test, succès). Consultable depuis l'onglet PSA de l'admin général
 (« Journal des relances ») ou directement sur le serveur.
+
+## Récupération automatique des fichiers (scraping)
+
+Sur l'onglet Imports de l'admin général (scrutin national) et de chaque
+admin académique (1er/2nd degré), un encart « Récupération automatique »
+permet de configurer un portail de gestion (URL de connexion, identifiant,
+mot de passe, URL du/des fichier(s) JSON) puis de le déclencher en un
+clic. Techniquement : un navigateur Chromium headless (Playwright, aucune
+fenêtre visible) se connecte au portail avec les identifiants fournis,
+récupère le fichier dans la session authentifiée, puis l'importe comme un
+import manuel classique. Le mot de passe est chiffré (AES-256-GCM) avant
+stockage en base, jamais renvoyé en clair par l'API.
+
+Les vrais portails de gestion (CCMMEP national et académiques) n'existent
+pas encore — ils n'ouvriront qu'en décembre 2026, et leur formulaire de
+connexion exact (noms des champs) n'est pas connu à l'avance. Le champ
+« Options avancées » de l'encart permet d'indiquer des sélecteurs CSS
+spécifiques (identifiant/mot de passe/bouton) si le formulaire réel diffère
+du cas standard (`input[name="username"]`, `input[name="password"]`,
+`button[type="submit"]`).
+
+En attendant, le service `mock-portal` (voir `docker-compose.yml`) simule
+un vrai portail — une page de connexion HTML, une session par cookie, des
+fichiers JSON protégés — pour valider tout le mécanisme de bout en bout.
+Il n'est accessible que depuis le conteneur backend (`http://mock-portal:8081/...`),
+jamais exposé publiquement. Ses identifiants se configurent via
+`MOCK_PORTAL_USERNAME`/`MOCK_PORTAL_PASSWORD` dans `.env`. Une fois les
+vrais portails ouverts, il suffit de reconfigurer les encarts avec les
+vraies URLs — ce service de test peut alors être retiré du
+`docker-compose.yml`.
