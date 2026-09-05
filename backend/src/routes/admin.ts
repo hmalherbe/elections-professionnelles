@@ -9,6 +9,8 @@ import {
   loadPsaWorkbook,
   clearDeptCache,
 } from "../services/reference.js";
+import { getTestContactSettings, setSetting } from "../services/settings.js";
+import { readRelanceLog } from "../lib/relanceLog.js";
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } });
@@ -124,6 +126,27 @@ router.get("/reference/spelcs", (req, res) => {
 router.get("/psa", (_req, res) => {
   const rows = db.prepare("SELECT * FROM psa ORDER BY nom").all();
   res.json({ psa: rows });
+});
+
+/**
+ * Mail/mobile de test globaux : utilisés partout où le mode test est actif
+ * (campagnes Brevo des Spelcs et relances PSA), configurés une seule fois
+ * par l'admin général plutôt que ressaisis à chaque écran.
+ */
+router.get("/test-settings", (_req, res) => {
+  res.json(getTestContactSettings());
+});
+
+router.put("/test-settings", (req, res) => {
+  const { testEmail, testMobile } = req.body ?? {};
+  if (testEmail !== undefined) setSetting("test_email", String(testEmail));
+  if (testMobile !== undefined) setSetting("test_mobile", String(testMobile));
+  res.json(getTestContactSettings());
+});
+
+router.get("/relance-log", (req, res) => {
+  const limit = Math.min(Number(req.query.limit) || 200, 2000);
+  res.json({ entries: readRelanceLog(limit) });
 });
 
 export default router;

@@ -142,3 +142,27 @@ L'envoi de mails/SMS et la synchronisation des statistiques appellent
 réellement l'API Brevo (`api.brevo.com`) avec la clé configurée par chaque
 admin Spelc. Sans clé configurée, l'envoi est refusé explicitement (aucune
 donnée simulée n'est renvoyée comme si l'envoi avait eu lieu).
+
+Chaque campagne (Spelc) peut être envoyée en **mode test** : contenu
+personnalisé de vrais adhérents mais destinataire réel remplacé par le
+mail/mobile de test — configuré une seule fois par l'admin général
+(onglet PSA, section « Mail / mobile de test »), utilisé partout où le
+mode test est actif.
+
+## Relances PSA
+
+L'admin général possède sa propre clé API Brevo et ses propres modèles
+mail/SMS (indépendants de ceux des Spelcs), utilisés pour relancer les
+PSA après une simulation. Sur l'onglet PSA, cocher une ou plusieurs
+dates parmi les 8 jours du scrutin déclenche, pour chaque date et pour
+chaque canal (mail/SMS), une relance réelle vers Brevo à destination des
+PSA n'ayant pas encore voté (national et/ou local) à cette date-là dans
+la simulation en cours.
+
+## Journal des relances
+
+Chaque envoi individuel (campagne Spelc ou relance PSA, mail ou SMS) est
+journalisé dans `backend/data/relances.log` (NDJSON, un envoi par ligne :
+horodatage, type, périmètre, campagne, nom, prénom, contact utilisé, mode
+test, succès). Consultable depuis l'onglet PSA de l'admin général
+(« Journal des relances ») ou directement sur le serveur.

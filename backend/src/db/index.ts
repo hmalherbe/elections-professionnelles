@@ -161,6 +161,27 @@ export function migrate(): void {
       is_test INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
+
+    -- Réglages globaux (admin général) : mail/mobile de test utilisés
+    -- partout où le mode test est actif (campagnes Spelc et relances PSA).
+    CREATE TABLE IF NOT EXISTS app_settings (
+      key TEXT PRIMARY KEY,
+      value TEXT
+    );
+
+    -- Modèles de relance pour les PSA (nationaux, non rattachés à un Spelc).
+    CREATE TABLE IF NOT EXISTS psa_email_template (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      subject TEXT NOT NULL DEFAULT '',
+      body TEXT NOT NULL DEFAULT '',
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS psa_sms_template (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      body TEXT NOT NULL DEFAULT '',
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
   `);
 
   addColumnIfMissing("relances_mail", "is_test", "INTEGER NOT NULL DEFAULT 0");

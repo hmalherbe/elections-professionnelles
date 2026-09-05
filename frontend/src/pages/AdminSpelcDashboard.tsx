@@ -176,8 +176,6 @@ function BrevoPanel({ spelc }: { spelc: string }) {
   const [plan, setPlan] = useState<BrevoPlanEntry[] | null>(null);
   const [planError, setPlanError] = useState<string | null>(null);
   const [testMode, setTestMode] = useState(false);
-  const [testEmail, setTestEmail] = useState("");
-  const [testMobile, setTestMobile] = useState("");
   const [testMailLimit, setTestMailLimit] = useState(3);
   const [testSmsLimit, setTestSmsLimit] = useState(3);
 
@@ -329,9 +327,9 @@ function BrevoPanel({ spelc }: { spelc: string }) {
         {testMode && (
           <div className="mt-3 grid grid-cols-1 gap-3 rounded-md border border-amber-200 bg-amber-50 p-3 sm:grid-cols-2">
             <p className="col-span-full text-xs text-amber-800">
-              En mode test, les mails/SMS sont envoyés à l'adresse/numéro de test ci-dessous (pas aux vrais
-              adhérents), en utilisant le contenu personnalisé des N premiers adhérents ciblés — utile pour vérifier
-              le rendu du modèle sans consommer de crédits sur de vraies personnes.
+              En mode test, les mails/SMS sont envoyés au mail/mobile de test configuré par l'admin général (pas aux
+              vrais adhérents), en utilisant le contenu personnalisé des N premiers adhérents ciblés — utile pour
+              vérifier le rendu du modèle sans consommer de crédits sur de vraies personnes.
             </p>
             <div>
               <label className="block text-xs font-medium text-slate-500">Nombre de mails à envoyer</label>
@@ -345,16 +343,6 @@ function BrevoPanel({ spelc }: { spelc: string }) {
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-500">Mail de test</label>
-              <input
-                type="email"
-                placeholder="moi@exemple.fr"
-                className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-                value={testEmail}
-                onChange={(e) => setTestEmail(e.target.value)}
-              />
-            </div>
-            <div>
               <label className="block text-xs font-medium text-slate-500">Nombre de SMS à envoyer</label>
               <input
                 type="number"
@@ -363,16 +351,6 @@ function BrevoPanel({ spelc }: { spelc: string }) {
                 className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
                 value={testSmsLimit}
                 onChange={(e) => setTestSmsLimit(Number(e.target.value))}
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-500">Mobile de test</label>
-              <input
-                type="tel"
-                placeholder="06 00 00 00 00"
-                className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-                value={testMobile}
-                onChange={(e) => setTestMobile(e.target.value)}
               />
             </div>
           </div>
@@ -387,7 +365,6 @@ function BrevoPanel({ spelc }: { spelc: string }) {
                   tag: campagneTag,
                   testMode,
                   testLimit: testMailLimit,
-                  testEmail,
                 });
                 setMessage(`Mails : ${res.sent}/${res.total} envoyés, ${res.errors} erreurs.`);
                 refreshAll();
@@ -406,7 +383,6 @@ function BrevoPanel({ spelc }: { spelc: string }) {
                   tag: campagneTag,
                   testMode,
                   testLimit: testSmsLimit,
-                  testMobile,
                 });
                 setMessage(`SMS : ${res.sent}/${res.total} envoyés, ${res.errors} erreurs.`);
                 refreshAll();

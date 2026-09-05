@@ -11,6 +11,8 @@ import {
   fetchAccountInfo,
 } from "../services/brevo.js";
 import { currentImportIds } from "../services/stats.js";
+import { getTestContactSettings } from "../services/settings.js";
+import { appendRelanceLog } from "../lib/relanceLog.js";
 
 const MAX_TEST_RECIPIENTS = 20;
 const DEFAULT_TEST_RECIPIENTS = 3;
@@ -39,15 +41,19 @@ function assertSpelcAccess(req: import("express").Request, res: import("express"
   return true;
 }
 
-/** Clé API Brevo : gérée uniquement par l'admin Spelc concerné. */
-router.get("/settings", requireRole("admin_spelc"), (req, res) => {
+/**
+ * Clé API Brevo : gérée par l'admin Spelc concerné pour ses campagnes, ou
+ * par l'admin général pour les relances PSA (compte séparé, non rattaché à
+ * un Spelc).
+ */
+router.get("/settings", requireRole("admin_spelc", "admin_general"), (req, res) => {
   const row = db.prepare("SELECT brevo_api_key FROM users WHERE id = ?").get(req.user!.id) as
     | { brevo_api_key: string | null }
     | undefined;
   res.json({ configured: Boolean(row?.brevo_api_key), maskedKey: row?.brevo_api_key ? "••••••••" + row.brevo_api_key.slice(-4) : null });
 });
 
-router.put("/settings", requireRole("admin_spelc"), (req, res) => {
+router.put("/settings", requireRole("admin_spelc", "admin_general"), (req, res) => {
   const { apiKey } = req.body ?? {};
   if (!apiKey) {
     res.status(400).json({ error: "apiKey requise." });
@@ -58,7 +64,7 @@ router.put("/settings", requireRole("admin_spelc"), (req, res) => {
 });
 
 /** Crédits mail/SMS restants sur le compte Brevo configuré. */
-router.get("/account", requireRole("admin_spelc"), async (req, res) => {
+router.get("/account", requireRole("admin_spelc", "admin_general"), async (req, res) => {
   const user = db.prepare("SELECT brevo_api_key FROM users WHERE id = ?").get(req.user!.id) as {
     brevo_api_key: string | null;
   };
@@ -179,7 +185,7 @@ function needsRelance(r: Recipient): boolean {
 
 router.post("/campaigns/email", requireRole("admin_spelc"), async (req, res) => {
   const spelc = req.user!.spelc!;
-  const { tag, onlyNonVotants = true, testMode, testLimit, testEmail } = req.body ?? {};
+  const { tag, onlyNonVotants = true, testMode, testLimit } = req.body ?? {};
   const user = db.prepare("SELECT brevo_api_key FROM users WHERE id = ?").get(req.user!.id) as {
     brevo_api_key: string | null;
   };
@@ -194,8 +200,9 @@ router.post("/campaigns/email", requireRole("admin_spelc"), async (req, res) => 
     res.status(400).json({ error: "Aucun modèle de mail configuré." });
     return;
   }
+  const testEmail = testMode ? getTestContactSettings().testEmail : null;
   if (testMode && !testEmail) {
-    res.status(400).json({ error: "Une adresse mail de test est requise en mode test." });
+    res.status(400).json({ error: "Aucun mail de test configuré. L'admin général doit le renseigner." });
     return;
   }
 
@@ -206,9 +213,13 @@ router.post("/campaigns/email", requireRole("admin_spelc"), async (req, res) => 
   const to = recipients.map((r) => ({
     email: testMode ? String(testEmail) : r.mail!,
     name: `${r.prenom} ${r.nom}`,
+    nom: r.nom,
+    prenom: r.prenom,
     subject: renderTemplate(template.subject, templateFieldsFor(r)),
     html: renderTemplate(template.body, templateFieldsFor(r)),
   }));
+
+  const campagneTag = (tag ?? "relance") + (testMode ? "-test" : "");
 
   // Brevo n'acceptant pas un contenu par destinataire en un seul appel groupé sans template,
   // on envoie chaque email individuellement avec son contenu personnalisé.
@@ -224,9 +235,20 @@ router.post("/campaigns/email", requireRole("admin_spelc"), async (req, res) => 
     });
     sent += result.sent;
     errors += result.errors;
+    appendRelanceLog({
+      timestamp: new Date().toISOString(),
+      type: "mail",
+      provider: "Brevo",
+      scope: spelc,
+      campagneTag,
+      nom: item.nom,
+      prenom: item.prenom,
+      contact: item.email,
+      testMode: Boolean(testMode),
+      success: result.sent > 0,
+    });
   }
 
-  const campagneTag = (tag ?? "relance") + (testMode ? "-test" : "");
   db.prepare(
     `INSERT INTO relances_mail (spelc, date, campagne_tag, total_envoye, erreurs_envoi, mails_lus, liens_clique, is_test)
      VALUES (?, ?, ?, ?, ?, 0, 0, ?)`
@@ -237,7 +259,7 @@ router.post("/campaigns/email", requireRole("admin_spelc"), async (req, res) => 
 
 router.post("/campaigns/sms", requireRole("admin_spelc"), async (req, res) => {
   const spelc = req.user!.spelc!;
-  const { tag, onlyNonVotants = true, testMode, testLimit, testMobile } = req.body ?? {};
+  const { tag, onlyNonVotants = true, testMode, testLimit } = req.body ?? {};
   const user = db.prepare("SELECT brevo_api_key FROM users WHERE id = ?").get(req.user!.id) as {
     brevo_api_key: string | null;
   };
@@ -252,8 +274,9 @@ router.post("/campaigns/sms", requireRole("admin_spelc"), async (req, res) => {
     res.status(400).json({ error: "Aucun modèle de SMS configuré." });
     return;
   }
+  const testMobile = testMode ? getTestContactSettings().testMobile : null;
   if (testMode && !testMobile) {
-    res.status(400).json({ error: "Un numéro de mobile de test est requis en mode test." });
+    res.status(400).json({ error: "Aucun mobile de test configuré. L'admin général doit le renseigner." });
     return;
   }
 
@@ -266,14 +289,27 @@ router.post("/campaigns/sms", requireRole("admin_spelc"), async (req, res) => {
   let errors = 0;
   for (const r of recipients) {
     const content = renderTemplate(template.body, templateFieldsFor(r));
+    const contact = testMode ? String(testMobile) : r.mobile!;
     const result = await sendBrevoSms({
       apiKey: user.brevo_api_key,
-      recipients: [testMode ? String(testMobile) : r.mobile!],
+      recipients: [contact],
       content,
       tag: campagneTag,
     });
     sent += result.sent;
     errors += result.errors;
+    appendRelanceLog({
+      timestamp: new Date().toISOString(),
+      type: "sms",
+      provider: "Brevo",
+      scope: spelc,
+      campagneTag,
+      nom: r.nom,
+      prenom: r.prenom,
+      contact,
+      testMode: Boolean(testMode),
+      success: result.sent > 0,
+    });
   }
 
   db.prepare(

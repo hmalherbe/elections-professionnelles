@@ -401,9 +401,50 @@ function ReferentielsPanel() {
   );
 }
 
+const ELECTION_DATES = [
+  "2026-12-03",
+  "2026-12-04",
+  "2026-12-05",
+  "2026-12-06",
+  "2026-12-07",
+  "2026-12-08",
+  "2026-12-09",
+  "2026-12-10",
+];
+
+function formatDateFr(iso: string): string {
+  const [, m, d] = iso.split("-");
+  return `${d}/${m}`;
+}
+
+const DEFAULT_PSA_EMAIL_TEMPLATE = {
+  subject: "Rappel : votez aux élections professionnelles 2026",
+  body:
+    "Bonjour {{prenom}} {{nom}},\n\n" +
+    "merci de voter aux élections professionnelles" +
+    "{{#if CCMMEP_non_votant and scrutin_local_non_votant}} aux scrutins CCMMEP et {{scrutin_local}}{{/if}}" +
+    "{{#if CCMMEP_non_votant and not(scrutin_local_non_votant)}} au scrutin CCMMEP{{/if}}" +
+    "{{#if not(CCMMEP_non_votant) and scrutin_local_non_votant}} au scrutin {{scrutin_local}}{{/if}}.",
+};
+
+interface RelanceLogEntry {
+  timestamp: string;
+  type: "mail" | "sms";
+  provider: string;
+  scope: string;
+  campagneTag: string;
+  nom: string;
+  prenom: string;
+  contact: string;
+  testMode: boolean;
+  success: boolean;
+}
+
 function PsaPanel() {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<string | null>(null);
+  const [runId, setRunId] = useState<number | null>(null);
+  const [logRefreshKey, setLogRefreshKey] = useState(0);
   const [summary, setSummary] = useState<{
     totalPsa: number;
     votedNational: number;
@@ -419,6 +460,7 @@ function PsaPanel() {
       const run = await api.post<{ runId: number; count: number }>("/psa/simulate", {});
       const results = await api.get<{ summary: typeof summary }>(`/psa/runs/${run.runId}/results`);
       setSummary(results.summary);
+      setRunId(run.runId);
       setResult(`Simulation terminée : ${run.count} émargements générés pour la journée PSA.`);
     } catch (err) {
       setResult((err as Error).message);
@@ -428,38 +470,376 @@ function PsaPanel() {
   }
 
   return (
-    <Card
-      title="Journée des présidents des syndicats adhérents (PSA)"
-      subtitle="Génère une participation aléatoire aux scrutins CCMMEP et local pour chaque jour du 3 au 10 décembre 2026"
-    >
-      <button
-        disabled={busy}
-        onClick={launch}
-        className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
+    <div className="space-y-4">
+      <Card
+        title="Journée des présidents des syndicats adhérents (PSA)"
+        subtitle="Génère une participation aléatoire aux scrutins CCMMEP et local pour chaque jour du 3 au 10 décembre 2026"
       >
-        {busy ? "Simulation en cours…" : "Lancer une simulation"}
-      </button>
-      {result && <p className="mt-3 text-sm text-slate-600">{result}</p>}
-      {summary && (
-        <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <div className="rounded-md bg-slate-50 p-3">
-            <p className="text-xs text-slate-500">PSA</p>
-            <p className="text-lg font-semibold">{summary.totalPsa}</p>
+        <button
+          disabled={busy}
+          onClick={launch}
+          className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
+        >
+          {busy ? "Simulation en cours…" : "Lancer une simulation"}
+        </button>
+        {result && <p className="mt-3 text-sm text-slate-600">{result}</p>}
+        {summary && (
+          <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <div className="rounded-md bg-slate-50 p-3">
+              <p className="text-xs text-slate-500">PSA</p>
+              <p className="text-lg font-semibold">{summary.totalPsa}</p>
+            </div>
+            <div className="rounded-md bg-slate-50 p-3">
+              <p className="text-xs text-slate-500">Votants CCMMEP</p>
+              <p className="text-lg font-semibold">
+                {summary.votedNational} ({(summary.tauxNational * 100).toFixed(0)}%)
+              </p>
+            </div>
+            <div className="rounded-md bg-slate-50 p-3">
+              <p className="text-xs text-slate-500">Votants scrutin local</p>
+              <p className="text-lg font-semibold">
+                {summary.votedLocal} ({(summary.tauxLocal * 100).toFixed(0)}%)
+              </p>
+            </div>
           </div>
-          <div className="rounded-md bg-slate-50 p-3">
-            <p className="text-xs text-slate-500">Votants CCMMEP</p>
-            <p className="text-lg font-semibold">
-              {summary.votedNational} ({(summary.tauxNational * 100).toFixed(0)}%)
-            </p>
+        )}
+      </Card>
+
+      <PsaBrevoSettings />
+      <PsaTemplates />
+      {runId && <PsaRelanceSection runId={runId} onSent={() => setLogRefreshKey((k) => k + 1)} />}
+      <RelanceLogPanel key={logRefreshKey} />
+    </div>
+  );
+}
+
+interface BrevoPlanEntry {
+  type: string;
+  credits: number;
+  creditsType: string;
+}
+
+function PsaBrevoSettings() {
+  const [configured, setConfigured] = useState(false);
+  const [maskedKey, setMaskedKey] = useState<string | null>(null);
+  const [apiKey, setApiKey] = useState("");
+  const [plan, setPlan] = useState<BrevoPlanEntry[] | null>(null);
+  const [planError, setPlanError] = useState<string | null>(null);
+  const [testEmail, setTestEmail] = useState("");
+  const [testMobile, setTestMobile] = useState("");
+  const [saved, setSaved] = useState<string | null>(null);
+
+  function refresh() {
+    api.get<{ configured: boolean; maskedKey: string | null }>("/brevo/settings").then((r) => {
+      setConfigured(r.configured);
+      setMaskedKey(r.maskedKey);
+      if (r.configured) {
+        api
+          .get<{ plan: BrevoPlanEntry[] }>("/brevo/account")
+          .then((res) => {
+            setPlan(res.plan);
+            setPlanError(null);
+          })
+          .catch((err) => {
+            setPlan(null);
+            setPlanError((err as Error).message);
+          });
+      }
+    });
+    api.get<{ testEmail: string | null; testMobile: string | null }>("/admin/test-settings").then((r) => {
+      setTestEmail(r.testEmail ?? "");
+      setTestMobile(r.testMobile ?? "");
+    });
+  }
+  useEffect(refresh, []);
+
+  return (
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <Card
+        title="Clé API Brevo (relances PSA)"
+        subtitle={configured ? `Configurée (${maskedKey})` : "Non configurée — indépendante des clés des Spelcs"}
+      >
+        <div className="flex gap-2">
+          <input
+            type="password"
+            placeholder="Clé API Brevo"
+            className="flex-1 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
+          />
+          <button
+            className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700"
+            onClick={async () => {
+              await api.put("/brevo/settings", { apiKey });
+              setApiKey("");
+              refresh();
+            }}
+          >
+            Enregistrer
+          </button>
+        </div>
+        {configured && plan && plan.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-3">
+            {plan.map((p, i) => (
+              <div key={i} className="rounded-md bg-slate-50 px-3 py-2">
+                <p className="text-xs text-slate-500">
+                  {p.creditsType} ({p.type})
+                </p>
+                <p className="text-lg font-semibold text-slate-800">{p.credits.toLocaleString("fr-FR")}</p>
+              </div>
+            ))}
           </div>
-          <div className="rounded-md bg-slate-50 p-3">
-            <p className="text-xs text-slate-500">Votants scrutin local</p>
-            <p className="text-lg font-semibold">
-              {summary.votedLocal} ({(summary.tauxLocal * 100).toFixed(0)}%)
-            </p>
+        )}
+        {planError && <p className="mt-2 text-sm text-red-600">{planError}</p>}
+      </Card>
+
+      <Card
+        title="Mail / mobile de test (global)"
+        subtitle="Utilisés partout où le mode test est activé : campagnes Brevo des Spelcs et relances PSA"
+      >
+        <div className="space-y-2">
+          <div>
+            <label className="block text-xs font-medium text-slate-500">Mail de test</label>
+            <input
+              type="email"
+              placeholder="moi@exemple.fr"
+              className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+              value={testEmail}
+              onChange={(e) => setTestEmail(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-500">Mobile de test</label>
+            <input
+              type="tel"
+              placeholder="06 00 00 00 00"
+              className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+              value={testMobile}
+              onChange={(e) => setTestMobile(e.target.value)}
+            />
+          </div>
+          <button
+            className="rounded-md bg-slate-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-900"
+            onClick={async () => {
+              await api.put("/admin/test-settings", { testEmail, testMobile });
+              setSaved("Enregistré.");
+              setTimeout(() => setSaved(null), 2000);
+            }}
+          >
+            Enregistrer
+          </button>
+          {saved && <span className="ml-2 text-sm text-emerald-600">{saved}</span>}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function PsaTemplates() {
+  const [emailTemplate, setEmailTemplate] = useState({ subject: "", body: "" });
+  const [smsTemplate, setSmsTemplate] = useState({ body: "" });
+
+  useEffect(() => {
+    api.get<{ subject: string; body: string }>("/psa/templates/email").then(setEmailTemplate);
+    api.get<{ body: string }>("/psa/templates/sms").then(setSmsTemplate);
+  }, []);
+
+  return (
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <Card
+        title="Modèle de mail de relance PSA"
+        subtitle={
+          "Champs : {{nom}} {{prenom}} {{scrutin_local}} · {{CCMMEP_non_votant}} {{scrutin_local_non_votant}} · " +
+          "{{#if expr}}…{{else}}…{{/if}} avec expr combinant and/or/not(...)"
+        }
+      >
+        <button
+          type="button"
+          className="mb-2 rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
+          onClick={() => setEmailTemplate(DEFAULT_PSA_EMAIL_TEMPLATE)}
+        >
+          Charger le modèle prégarni
+        </button>
+        <input
+          className="mb-2 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+          placeholder="Objet du mail"
+          value={emailTemplate.subject}
+          onChange={(e) => setEmailTemplate({ ...emailTemplate, subject: e.target.value })}
+        />
+        <textarea
+          className="h-40 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+          placeholder="Bonjour {{prenom}}, ..."
+          value={emailTemplate.body}
+          onChange={(e) => setEmailTemplate({ ...emailTemplate, body: e.target.value })}
+        />
+        <button
+          className="mt-2 rounded-md bg-slate-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-900"
+          onClick={() => api.put("/psa/templates/email", emailTemplate)}
+        >
+          Enregistrer le modèle
+        </button>
+      </Card>
+      <Card
+        title="Modèle de SMS de relance PSA"
+        subtitle="Mêmes champs que le mail : {{nom}} {{prenom}} {{scrutin_local}} · {{CCMMEP_non_votant}} {{scrutin_local_non_votant}}"
+      >
+        <textarea
+          className="h-40 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+          placeholder="{{prenom}}, pensez à voter au {{scrutin_local}} avant le 10/12."
+          value={smsTemplate.body}
+          onChange={(e) => setSmsTemplate({ body: e.target.value })}
+        />
+        <button
+          className="mt-2 rounded-md bg-slate-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-900"
+          onClick={() => api.put("/psa/templates/sms", { body: smsTemplate.body })}
+        >
+          Enregistrer le modèle
+        </button>
+      </Card>
+    </div>
+  );
+}
+
+function PsaRelanceSection({ runId, onSent }: { runId: number; onSent: () => void }) {
+  const [mailDates, setMailDates] = useState<Set<string>>(new Set());
+  const [smsDates, setSmsDates] = useState<Set<string>>(new Set());
+  const [testMode, setTestMode] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+
+  function toggle(set: Set<string>, setter: (s: Set<string>) => void, date: string) {
+    const next = new Set(set);
+    if (next.has(date)) next.delete(date);
+    else next.add(date);
+    setter(next);
+  }
+
+  async function send() {
+    setBusy(true);
+    setMessage(null);
+    try {
+      const res = await api.post<{ mailSent: number; mailErrors: number; smsSent: number; smsErrors: number }>(
+        "/psa/relance",
+        {
+          runId,
+          mailDates: Array.from(mailDates),
+          smsDates: Array.from(smsDates),
+          testMode,
+        }
+      );
+      setMessage(
+        `Mails : ${res.mailSent} envoyés / ${res.mailErrors} erreurs · SMS : ${res.smsSent} envoyés / ${res.smsErrors} erreurs.`
+      );
+      onSent();
+    } catch (err) {
+      setMessage((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card
+      title="Relances PSA par date"
+      subtitle="Cocher les jours où une relance aurait été envoyée aux PSA n'ayant pas encore voté à cette date (national et/ou local)"
+    >
+      <div className="space-y-3">
+        <div>
+          <p className="mb-1 text-xs font-medium text-slate-500">Dates de relance mail</p>
+          <div className="flex flex-wrap gap-3">
+            {ELECTION_DATES.map((d) => (
+              <label key={d} className="flex items-center gap-1.5 text-sm text-slate-600">
+                <input type="checkbox" checked={mailDates.has(d)} onChange={() => toggle(mailDates, setMailDates, d)} />
+                {formatDateFr(d)}
+              </label>
+            ))}
           </div>
         </div>
-      )}
+        <div>
+          <p className="mb-1 text-xs font-medium text-slate-500">Dates de relance SMS</p>
+          <div className="flex flex-wrap gap-3">
+            {ELECTION_DATES.map((d) => (
+              <label key={d} className="flex items-center gap-1.5 text-sm text-slate-600">
+                <input type="checkbox" checked={smsDates.has(d)} onChange={() => toggle(smsDates, setSmsDates, d)} />
+                {formatDateFr(d)}
+              </label>
+            ))}
+          </div>
+        </div>
+        <label className="flex items-center gap-2 text-sm text-slate-600">
+          <input type="checkbox" checked={testMode} onChange={(e) => setTestMode(e.target.checked)} />
+          Mode test (envoie au mail/mobile de test global plutôt qu'aux vrais PSA)
+        </label>
+        <button
+          disabled={busy || (mailDates.size === 0 && smsDates.size === 0)}
+          onClick={send}
+          className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
+        >
+          {busy ? "Envoi en cours…" : "Envoyer les relances"}
+        </button>
+        {message && <p className="text-sm text-slate-600">{message}</p>}
+      </div>
+    </Card>
+  );
+}
+
+function RelanceLogPanel() {
+  const [entries, setEntries] = useState<RelanceLogEntry[]>([]);
+
+  function refresh() {
+    api.get<{ entries: RelanceLogEntry[] }>("/admin/relance-log?limit=300").then((r) => setEntries(r.entries));
+  }
+  useEffect(refresh, []);
+
+  return (
+    <Card title="Journal des relances" subtitle={`${entries.length} envois récents (mails et SMS, Spelcs et PSA)`}>
+      <button
+        type="button"
+        className="mb-2 rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
+        onClick={refresh}
+      >
+        Actualiser
+      </button>
+      <div className="max-h-96 overflow-auto">
+        <table className="w-full text-sm">
+          <thead className="sticky top-0 bg-white">
+            <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-500">
+              <th className="py-2 pr-4">Horodatage</th>
+              <th className="px-4 py-2">Type</th>
+              <th className="px-4 py-2">Périmètre</th>
+              <th className="px-4 py-2">Campagne</th>
+              <th className="px-4 py-2">Nom</th>
+              <th className="px-4 py-2">Prénom</th>
+              <th className="px-4 py-2">Contact</th>
+              <th className="px-4 py-2">Statut</th>
+            </tr>
+          </thead>
+          <tbody>
+            {entries.map((e, i) => (
+              <tr key={i} className="border-b border-slate-100">
+                <td className="py-1.5 pr-4 text-slate-500">{new Date(e.timestamp).toLocaleString("fr-FR")}</td>
+                <td className="px-4 py-1.5">{e.type === "mail" ? "Mail" : "SMS"}</td>
+                <td className="px-4 py-1.5">
+                  {e.scope}
+                  {e.testMode && <span className="ml-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-xs text-amber-700">test</span>}
+                </td>
+                <td className="px-4 py-1.5 text-slate-500">{e.campagneTag}</td>
+                <td className="px-4 py-1.5">{e.nom}</td>
+                <td className="px-4 py-1.5">{e.prenom}</td>
+                <td className="px-4 py-1.5 text-slate-500">{e.contact}</td>
+                <td className="px-4 py-1.5">
+                  {e.success ? (
+                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700">OK</span>
+                  ) : (
+                    <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700">Échec</span>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {entries.length === 0 && <p className="py-4 text-sm text-slate-400">Aucune relance envoyée pour le moment.</p>}
+      </div>
     </Card>
   );
 }
