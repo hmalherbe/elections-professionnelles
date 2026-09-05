@@ -17,7 +17,7 @@ const COLUMNS: { key: SortKey; label: string; defaultDir: "asc" | "desc" }[] = [
   { key: "label", label: "Académie / Spelc", defaultDir: "asc" },
   { key: "inscrits", label: "Inscrits", defaultDir: "desc" },
   { key: "votants", label: "Votants", defaultDir: "desc" },
-  { key: "taux", label: "Taux", defaultDir: "desc" },
+  { key: "taux", label: "Taux de participation", defaultDir: "desc" },
 ];
 
 function sortNodes<T extends { label: string; inscrits: number; votants: number; taux: number }>(
@@ -70,7 +70,9 @@ export function PivotTree({ tree }: { tree: AcademieNode[] }) {
                   onClick={() => toggleSort(col.key)}
                 >
                   {col.label}
-                  {sortKey === col.key && <span className="ml-1 text-slate-400">{sortDir === "asc" ? "▲" : "▼"}</span>}
+                  <span className={`ml-1 ${sortKey === col.key ? "text-slate-400" : "text-slate-300"}`}>
+                    {sortKey === col.key ? (sortDir === "asc" ? "▲" : "▼") : "⇅"}
+                  </span>
                 </th>
               ))}
             </tr>

@@ -112,6 +112,14 @@ function whereForScope(filter: ScopeFilter, ids: number[]): { clause: string; pa
   if (filter.spelc) {
     parts.push("spelc = ?");
     params.push(filter.spelc);
+  } else if (filter.academie) {
+    // Un Spelc filtre déjà implicitement sur son académie (ils appartiennent
+    // tous les deux au même import "académique"). Mais pour le scope
+    // "national", tous les académies partagent le même import CCMMEP : sans
+    // ce filtre, une académie sans Spelc précisé verrait les chiffres de la
+    // France entière plutôt que les siens.
+    parts.push("academie = ?");
+    params.push(filter.academie);
   }
   return { clause: parts.join(" AND "), params };
 }
@@ -190,6 +198,11 @@ export function scrutinsTab(filter: ScrutinsFilter, limit = 200, offset = 0): Sc
   if (filter.spelc) {
     parts.push("e.spelc = ?");
     params.push(filter.spelc);
+  } else if (filter.academie) {
+    // Même correctif que whereForScope() : sans lui, une académie sans Spelc
+    // précisé verrait les émargements de toute la France en scope national.
+    parts.push("e.academie = ?");
+    params.push(filter.academie);
   }
   if (filter.scrutinType) {
     parts.push("e.scrutin_type = ?");

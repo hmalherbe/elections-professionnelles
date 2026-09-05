@@ -17,8 +17,8 @@ const TABS = [
   "Utilisateurs",
   "Adhérents",
   "Référentiels",
-  "PSA",
   "Assistant",
+  "Journée des PSA le 16 septembre 2026",
 ] as const;
 type Tab = (typeof TABS)[number];
 
@@ -47,8 +47,8 @@ export function AdminGeneralDashboard() {
       {tab === "Utilisateurs" && <UsersPanel />}
       {tab === "Adhérents" && <AdherentsAdminPanel />}
       {tab === "Référentiels" && <ReferentielsPanel />}
-      {tab === "PSA" && <PsaPanel />}
       {tab === "Assistant" && <ChatAssistantPanel />}
+      {tab === "Journée des PSA le 16 septembre 2026" && <PsaPanel />}
     </div>
   );
 }

@@ -10,7 +10,7 @@ const COLUMNS: { key: SortKey; label: string; defaultDir: "asc" | "desc" }[] = [
   { key: "affectation", label: "Établissement", defaultDir: "asc" },
   { key: "inscrits", label: "Inscrits", defaultDir: "desc" },
   { key: "votants", label: "Votants", defaultDir: "desc" },
-  { key: "taux", label: "Taux", defaultDir: "desc" },
+  { key: "taux", label: "Taux de participation", defaultDir: "desc" },
 ];
 
 export function EtablissementsTab({
@@ -73,7 +73,9 @@ export function EtablissementsTab({
                   onClick={() => toggleSort(col.key)}
                 >
                   {col.label}
-                  {sortKey === col.key && <span className="ml-1 text-slate-400">{sortDir === "asc" ? "▲" : "▼"}</span>}
+                  <span className={`ml-1 ${sortKey === col.key ? "text-slate-400" : "text-slate-300"}`}>
+                    {sortKey === col.key ? (sortDir === "asc" ? "▲" : "▼") : "⇅"}
+                  </span>
                 </th>
               ))}
             </tr>
