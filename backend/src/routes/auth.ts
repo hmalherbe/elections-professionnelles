@@ -10,6 +10,7 @@ interface UserRow {
   role: AuthUser["role"];
   academie: string | null;
   spelc: string | null;
+  must_change_password: number;
 }
 
 const router = Router();
@@ -33,12 +34,43 @@ router.post("/login", (req, res) => {
     role: row.role,
     academie: row.academie,
     spelc: row.spelc,
+    mustChangePassword: Boolean(row.must_change_password),
   };
   res.json({ token: signToken(user), user });
 });
 
 router.get("/me", requireAuth, (req, res) => {
   res.json({ user: req.user });
+});
+
+router.put("/change-password", requireAuth, (req, res) => {
+  const { currentPassword, newPassword } = req.body ?? {};
+  if (!currentPassword || !newPassword) {
+    res.status(400).json({ error: "Mot de passe actuel et nouveau mot de passe requis." });
+    return;
+  }
+  if (String(newPassword).length < 8) {
+    res.status(400).json({ error: "Le nouveau mot de passe doit faire au moins 8 caractères." });
+    return;
+  }
+  const row = db.prepare("SELECT * FROM users WHERE id = ?").get(req.user!.id) as UserRow;
+  if (!bcrypt.compareSync(currentPassword, row.password_hash)) {
+    res.status(401).json({ error: "Mot de passe actuel incorrect." });
+    return;
+  }
+  db.prepare("UPDATE users SET password_hash = ?, must_change_password = 0 WHERE id = ?").run(
+    bcrypt.hashSync(String(newPassword), 10),
+    row.id
+  );
+  const user: AuthUser = {
+    id: row.id,
+    email: row.email,
+    role: row.role,
+    academie: row.academie,
+    spelc: row.spelc,
+    mustChangePassword: false,
+  };
+  res.json({ token: signToken(user), user });
 });
 
 export default router;

@@ -155,7 +155,15 @@ function UsersPanel() {
   const [users, setUsers] = useState<ManagedUser[]>([]);
   const [academies, setAcademies] = useState<string[]>([]);
   const [spelcs, setSpelcs] = useState<string[]>([]);
-  const [form, setForm] = useState({ email: "", password: "", role: "admin_academique", academie: "", spelc: "" });
+  const [form, setForm] = useState({
+    email: "",
+    password: "",
+    role: "admin_academique",
+    academie: "",
+    spelc: "",
+    nom: "",
+    prenom: "",
+  });
   const [error, setError] = useState<string | null>(null);
 
   function refresh() {
@@ -177,8 +185,10 @@ function UsersPanel() {
         role: form.role,
         academie: form.role === "admin_academique" ? form.academie : undefined,
         spelc: form.role === "admin_spelc" ? form.spelc : undefined,
+        nom: form.nom || undefined,
+        prenom: form.prenom || undefined,
       });
-      setForm({ email: "", password: "", role: "admin_academique", academie: "", spelc: "" });
+      setForm({ email: "", password: "", role: "admin_academique", academie: "", spelc: "", nom: "", prenom: "" });
       refresh();
     } catch (err) {
       setError((err as Error).message);
@@ -189,6 +199,18 @@ function UsersPanel() {
     <div className="space-y-4">
       <Card title="Créer un compte administrateur">
         <form onSubmit={createUser} className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <input
+            placeholder="Nom"
+            className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+            value={form.nom}
+            onChange={(e) => setForm({ ...form, nom: e.target.value })}
+          />
+          <input
+            placeholder="Prénom"
+            className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+            value={form.prenom}
+            onChange={(e) => setForm({ ...form, prenom: e.target.value })}
+          />
           <input
             required
             type="email"
@@ -253,18 +275,32 @@ function UsersPanel() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-500">
-              <th className="py-2 pr-4">Email</th>
+              <th className="py-2 pr-4">Nom</th>
+              <th className="px-4 py-2">Prénom</th>
+              <th className="px-4 py-2">Email</th>
               <th className="px-4 py-2">Rôle</th>
               <th className="px-4 py-2">Périmètre</th>
+              <th className="px-4 py-2">Mot de passe</th>
               <th className="px-4 py-2"></th>
             </tr>
           </thead>
           <tbody>
             {users.map((u) => (
               <tr key={u.id} className="border-b border-slate-100">
-                <td className="py-1.5 pr-4">{u.email}</td>
+                <td className="py-1.5 pr-4">{u.nom ?? "—"}</td>
+                <td className="px-4 py-1.5">{u.prenom ?? "—"}</td>
+                <td className="px-4 py-1.5">{u.email}</td>
                 <td className="px-4 py-1.5">{u.role}</td>
                 <td className="px-4 py-1.5 text-slate-500">{u.academie ?? u.spelc ?? "—"}</td>
+                <td className="px-4 py-1.5">
+                  {u.must_change_password ? (
+                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-700">
+                      À changer
+                    </span>
+                  ) : (
+                    <span className="text-xs text-slate-400">—</span>
+                  )}
+                </td>
                 <td className="px-4 py-1.5 text-right">
                   {u.role !== "admin_general" && (
                     <button
@@ -283,6 +319,31 @@ function UsersPanel() {
           </tbody>
         </table>
       </Card>
+
+      <FileUploadCard
+        title="Importer des admins Spelc / académiques (CSV ou Excel)"
+        subtitle={
+          "Mot de passe attribué à chaque compte créé : \"ElectionsCCM2026\" (à changer à la première connexion). " +
+          "Les Spelc/académies doivent déjà exister dans les référentiels (onglet Référentiels)."
+        }
+        expectedColumns={["type_admin (spelc|academique)", "nom", "prenom", "email", "spelc", "academie"]}
+        accept=".csv,.xlsx"
+        onUpload={async (file) => {
+          const fd = new FormData();
+          fd.append("file", file);
+          const res = await api.upload<{ created: number; errors: { row: number; message: string }[] }>(
+            "/admin/users/import",
+            fd
+          );
+          refresh();
+          const summary = `${res.created} compte(s) créé(s).`;
+          if (res.errors.length > 0) {
+            const errorLines = res.errors.map((e) => `Ligne ${e.row} : ${e.message}`);
+            throw new Error(`${summary}\n${errorLines.join("\n")}`);
+          }
+          return summary;
+        }}
+      />
     </div>
   );
 }

@@ -58,7 +58,11 @@ export function FileUploadCard({ title, subtitle, expectedColumns, accept, extra
         />
         {busy && <p className="text-xs text-slate-400">Import en cours…</p>}
         {status && (
-          <p className={`text-xs ${status.type === "ok" ? "text-emerald-600" : "text-red-600"}`}>{status.message}</p>
+          <p
+            className={`whitespace-pre-line text-xs ${status.type === "ok" ? "text-emerald-600" : "text-red-600"}`}
+          >
+            {status.message}
+          </p>
         )}
       </div>
     </Card>

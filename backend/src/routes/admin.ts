@@ -11,6 +11,7 @@ import {
 } from "../services/reference.js";
 import { getTestContactSettings, setSetting } from "../services/settings.js";
 import { readRelanceLog } from "../lib/relanceLog.js";
+import { importUsersFromFile } from "../services/userImport.js";
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } });
@@ -19,13 +20,15 @@ router.use(requireAuth, requireRole("admin_general"));
 
 router.get("/users", (_req, res) => {
   const rows = db
-    .prepare("SELECT id, email, role, academie, spelc, created_at FROM users ORDER BY created_at DESC")
+    .prepare(
+      "SELECT id, email, role, academie, spelc, nom, prenom, must_change_password, created_at FROM users ORDER BY created_at DESC"
+    )
     .all();
   res.json({ users: rows });
 });
 
 router.post("/users", (req, res) => {
-  const { email, password, role, academie, spelc } = req.body ?? {};
+  const { email, password, role, academie, spelc, nom, prenom } = req.body ?? {};
   if (!email || !password || !role) {
     res.status(400).json({ error: "email, password et role sont requis." });
     return;
@@ -45,18 +48,39 @@ router.post("/users", (req, res) => {
   try {
     const info = db
       .prepare(
-        "INSERT INTO users (email, password_hash, role, academie, spelc) VALUES (?, ?, ?, ?, ?)"
+        "INSERT INTO users (email, password_hash, role, academie, spelc, nom, prenom) VALUES (?, ?, ?, ?, ?, ?, ?)"
       )
       .run(
         String(email).toLowerCase().trim(),
         bcrypt.hashSync(String(password), 10),
         role,
         academie ?? null,
-        spelc ?? null
+        spelc ?? null,
+        nom ?? null,
+        prenom ?? null
       );
     res.status(201).json({ id: info.lastInsertRowid });
   } catch (err) {
     res.status(409).json({ error: "Un compte existe déjà avec cet email." });
+  }
+});
+
+/**
+ * Import en masse d'admins Spelc/académique depuis un CSV ou Excel.
+ * Colonnes : type_admin (spelc|academique), nom, prenom, email, spelc,
+ * academie. Mot de passe fixe (ElectionsCCM2026), à changer à la 1re
+ * connexion — voir services/userImport.ts.
+ */
+router.post("/users/import", upload.single("file"), async (req, res) => {
+  if (!req.file) {
+    res.status(400).json({ error: "Fichier requis." });
+    return;
+  }
+  try {
+    const result = await importUsersFromFile(req.file.buffer, req.file.originalname);
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
   }
 });
 

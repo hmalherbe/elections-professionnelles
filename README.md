@@ -101,6 +101,17 @@ Le compte admin général créé par le seed :
   API Brevo et ses modèles de mail/SMS, envoie des campagnes de relance et
   suit leurs statistiques, consulte les tableaux de bord de son Spelc.
 
+### Gestion des comptes (admin général)
+
+Onglet Utilisateurs : création manuelle d'un compte, ou **import en masse**
+d'admins Spelc/académiques depuis un CSV ou Excel (colonnes : `type_admin`
+["spelc" ou "academique"], `nom`, `prenom`, `email`, `spelc`, `academie` —
+le Spelc/l'académie doit déjà exister dans les référentiels). Chaque compte
+importé reçoit le mot de passe temporaire `ElectionsCCM2026`, à changer
+obligatoirement à la première connexion. Tout utilisateur, y compris
+l'admin général, peut changer son mot de passe à tout moment via le bouton
+« Changer mon mot de passe » de l'en-tête.
+
 ## Règles métier implémentées
 
 - **Département** extrait du code postal contenu dans `affectation` (2

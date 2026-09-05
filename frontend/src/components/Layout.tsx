@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../lib/auth";
+import { ChangePasswordForm } from "./ChangePasswordForm";
 
 const roleLabels: Record<string, string> = {
   admin_general: "Administrateur général",
@@ -14,6 +16,7 @@ interface NavItem {
 
 export function Layout({ navItems }: { navItems: NavItem[] }) {
   const { user, logout } = useAuth();
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -32,6 +35,12 @@ export function Layout({ navItems }: { navItems: NavItem[] }) {
                 {user?.spelc ? ` · ${user.spelc}` : ""}
               </p>
             </div>
+            <button
+              onClick={() => setShowPasswordForm(true)}
+              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
+            >
+              Changer mon mot de passe
+            </button>
             <button
               onClick={logout}
               className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
@@ -61,6 +70,18 @@ export function Layout({ navItems }: { navItems: NavItem[] }) {
       <main className="mx-auto max-w-7xl px-6 py-6">
         <Outlet />
       </main>
+      {showPasswordForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4">
+          <div className="w-full max-w-sm rounded-lg bg-white p-6 shadow-lg">
+            <h2 className="mb-1 text-base font-semibold text-slate-900">Changer mon mot de passe</h2>
+            <p className="mb-4 text-sm text-slate-500">Applicable à tous les comptes, y compris l'admin général.</p>
+            <ChangePasswordForm
+              onSuccess={() => setShowPasswordForm(false)}
+              onCancel={() => setShowPasswordForm(false)}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -6,6 +6,7 @@ export interface AuthUser {
   role: Role;
   academie: string | null;
   spelc: string | null;
+  mustChangePassword: boolean;
 }
 
 export interface ParticipationRow {
@@ -70,5 +71,8 @@ export interface ManagedUser {
   role: Role;
   academie: string | null;
   spelc: string | null;
+  nom: string | null;
+  prenom: string | null;
+  must_change_password: number;
   created_at: string;
 }

@@ -3,6 +3,7 @@ import { Layout } from "./components/Layout";
 import { AdminAcademiqueDashboard } from "./pages/AdminAcademiqueDashboard";
 import { AdminGeneralDashboard } from "./pages/AdminGeneralDashboard";
 import { AdminSpelcDashboard } from "./pages/AdminSpelcDashboard";
+import { ForcedPasswordChange } from "./pages/ForcedPasswordChange";
 import { Login } from "./pages/Login";
 import { useAuth } from "./lib/auth";
 
@@ -15,6 +16,7 @@ export default function App() {
 
   if (loading) return <LoadingScreen />;
   if (!user) return <Login />;
+  if (user.mustChangePassword) return <ForcedPasswordChange />;
 
   if (user.role === "admin_general") {
     return (

@@ -11,8 +11,31 @@ function Bar({ taux }: { taux: number }) {
   );
 }
 
+type SortKey = "label" | "inscrits" | "votants" | "taux";
+
+const COLUMNS: { key: SortKey; label: string; defaultDir: "asc" | "desc" }[] = [
+  { key: "label", label: "Académie / Spelc", defaultDir: "asc" },
+  { key: "inscrits", label: "Inscrits", defaultDir: "desc" },
+  { key: "votants", label: "Votants", defaultDir: "desc" },
+  { key: "taux", label: "Taux", defaultDir: "desc" },
+];
+
+function sortNodes<T extends { label: string; inscrits: number; votants: number; taux: number }>(
+  nodes: T[],
+  sortKey: SortKey,
+  sortDir: "asc" | "desc"
+): T[] {
+  const dir = sortDir === "asc" ? 1 : -1;
+  return [...nodes].sort((a, b) => {
+    if (sortKey === "label") return a.label.localeCompare(b.label) * dir;
+    return (a[sortKey] - b[sortKey]) * dir;
+  });
+}
+
 export function PivotTree({ tree }: { tree: AcademieNode[] }) {
   const [open, setOpen] = useState<Set<string>>(new Set());
+  const [sortKey, setSortKey] = useState<SortKey>("label");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
   function toggle(label: string) {
     setOpen((prev) => {
@@ -23,20 +46,37 @@ export function PivotTree({ tree }: { tree: AcademieNode[] }) {
     });
   }
 
+  function toggleSort(key: SortKey) {
+    if (key === sortKey) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir(COLUMNS.find((c) => c.key === key)!.defaultDir);
+    }
+  }
+
+  const sortedTree = sortNodes(tree, sortKey, sortDir);
+
   return (
     <Card title="Participation par académie (cascade par Spelc)">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-500">
-              <th className="py-2 pr-4">Académie / Spelc</th>
-              <th className="px-4 py-2">Inscrits</th>
-              <th className="px-4 py-2">Votants</th>
-              <th className="px-4 py-2">Taux</th>
+              {COLUMNS.map((col) => (
+                <th
+                  key={col.key}
+                  className={`cursor-pointer select-none py-2 ${col.key === "label" ? "pr-4" : "px-4"} hover:text-slate-700`}
+                  onClick={() => toggleSort(col.key)}
+                >
+                  {col.label}
+                  {sortKey === col.key && <span className="ml-1 text-slate-400">{sortDir === "asc" ? "▲" : "▼"}</span>}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
-            {tree.map((node) => (
+            {sortedTree.map((node) => (
               <Fragment key={node.label}>
                 <tr className="cursor-pointer border-b border-slate-100 hover:bg-slate-50" onClick={() => toggle(node.label)}>
                   <td className="py-2 pr-4 font-medium text-slate-800">
@@ -53,7 +93,7 @@ export function PivotTree({ tree }: { tree: AcademieNode[] }) {
                   </td>
                 </tr>
                 {open.has(node.label) &&
-                  node.spelcs.map((s) => (
+                  sortNodes(node.spelcs, sortKey, sortDir).map((s) => (
                     <tr key={node.label + s.label} className="border-b border-slate-50 bg-slate-50/60">
                       <td className="py-1.5 pl-8 pr-4 text-slate-600">{s.label}</td>
                       <td className="px-4 py-1.5 text-slate-500">{s.inscrits.toLocaleString("fr-FR")}</td>

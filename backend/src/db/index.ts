@@ -186,6 +186,9 @@ export function migrate(): void {
 
   addColumnIfMissing("relances_mail", "is_test", "INTEGER NOT NULL DEFAULT 0");
   addColumnIfMissing("relances_sms", "is_test", "INTEGER NOT NULL DEFAULT 0");
+  addColumnIfMissing("users", "nom", "TEXT");
+  addColumnIfMissing("users", "prenom", "TEXT");
+  addColumnIfMissing("users", "must_change_password", "INTEGER NOT NULL DEFAULT 0");
 }
 
 /**
