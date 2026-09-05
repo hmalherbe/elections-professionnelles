@@ -8,6 +8,87 @@ interface ChatMessage {
   content: string;
 }
 
+const SEPARATOR_ROW = /^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?\s*$/;
+
+function splitTableRow(line: string): string[] {
+  let cells = line.trim();
+  if (cells.startsWith("|")) cells = cells.slice(1);
+  if (cells.endsWith("|")) cells = cells.slice(0, -1);
+  return cells.split("|").map((c) => c.trim());
+}
+
+/**
+ * Mistral répond parfois avec un tableau au format Markdown (texte brut,
+ * colonnes séparées par des "|" et une ligne de tirets) — illisible tel
+ * quel dans une bulle de chat en police proportionnelle, les tirets ne
+ * s'alignant jamais avec le contenu. On détecte ce format et on le rend en
+ * vraie balise <table>, sans dépendre d'un parseur Markdown complet ni de
+ * dangerouslySetInnerHTML (le contenu reste du texte, jamais du HTML).
+ */
+function renderAssistantContent(content: string) {
+  const lines = content.split("\n");
+  const blocks: { type: "text" | "table"; lines: string[] }[] = [];
+  let i = 0;
+  while (i < lines.length) {
+    const isHeaderCandidate = lines[i].includes("|");
+    const isSeparator = i + 1 < lines.length && SEPARATOR_ROW.test(lines[i + 1]);
+    if (isHeaderCandidate && isSeparator) {
+      const tableLines = [lines[i]];
+      i += 2; // saute l'en-tête + la ligne de séparation
+      while (i < lines.length && lines[i].includes("|")) {
+        tableLines.push(lines[i]);
+        i++;
+      }
+      blocks.push({ type: "table", lines: tableLines });
+    } else {
+      const textLines: string[] = [];
+      while (i < lines.length && !(lines[i].includes("|") && i + 1 < lines.length && SEPARATOR_ROW.test(lines[i + 1]))) {
+        textLines.push(lines[i]);
+        i++;
+      }
+      blocks.push({ type: "text", lines: textLines });
+    }
+  }
+
+  return blocks.map((block, bi) => {
+    if (block.type === "text") {
+      const text = block.lines.join("\n").trim();
+      return text ? (
+        <p key={bi} className="whitespace-pre-wrap">
+          {text}
+        </p>
+      ) : null;
+    }
+    const [header, ...rows] = block.lines.map(splitTableRow);
+    return (
+      <div key={bi} className="overflow-x-auto">
+        <table className="min-w-full border-collapse text-xs">
+          <thead>
+            <tr>
+              {header.map((cell, ci) => (
+                <th key={ci} className="border-b border-slate-300 px-2 py-1 text-left font-semibold text-slate-600">
+                  {cell}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, ri) => (
+              <tr key={ri} className="odd:bg-slate-50">
+                {row.map((cell, ci) => (
+                  <td key={ci} className="border-b border-slate-100 px-2 py-1 text-slate-700">
+                    {cell}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  });
+}
+
 const SUGGESTIONS_BY_ROLE: Record<string, string[]> = {
   admin_general: [
     "Quel est le taux de participation national au CCMMEP ?",
@@ -130,17 +211,21 @@ export function ChatAssistantPanel() {
                 ))}
               </div>
             )}
-            {messages.map((m, i) => (
-              <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-                <div
-                  className={`max-w-[80%] whitespace-pre-wrap rounded-lg px-3 py-2 text-sm ${
-                    m.role === "user" ? "bg-slate-800 text-white" : "bg-white text-slate-700 border border-slate-200"
-                  }`}
-                >
-                  {m.content}
+            {messages.map((m, i) =>
+              m.role === "user" ? (
+                <div key={i} className="flex justify-end">
+                  <div className="max-w-[80%] whitespace-pre-wrap rounded-lg bg-slate-800 px-3 py-2 text-sm text-white">
+                    {m.content}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ) : (
+                <div key={i} className="flex justify-start">
+                  <div className="max-w-full space-y-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">
+                    {renderAssistantContent(m.content)}
+                  </div>
+                </div>
+              )
+            )}
             {busy && <p className="text-sm text-slate-400">L'assistant réfléchit…</p>}
             <div ref={bottomRef} />
           </div>
