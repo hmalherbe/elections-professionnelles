@@ -137,7 +137,8 @@ export function buildToolsForRole(role: AuthUser["role"]): ToolDef[] {
       type: "function",
       function: {
         name: "adherents_spelc",
-        description: "Nombre d'adhérents déclarés pour un Spelc, et combien d'entre eux ont voté au scrutin national CCMMEP.",
+        description:
+          "Adhérents d'un Spelc : combien sont déclarés, combien ont voté au scrutin national CCMMEP, et la même chose pour les non-adhérents (total d'inscrits au scrutin moins les adhérents). Si le nombre de non-adhérents est nul ou très faible, c'est que la liste d'adhérents couvre déjà la quasi-totalité des inscrits — un taux à 0% chez les non-adhérents n'est alors pas une anomalie.",
         parameters:
           role === "admin_general"
             ? { type: "object", properties: { spelc: { type: "string", description: "Nom du Spelc." } }, required: ["spelc"] }
@@ -213,15 +214,32 @@ export function executeTool(name: string, args: Record<string, unknown>, user: A
       }
       const spelc = user.role === "admin_spelc" ? user.spelc! : String(args.spelc ?? "").trim();
       if (!spelc) throw new Error("Spelc requis.");
+      const academie = spelcAcademie(spelc);
       const totalAdherents = (
         db.prepare("SELECT COUNT(*) AS c FROM adherents WHERE spelc = ?").get(spelc) as { c: number }
       ).c;
       const votantsAdherents = scrutinsTab(
-        { scope: "national", academie: spelcAcademie(spelc), spelc, votant: "votant", adherent: "oui" },
+        { scope: "national", academie, spelc, votant: "votant", adherent: "oui" },
         1,
         0
       ).totalRows;
-      return { spelc, totalAdherents, votantsAdherents };
+      // On renvoie systématiquement le total d'inscrits au scrutin à côté du
+      // nombre d'adhérents : sans ça, un taux de 0% chez les non-adhérents
+      // (légitime si la liste d'adhérents couvre déjà tous les inscrits,
+      // comme c'est le cas sur des jeux de test dérivés du même fichier)
+      // semble être une erreur de calcul alors que ce n'en est pas une.
+      const { votants: totalVotants, nonVotants: totalNonVotants } = camembert({ scope: "national", academie, spelc });
+      const totalInscrits = totalVotants + totalNonVotants;
+      const totalNonAdherents = Math.max(totalInscrits - totalAdherents, 0);
+      const votantsNonAdherents = Math.max(totalVotants - votantsAdherents, 0);
+      return {
+        spelc,
+        totalAdherents,
+        votantsAdherents,
+        totalInscritsScrutinNational: totalInscrits,
+        totalNonAdherents,
+        votantsNonAdherents,
+      };
     }
     default:
       throw new Error(`Outil inconnu : ${name}`);
