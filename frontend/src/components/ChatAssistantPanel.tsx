@@ -89,21 +89,30 @@ function renderAssistantContent(content: string) {
   });
 }
 
+// Questions choisies pour obliger l'assistant à croiser plusieurs outils
+// (pas juste lire un seul chiffre) : comparaisons, écarts, seuils dans le
+// temps... un bon test de sa capacité à vraiment combiner les données.
 const SUGGESTIONS_BY_ROLE: Record<string, string[]> = {
   admin_general: [
-    "Quel est le taux de participation national au CCMMEP ?",
-    "Quelles sont les 5 académies avec le plus de non-votants ?",
-    "Combien d'adhérents a le Spelc Côte d'Azur, et combien ont voté ?",
+    "Quelles sont les 3 académies avec le meilleur taux de participation et les 3 avec le plus faible, et quel est l'écart entre elles ?",
+    "Le Spelc Côte d'Azur est-il plus engagé que la moyenne de son académie ?",
+    "Pour le Spelc Côte d'Azur, quelle est la différence de taux de vote entre les adhérents et les non-adhérents ?",
+    "À quelle date le taux de participation national a-t-il dépassé 50 %, et quel est l'écart avec le taux final ?",
+    "Quels sont les établissements avec le plus d'inscrits mais un taux de participation inférieur à la moyenne nationale ?",
   ],
   admin_academique: [
-    "Quel est le taux de participation de mon académie au scrutin national ?",
-    "Quels établissements ont le moins voté ?",
-    "Quelle est la répartition par type de scrutin académique ?",
+    "Quel est l'écart entre le taux de participation de mon académie au scrutin national et celui du scrutin académique local ?",
+    "Quels sont les 3 établissements avec le plus d'inscrits mais le taux de participation le plus faible ?",
+    "Quelle est la répartition des votants par type de scrutin académique, et lequel a le meilleur taux de participation ?",
+    "À quelle date mon académie a-t-elle dépassé 50 % de participation au scrutin national ?",
+    "Quels établissements de mon académie n'ont pas encore atteint 30 % de participation ?",
   ],
   admin_spelc: [
-    "Combien de mes adhérents ont voté ?",
-    "Quel est le taux de participation de mon Spelc ?",
-    "Quels sont mes adhérents qui n'ont pas encore voté ?",
+    "Quelle est la différence de taux de vote entre mes adhérents et mes non-adhérents ?",
+    "Quel est l'écart entre le taux de participation de mon Spelc au scrutin national et au scrutin académique local ?",
+    "Parmi mes adhérents, quelle proportion a déjà voté, et combien n'ont pas encore voté ?",
+    "Quels sont mes établissements avec le plus d'inscrits mais un taux de participation inférieur à celui de mon Spelc ?",
+    "À quelle date le taux de participation de mon Spelc a-t-il dépassé 50 %, et quel est l'écart avec le taux final ?",
   ],
 };
 
@@ -198,18 +207,9 @@ export function ChatAssistantPanel() {
         <>
           <div className="h-80 space-y-3 overflow-y-auto rounded-md border border-slate-200 bg-slate-50 p-3">
             {messages.length === 0 && (
-              <div className="space-y-2">
-                <p className="text-sm text-slate-400">Exemples de questions :</p>
-                {suggestions.map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => send(s)}
-                    className="block w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-left text-sm text-slate-600 hover:bg-slate-100"
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
+              <p className="text-sm text-slate-400">
+                Posez une question, ou choisissez une idée de question ci-dessous.
+              </p>
             )}
             {messages.map((m, i) =>
               m.role === "user" ? (
@@ -232,8 +232,27 @@ export function ChatAssistantPanel() {
 
           {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
 
+          {suggestions.length > 0 && (
+            <select
+              className="mt-3 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-600"
+              value=""
+              disabled={busy}
+              onChange={(e) => {
+                if (e.target.value) send(e.target.value);
+                e.target.value = "";
+              }}
+            >
+              <option value="">💡 Idées de questions…</option>
+              {suggestions.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          )}
+
           <form
-            className="mt-3 flex gap-2"
+            className="mt-2 flex gap-2"
             onSubmit={(e) => {
               e.preventDefault();
               send(input);
