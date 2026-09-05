@@ -24,6 +24,16 @@ function clampTestLimit(value: unknown): number {
   return Math.min(Math.floor(n), MAX_TEST_RECIPIENTS);
 }
 
+/** Plafond d'envoi SMS (réel ou test) pour éviter de consommer tous les crédits d'un coup. */
+const MAX_SMS_SEND_LIMIT = 500;
+const DEFAULT_SMS_SEND_LIMIT = 20;
+
+function clampSmsLimit(value: unknown): number {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 1) return DEFAULT_SMS_SEND_LIMIT;
+  return Math.min(Math.floor(n), MAX_SMS_SEND_LIMIT);
+}
+
 const router = Router();
 router.use(requireAuth);
 
@@ -260,7 +270,7 @@ router.post("/campaigns/email", requireRole("admin_spelc"), async (req, res) => 
 
 router.post("/campaigns/sms", requireRole("admin_spelc"), async (req, res) => {
   const spelc = req.user!.spelc!;
-  const { tag, onlyNonVotants = true, testMode, testLimit } = req.body ?? {};
+  const { tag, onlyNonVotants = true, testMode, smsLimit } = req.body ?? {};
   const user = db.prepare("SELECT brevo_api_key FROM users WHERE id = ?").get(req.user!.id) as {
     brevo_api_key: string | null;
   };
@@ -283,7 +293,7 @@ router.post("/campaigns/sms", requireRole("admin_spelc"), async (req, res) => {
 
   let recipients = testMode ? matchedAdherents(spelc) : matchedAdherents(spelc).filter((r) => r.mobile);
   if (onlyNonVotants) recipients = recipients.filter(needsRelance);
-  if (testMode) recipients = recipients.slice(0, clampTestLimit(testLimit));
+  recipients = recipients.slice(0, clampSmsLimit(smsLimit));
 
   const campagneTag = (tag ?? "relance") + (testMode ? "-test" : "");
   let sent = 0;

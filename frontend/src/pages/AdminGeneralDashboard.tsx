@@ -758,6 +758,7 @@ function PsaRelanceSection({ runId, onSent }: { runId: number; onSent: () => voi
   const [mailDates, setMailDates] = useState<Set<string>>(new Set());
   const [smsDates, setSmsDates] = useState<Set<string>>(new Set());
   const [testMode, setTestMode] = useState(true);
+  const [smsLimit, setSmsLimit] = useState(20);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -779,6 +780,7 @@ function PsaRelanceSection({ runId, onSent }: { runId: number; onSent: () => voi
           mailDates: Array.from(mailDates),
           smsDates: Array.from(smsDates),
           testMode,
+          smsLimit,
         }
       );
       setMessage(
@@ -837,6 +839,21 @@ function PsaRelanceSection({ runId, onSent }: { runId: number; onSent: () => voi
           <input type="checkbox" checked={testMode} onChange={(e) => setTestMode(e.target.checked)} />
           Mode test (envoie au mail/mobile de test global plutôt qu'aux vrais PSA)
         </label>
+        <div>
+          <label className="block text-xs font-medium text-slate-500">Limite d'envoi SMS</label>
+          <input
+            type="number"
+            min={1}
+            max={500}
+            className="mt-1 w-32 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+            value={smsLimit}
+            onChange={(e) => setSmsLimit(Number(e.target.value))}
+          />
+          <p className="mt-1 text-xs text-slate-500">
+            Nombre max de SMS envoyés au total (toutes dates cochées confondues), pour ne pas consommer plus de
+            crédits que prévu.
+          </p>
+        </div>
         <button
           disabled={busy || (mailDates.size === 0 && smsDates.size === 0)}
           onClick={send}

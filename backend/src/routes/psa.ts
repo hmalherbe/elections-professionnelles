@@ -8,6 +8,16 @@ import { getTestContactSettings } from "../services/settings.js";
 import { appendRelanceLog } from "../lib/relanceLog.js";
 import { normalizeFrenchMobile } from "../lib/phone.js";
 
+/** Plafond d'envoi SMS pour ne pas consommer plus de crédits Brevo que prévu. */
+const MAX_SMS_SEND_LIMIT = 500;
+const DEFAULT_SMS_SEND_LIMIT = 20;
+
+function clampSmsLimit(value: unknown): number {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 1) return DEFAULT_SMS_SEND_LIMIT;
+  return Math.min(Math.floor(n), MAX_SMS_SEND_LIMIT);
+}
+
 const router = Router();
 router.use(requireAuth, requireRole("admin_general"));
 
@@ -144,7 +154,7 @@ function templateFieldsForPsa(p: PsaVoteInfo, endOfDay: string): TemplateFields 
  * les campagnes des Spelcs — et journalise chaque envoi individuel.
  */
 router.post("/relance", async (req, res) => {
-  const { runId, mailDates = [], smsDates = [], testMode } = req.body ?? {};
+  const { runId, mailDates = [], smsDates = [], testMode, smsLimit } = req.body ?? {};
   if (!runId) {
     res.status(400).json({ error: "runId requis." });
     return;
@@ -240,35 +250,42 @@ router.post("/relance", async (req, res) => {
 
   if (smsDates.length > 0) {
     const template = smsTemplate!;
+    const candidates: { dateStr: string; p: PsaVoteInfo }[] = [];
     for (const dateStr of smsDates as string[]) {
       const endOfDay = `${dateStr}T23:59:59.999Z`;
       for (const p of people) {
         const fields = templateFieldsForPsa(p, endOfDay);
         if (!fields.nonVotantNational && !fields.nonVotantLocal) continue;
         if (!testMode && !p.mobile) continue;
-        const mobile = testMode ? testContact!.testMobile! : p.mobile!;
-        const campagneTag = `psa-${dateStr}` + (testMode ? "-test" : "");
-        const result = await sendBrevoSms({
-          apiKey: user.brevo_api_key!,
-          recipients: [normalizeFrenchMobile(mobile)],
-          content: renderTemplate(template.body, fields),
-          tag: campagneTag,
-        });
-        smsSent += result.sent;
-        smsErrors += result.errors;
-        appendRelanceLog({
-          timestamp: new Date().toISOString(),
-          type: "sms",
-          provider: "Brevo",
-          scope: "PSA",
-          campagneTag,
-          nom: p.nom,
-          prenom: p.prenom,
-          contact: mobile,
-          testMode: Boolean(testMode),
-          success: result.sent > 0,
-        });
+        candidates.push({ dateStr, p });
       }
+    }
+    // Plafonnée pour ne pas consommer plus de crédits SMS que prévu.
+    for (const { dateStr, p } of candidates.slice(0, clampSmsLimit(smsLimit))) {
+      const endOfDay = `${dateStr}T23:59:59.999Z`;
+      const fields = templateFieldsForPsa(p, endOfDay);
+      const mobile = testMode ? testContact!.testMobile! : p.mobile!;
+      const campagneTag = `psa-${dateStr}` + (testMode ? "-test" : "");
+      const result = await sendBrevoSms({
+        apiKey: user.brevo_api_key!,
+        recipients: [normalizeFrenchMobile(mobile)],
+        content: renderTemplate(template.body, fields),
+        tag: campagneTag,
+      });
+      smsSent += result.sent;
+      smsErrors += result.errors;
+      appendRelanceLog({
+        timestamp: new Date().toISOString(),
+        type: "sms",
+        provider: "Brevo",
+        scope: "PSA",
+        campagneTag,
+        nom: p.nom,
+        prenom: p.prenom,
+        contact: mobile,
+        testMode: Boolean(testMode),
+        success: result.sent > 0,
+      });
     }
   }
 

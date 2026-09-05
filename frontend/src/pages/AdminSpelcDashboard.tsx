@@ -196,7 +196,7 @@ function BrevoPanel({ spelc }: { spelc: string }) {
   const [planError, setPlanError] = useState<string | null>(null);
   const [testMode, setTestMode] = useState(false);
   const [testMailLimit, setTestMailLimit] = useState(3);
-  const [testSmsLimit, setTestSmsLimit] = useState(3);
+  const [smsLimit, setSmsLimit] = useState(20);
 
   function refreshAll() {
     api.get<{ configured: boolean; maskedKey: string | null }>("/brevo/settings").then((r) => {
@@ -365,16 +365,31 @@ function BrevoPanel({ spelc }: { spelc: string }) {
             <input type="checkbox" checked={testMode} onChange={(e) => setTestMode(e.target.checked)} />
             Mode test
           </label>
+          <div>
+            <label className="block text-xs font-medium text-slate-500">Limite d'envoi SMS</label>
+            <input
+              type="number"
+              min={1}
+              max={500}
+              className="mt-1 w-32 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+              value={smsLimit}
+              onChange={(e) => setSmsLimit(Number(e.target.value))}
+            />
+          </div>
         </div>
+        <p className="mt-1 text-xs text-slate-500">
+          La limite d'envoi SMS s'applique aussi bien en mode test qu'en envoi réel, pour ne pas consommer plus de
+          crédits que prévu.
+        </p>
 
         {testMode && (
-          <div className="mt-3 grid grid-cols-1 gap-3 rounded-md border border-amber-200 bg-amber-50 p-3 sm:grid-cols-2">
-            <p className="col-span-full text-xs text-amber-800">
+          <div className="mt-3 grid grid-cols-1 gap-3 rounded-md border border-amber-200 bg-amber-50 p-3">
+            <p className="text-xs text-amber-800">
               En mode test, les mails/SMS sont envoyés au mail/mobile de test configuré par l'admin général (pas aux
               vrais adhérents), en utilisant le contenu personnalisé des N premiers adhérents ciblés — utile pour
               vérifier le rendu du modèle sans consommer de crédits sur de vraies personnes.
             </p>
-            <div>
+            <div className="max-w-[10rem]">
               <label className="block text-xs font-medium text-slate-500">Nombre de mails à envoyer</label>
               <input
                 type="number"
@@ -383,17 +398,6 @@ function BrevoPanel({ spelc }: { spelc: string }) {
                 className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
                 value={testMailLimit}
                 onChange={(e) => setTestMailLimit(Number(e.target.value))}
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-500">Nombre de SMS à envoyer</label>
-              <input
-                type="number"
-                min={1}
-                max={20}
-                className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-                value={testSmsLimit}
-                onChange={(e) => setTestSmsLimit(Number(e.target.value))}
               />
             </div>
           </div>
@@ -425,7 +429,7 @@ function BrevoPanel({ spelc }: { spelc: string }) {
                 const res = await api.post<{ sent: number; errors: number; total: number }>("/brevo/campaigns/sms", {
                   tag: campagneTag,
                   testMode,
-                  testLimit: testSmsLimit,
+                  smsLimit,
                 });
                 setMessage(`SMS : ${res.sent}/${res.total} envoyés, ${res.errors} erreurs.`);
                 refreshAll();
