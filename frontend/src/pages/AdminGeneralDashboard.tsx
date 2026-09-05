@@ -427,6 +427,14 @@ const DEFAULT_PSA_EMAIL_TEMPLATE = {
     "{{#if not(CCMMEP_non_votant) and scrutin_local_non_votant}} au scrutin {{scrutin_local}}{{/if}}.",
 };
 
+const DEFAULT_PSA_SMS_TEMPLATE = {
+  body:
+    "Elections pro 2026 : {{prenom}}, pensez à voter" +
+    "{{#if CCMMEP_non_votant and scrutin_local_non_votant}} au CCMMEP et au {{scrutin_local}}{{/if}}" +
+    "{{#if CCMMEP_non_votant and not(scrutin_local_non_votant)}} au CCMMEP{{/if}}" +
+    "{{#if not(CCMMEP_non_votant) and scrutin_local_non_votant}} au {{scrutin_local}}{{/if}} avant le 10/12.",
+};
+
 interface RelanceLogEntry {
   timestamp: string;
   type: "mail" | "sms";
@@ -519,6 +527,10 @@ interface BrevoPlanEntry {
   creditsType: string;
 }
 
+function creditLabel(type: string): string {
+  return type.toLowerCase().includes("sms") ? "Crédit SMS" : "Crédit mails";
+}
+
 function PsaBrevoSettings() {
   const [configured, setConfigured] = useState(false);
   const [maskedKey, setMaskedKey] = useState<string | null>(null);
@@ -582,9 +594,7 @@ function PsaBrevoSettings() {
           <div className="mt-3 flex flex-wrap gap-3">
             {plan.map((p, i) => (
               <div key={i} className="rounded-md bg-slate-50 px-3 py-2">
-                <p className="text-xs text-slate-500">
-                  {p.creditsType} ({p.type})
-                </p>
+                <p className="text-xs text-slate-500">{creditLabel(p.type)}</p>
                 <p className="text-lg font-semibold text-slate-800">{p.credits.toLocaleString("fr-FR")}</p>
               </div>
             ))}
@@ -683,6 +693,13 @@ function PsaTemplates() {
         title="Modèle de SMS de relance PSA"
         subtitle="Mêmes champs que le mail : {{nom}} {{prenom}} {{scrutin_local}} · {{CCMMEP_non_votant}} {{scrutin_local_non_votant}}"
       >
+        <button
+          type="button"
+          className="mb-2 rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
+          onClick={() => setSmsTemplate(DEFAULT_PSA_SMS_TEMPLATE)}
+        >
+          Charger le modèle prégarni
+        </button>
         <textarea
           className="h-40 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
           placeholder="{{prenom}}, pensez à voter au {{scrutin_local}} avant le 10/12."
