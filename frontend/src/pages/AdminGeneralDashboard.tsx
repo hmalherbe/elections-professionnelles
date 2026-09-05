@@ -542,6 +542,13 @@ function creditLabel(type: string): string {
   return type.toLowerCase().includes("sms") ? "Crédit SMS" : "Crédit mails";
 }
 
+const BREVO_SMS_BILLING_URL = "https://app.sendinblue.com/billing/addon/customize/sms";
+const SMS_CREDIT_LOW_THRESHOLD = 50;
+
+function findSmsCredits(plan: BrevoPlanEntry[] | null): number | null {
+  return plan?.find((p) => p.type.toLowerCase().includes("sms"))?.credits ?? null;
+}
+
 function PsaBrevoSettings() {
   const [configured, setConfigured] = useState(false);
   const [maskedKey, setMaskedKey] = useState<string | null>(null);
@@ -602,13 +609,32 @@ function PsaBrevoSettings() {
           </button>
         </div>
         {configured && plan && plan.length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-3">
-            {plan.map((p, i) => (
-              <div key={i} className="rounded-md bg-slate-50 px-3 py-2">
-                <p className="text-xs text-slate-500">{creditLabel(p.type)}</p>
-                <p className="text-lg font-semibold text-slate-800">{p.credits.toLocaleString("fr-FR")}</p>
-              </div>
-            ))}
+          <div className="mt-3 space-y-2">
+            <div className="flex flex-wrap gap-3">
+              {plan.map((p, i) => (
+                <div key={i} className="rounded-md bg-slate-50 px-3 py-2">
+                  <p className="text-xs text-slate-500">{creditLabel(p.type)}</p>
+                  <p className="text-lg font-semibold text-slate-800">{p.credits.toLocaleString("fr-FR")}</p>
+                </div>
+              ))}
+            </div>
+            {(() => {
+              const smsCredits = findSmsCredits(plan);
+              return smsCredits !== null && smsCredits < SMS_CREDIT_LOW_THRESHOLD ? (
+                <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                  Crédit SMS faible ({smsCredits.toLocaleString("fr-FR")}) : pensez à en racheter avant vos
+                  prochaines relances.
+                </p>
+              ) : null;
+            })()}
+            <a
+              href={BREVO_SMS_BILLING_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-block rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
+            >
+              Acheter des crédits SMS (Brevo) ↗
+            </a>
           </div>
         )}
         {planError && <p className="mt-2 text-sm text-red-600">{planError}</p>}
