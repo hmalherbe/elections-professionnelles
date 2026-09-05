@@ -88,9 +88,9 @@ function AdherentsPanel({ spelc }: { spelc: string }) {
     <div className="space-y-4">
       <FileUploadCard
         title="Import des adhérents"
-        subtitle="Fichier Excel, 1re ligne = en-têtes. Remplace entièrement la liste précédente pour ce Spelc."
+        subtitle="Fichier CSV ou Excel, 1re ligne = en-têtes. Remplace entièrement la liste précédente pour ce Spelc."
         expectedColumns={["Nom", "Prénom", "Mail", "Numéro de mobile"]}
-        accept=".xlsx"
+        accept=".csv,.xlsx"
         onUpload={async (file) => {
           const fd = new FormData();
           fd.append("file", file);

@@ -4,6 +4,7 @@ import { db } from "../db/index.js";
 import { requireAuth, requireRole, canAccessSpelc } from "../middleware/auth.js";
 import { normalizeName } from "../lib/normalize.js";
 import { loadWorkbook, rowsAsObjects } from "../lib/xlsx.js";
+import { parseCsvBuffer } from "../lib/csv.js";
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } });
@@ -33,8 +34,10 @@ router.post("/upload", requireRole("admin_spelc", "admin_general"), upload.singl
   }
 
   try {
-    const wb = await loadWorkbook(req.file.buffer);
-    const rows = rowsAsObjects(wb.worksheets[0]);
+    const isCsv = /\.csv$/i.test(req.file.originalname);
+    const rows: Record<string, unknown>[] = isCsv
+      ? parseCsvBuffer(req.file.buffer)
+      : rowsAsObjects((await loadWorkbook(req.file.buffer)).worksheets[0]);
 
     const del = db.prepare("DELETE FROM adherents WHERE spelc = ?");
     const insert = db.prepare(
