@@ -111,8 +111,10 @@ Le compte admin général créé par le seed :
   classés, faute de règle fournie).
 - **Type de scrutin académique** (CCMI/CCMA/CCMD/CCML1D/CCML2D…) résolu via
   le référentiel des scrutins académiques.
-- **Courbe de participation cumulée** : un point par import quotidien
-  (`snapshot_date`), les fichiers étant cumulatifs par nature.
+- **Courbe de participation cumulée** : un point par jour d'émargement
+  distinct (`date_emargement`), reconstruite depuis l'import le plus récent
+  — les fichiers étant cumulatifs par nature, un seul import suffit à
+  reconstituer l'historique complet des jours déjà écoulés.
 - **Rapprochement adhérents** : par nom/prénom normalisés (majuscules, sans
   accents), contre les scrutins locaux (1D + 2D réunis) du Spelc.
 - **Simulation PSA** : génère aléatoirement, pour chaque PSA et pour les

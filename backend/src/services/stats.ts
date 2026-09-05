@@ -133,54 +133,40 @@ export interface CourbePoint {
   taux: number;
 }
 
-/** Courbe des taux de participation cumulés par jour : un point par snapshot_date d'import. */
+/**
+ * Courbe des taux de participation cumulés par jour, reconstruite à partir
+ * des dates d'émargement individuelles contenues dans l'import le plus
+ * récent (chaque fichier CCMMEP étant cumulatif par nature, un seul import
+ * suffit à reconstituer l'historique complet des jours déjà écoulés).
+ */
 export function courbeCumulative(filter: ScopeFilter): CourbePoint[] {
-  let importRows: { id: number; snapshot_date: string }[];
-  if (filter.scope === "national") {
-    importRows = db
-      .prepare(
-        `SELECT i.id, i.snapshot_date FROM imports i
-         INNER JOIN (SELECT snapshot_date, MAX(id) AS max_id FROM imports WHERE scope='national' GROUP BY snapshot_date) latest
-         ON latest.snapshot_date = i.snapshot_date AND latest.max_id = i.id
-         WHERE i.scope = 'national' ORDER BY i.snapshot_date`
-      )
-      .all() as { id: number; snapshot_date: string }[];
-  } else {
-    const academie = effectiveAcademie(filter);
-    if (!academie) return [];
-    importRows = db
-      .prepare(
-        `SELECT i.id, i.snapshot_date FROM imports i
-         INNER JOIN (
-           SELECT snapshot_date, degre, MAX(id) AS max_id FROM imports
-           WHERE scope='academique' AND academie = ? GROUP BY snapshot_date, degre
-         ) latest ON latest.snapshot_date = i.snapshot_date AND latest.degre = i.degre AND latest.max_id = i.id
-         WHERE i.scope = 'academique' AND i.academie = ? ORDER BY i.snapshot_date`
-      )
-      .all(academie, academie) as { id: number; snapshot_date: string }[];
-  }
+  const ids = currentImportIds(filter.scope, effectiveAcademie(filter));
+  if (ids.length === 0) return [];
+  const { clause, params } = whereForScope(filter, ids);
 
-  const byDate = new Map<string, number[]>();
-  for (const r of importRows) {
-    const arr = byDate.get(r.snapshot_date) ?? [];
-    arr.push(r.id);
-    byDate.set(r.snapshot_date, arr);
-  }
+  const totalRow = db.prepare(`SELECT COUNT(*) AS total FROM emargements WHERE ${clause}`).get(...params) as {
+    total: number;
+  };
+  const inscrits = totalRow.total ?? 0;
 
-  const points: CourbePoint[] = [];
-  for (const [date, ids] of Array.from(byDate.entries()).sort((a, b) => a[0].localeCompare(b[0]))) {
-    const { clause, params } = whereForScope({ ...filter }, ids);
-    const row = db
-      .prepare(`SELECT COUNT(*) AS total, SUM(votant) AS votants FROM emargements WHERE ${clause}`)
-      .get(...params) as { total: number; votants: number };
-    points.push({
-      date,
-      inscrits: row.total ?? 0,
-      votants: row.votants ?? 0,
-      taux: row.total ? (row.votants ?? 0) / row.total : 0,
-    });
-  }
-  return points;
+  const dayRows = db
+    .prepare(
+      `SELECT substr(date_emargement, 1, 10) AS day, COUNT(*) AS count
+       FROM emargements WHERE ${clause} AND date_emargement IS NOT NULL
+       GROUP BY day ORDER BY day`
+    )
+    .all(...params) as { day: string; count: number }[];
+
+  let cumulativeVotants = 0;
+  return dayRows.map((r) => {
+    cumulativeVotants += r.count;
+    return {
+      date: r.day,
+      inscrits,
+      votants: cumulativeVotants,
+      taux: inscrits ? cumulativeVotants / inscrits : 0,
+    };
+  });
 }
 
 export interface ScrutinsFilter extends ScopeFilter {
