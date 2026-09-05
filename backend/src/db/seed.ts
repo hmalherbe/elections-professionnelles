@@ -10,8 +10,8 @@ const seedDir = path.resolve(__dirname, "../../../seed-data");
 
 migrate();
 
-const adminEmail = process.env.SEED_ADMIN_EMAIL ?? "admin@elections-pro.fr";
-const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? "ChangeMoi123!";
+const adminEmail = process.env.SEED_ADMIN_EMAIL || "admin@elections-pro.fr";
+const adminPassword = process.env.SEED_ADMIN_PASSWORD || "ChangeMoi123!";
 
 const existing = db.prepare("SELECT id FROM users WHERE email = ?").get(adminEmail);
 if (!existing) {
