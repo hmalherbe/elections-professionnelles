@@ -762,26 +762,39 @@ function PsaRelanceSection({ runId, onSent }: { runId: number; onSent: () => voi
     >
       <div className="space-y-3">
         <div>
-          <p className="mb-1 text-xs font-medium text-slate-500">Dates de relance mail</p>
-          <div className="flex flex-wrap gap-3">
-            {ELECTION_DATES.map((d) => (
-              <label key={d} className="flex items-center gap-1.5 text-sm text-slate-600">
-                <input type="checkbox" checked={mailDates.has(d)} onChange={() => toggle(mailDates, setMailDates, d)} />
-                {formatDateFr(d)}
-              </label>
-            ))}
-          </div>
-        </div>
-        <div>
-          <p className="mb-1 text-xs font-medium text-slate-500">Dates de relance SMS</p>
-          <div className="flex flex-wrap gap-3">
-            {ELECTION_DATES.map((d) => (
-              <label key={d} className="flex items-center gap-1.5 text-sm text-slate-600">
-                <input type="checkbox" checked={smsDates.has(d)} onChange={() => toggle(smsDates, setSmsDates, d)} />
-                {formatDateFr(d)}
-              </label>
-            ))}
-          </div>
+          <p className="mb-1 text-xs font-medium text-slate-500">
+            Pour chaque jour, cocher mail et/ou SMS (indépendamment l'un de l'autre)
+          </p>
+          <table className="text-sm text-slate-600">
+            <thead>
+              <tr className="text-xs font-medium text-slate-500">
+                <th className="pr-4 text-left font-medium">Date</th>
+                <th className="px-3 text-center font-medium">Mail</th>
+                <th className="px-3 text-center font-medium">SMS</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ELECTION_DATES.map((d) => (
+                <tr key={d}>
+                  <td className="pr-4 py-0.5">{formatDateFr(d)}</td>
+                  <td className="px-3 py-0.5 text-center">
+                    <input
+                      type="checkbox"
+                      checked={mailDates.has(d)}
+                      onChange={() => toggle(mailDates, setMailDates, d)}
+                    />
+                  </td>
+                  <td className="px-3 py-0.5 text-center">
+                    <input
+                      type="checkbox"
+                      checked={smsDates.has(d)}
+                      onChange={() => toggle(smsDates, setSmsDates, d)}
+                    />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
         <label className="flex items-center gap-2 text-sm text-slate-600">
           <input type="checkbox" checked={testMode} onChange={(e) => setTestMode(e.target.checked)} />
