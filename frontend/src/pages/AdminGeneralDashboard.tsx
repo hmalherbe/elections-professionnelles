@@ -461,6 +461,17 @@ function PsaPanel() {
     tauxLocal: number;
   } | null>(null);
 
+  useEffect(() => {
+    api.get<{ runs: { id: number }[] }>("/psa/runs").then((r) => {
+      const latest = r.runs[0];
+      if (!latest) return;
+      setRunId(latest.id);
+      api
+        .get<{ summary: typeof summary }>(`/psa/runs/${latest.id}/results`)
+        .then((res) => setSummary(res.summary));
+    });
+  }, []);
+
   async function launch() {
     setBusy(true);
     setResult(null);

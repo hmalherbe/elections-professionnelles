@@ -6,6 +6,7 @@ import { renderTemplate, type TemplateFields } from "../lib/template.js";
 import { sendBrevoEmails, sendBrevoSms } from "../services/brevo.js";
 import { getTestContactSettings } from "../services/settings.js";
 import { appendRelanceLog } from "../lib/relanceLog.js";
+import { normalizeFrenchMobile } from "../lib/phone.js";
 
 const router = Router();
 router.use(requireAuth, requireRole("admin_general"));
@@ -249,7 +250,7 @@ router.post("/relance", async (req, res) => {
         const campagneTag = `psa-${dateStr}` + (testMode ? "-test" : "");
         const result = await sendBrevoSms({
           apiKey: user.brevo_api_key!,
-          recipients: [mobile],
+          recipients: [normalizeFrenchMobile(mobile)],
           content: renderTemplate(template.body, fields),
           tag: campagneTag,
         });

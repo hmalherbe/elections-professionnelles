@@ -34,9 +34,13 @@ export async function sendBrevoEmails(payload: SendEmailPayload): Promise<BrevoS
         }),
       });
       if (response.ok) sent++;
-      else errors++;
-    } catch {
+      else {
+        errors++;
+        console.error("Échec envoi mail Brevo:", response.status, await response.text());
+      }
+    } catch (err) {
       errors++;
+      console.error("Échec envoi mail Brevo (exception):", err);
     }
   }
   return { sent, errors };
@@ -69,9 +73,13 @@ export async function sendBrevoSms(payload: SendSmsPayload): Promise<BrevoSendSu
         }),
       });
       if (response.ok) sent++;
-      else errors++;
-    } catch {
+      else {
+        errors++;
+        console.error("Échec envoi SMS Brevo:", response.status, await response.text());
+      }
+    } catch (err) {
       errors++;
+      console.error("Échec envoi SMS Brevo (exception):", err);
     }
   }
   return { sent, errors };

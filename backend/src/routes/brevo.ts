@@ -13,6 +13,7 @@ import {
 import { currentImportIds } from "../services/stats.js";
 import { getTestContactSettings } from "../services/settings.js";
 import { appendRelanceLog } from "../lib/relanceLog.js";
+import { normalizeFrenchMobile } from "../lib/phone.js";
 
 const MAX_TEST_RECIPIENTS = 20;
 const DEFAULT_TEST_RECIPIENTS = 3;
@@ -292,7 +293,7 @@ router.post("/campaigns/sms", requireRole("admin_spelc"), async (req, res) => {
     const contact = testMode ? String(testMobile) : r.mobile!;
     const result = await sendBrevoSms({
       apiKey: user.brevo_api_key,
-      recipients: [contact],
+      recipients: [normalizeFrenchMobile(contact)],
       content,
       tag: campagneTag,
     });
