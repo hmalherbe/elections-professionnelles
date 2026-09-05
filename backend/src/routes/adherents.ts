@@ -78,6 +78,99 @@ router.post("/upload", requireRole("admin_spelc", "admin_general"), upload.singl
   }
 });
 
+/**
+ * Import groupé des adhérents pour tous les Spelcs en un seul fichier
+ * (colonnes : spelc, nom, prenom, mail, mobile). Remplace entièrement la
+ * liste de chaque Spelc mentionné dans le fichier (les Spelcs absents du
+ * fichier ne sont pas touchés).
+ */
+router.post("/import-all", requireRole("admin_general"), upload.single("file"), async (req, res) => {
+  if (!req.file) {
+    res.status(400).json({ error: "Fichier requis." });
+    return;
+  }
+  try {
+    const isCsv = /\.csv$/i.test(req.file.originalname);
+    const rows: Record<string, unknown>[] = isCsv
+      ? parseCsvBuffer(req.file.buffer)
+      : rowsAsObjects((await loadWorkbook(req.file.buffer)).worksheets[0]);
+
+    const knownSpelcs = new Set(
+      (db.prepare("SELECT spelc FROM ref_spelc").all() as { spelc: string }[]).map((r) => r.spelc)
+    );
+
+    const del = db.prepare("DELETE FROM adherents WHERE spelc = ?");
+    const insert = db.prepare(
+      `INSERT INTO adherents (spelc, nom, prenom, nom_norm, prenom_norm, mail, mobile, uploaded_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    );
+
+    const bySpelc = new Map<string, Record<string, unknown>[]>();
+    const errors: { row: number; message: string }[] = [];
+    rows.forEach((row, idx) => {
+      const keys = Object.keys(row).reduce<Record<string, unknown>>((acc, k) => {
+        acc[k.toLowerCase().trim()] = row[k];
+        return acc;
+      }, {});
+      const spelc = String(keys["spelc"] ?? "").trim();
+      const nom = keys["nom"];
+      const prenom = keys["prenom"];
+      if (!spelc && !nom && !prenom) return; // ligne vide
+      if (!spelc) {
+        errors.push({ row: idx + 2, message: "Colonne spelc requise." });
+        return;
+      }
+      if (!knownSpelcs.has(spelc)) {
+        errors.push({ row: idx + 2, message: `Spelc inconnu : "${spelc}".` });
+        return;
+      }
+      const arr = bySpelc.get(spelc) ?? [];
+      arr.push(row);
+      bySpelc.set(spelc, arr);
+    });
+
+    let totalAdherents = 0;
+    const tx = db.transaction(() => {
+      for (const [spelc, spelcRows] of bySpelc.entries()) {
+        del.run(spelc);
+        for (const row of spelcRows) {
+          const keys = Object.keys(row).reduce<Record<string, unknown>>((acc, k) => {
+            acc[k.toLowerCase().trim()] = row[k];
+            return acc;
+          }, {});
+          const nom = keys["nom"];
+          const prenom = keys["prenom"];
+          const mail = keys["mail"] ?? keys["email"];
+          const mobile = keys["mobile"] ?? keys["numero de mobile"] ?? keys["numéro de mobile"];
+          if (!nom || !prenom) continue;
+          insert.run(
+            spelc,
+            String(nom).trim(),
+            String(prenom).trim(),
+            normalizeName(String(nom)),
+            normalizeName(String(prenom)),
+            mail ? String(mail).trim() : null,
+            mobile ? String(mobile).trim() : null,
+            req.user!.id
+          );
+          totalAdherents++;
+        }
+      }
+    });
+    tx();
+
+    res.status(201).json({ spelcsProcessed: bySpelc.size, totalAdherents, errors });
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+/** Supprime tous les adhérents, tous Spelcs confondus. */
+router.delete("/all", requireRole("admin_general"), (_req, res) => {
+  const info = db.prepare("DELETE FROM adherents").run();
+  res.json({ deleted: info.changes });
+});
+
 router.get("/", (req, res) => {
   const spelc = req.query.spelc as string;
   if (!spelc) {

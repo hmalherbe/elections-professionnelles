@@ -8,7 +8,7 @@ import { ScrutinsTab } from "../components/ScrutinsTab";
 import { api } from "../lib/api";
 import type { AcademieNode, CourbePoint, ImportRecord, ManagedUser } from "../lib/types";
 
-const TABS = ["Vue nationale", "Scrutins", "Imports", "Utilisateurs", "Référentiels", "PSA"] as const;
+const TABS = ["Vue nationale", "Scrutins", "Imports", "Utilisateurs", "Adhérents", "Référentiels", "PSA"] as const;
 type Tab = (typeof TABS)[number];
 
 export function AdminGeneralDashboard() {
@@ -34,6 +34,7 @@ export function AdminGeneralDashboard() {
       {tab === "Scrutins" && <ScrutinsTab scope="national" />}
       {tab === "Imports" && <ImportsPanel />}
       {tab === "Utilisateurs" && <UsersPanel />}
+      {tab === "Adhérents" && <AdherentsAdminPanel />}
       {tab === "Référentiels" && <ReferentielsPanel />}
       {tab === "PSA" && <PsaPanel />}
     </div>
@@ -344,6 +345,61 @@ function UsersPanel() {
           return summary;
         }}
       />
+    </div>
+  );
+}
+
+function AdherentsAdminPanel() {
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+
+  return (
+    <div className="space-y-4">
+      <FileUploadCard
+        title="Importer tous les adhérents (tous les Spelcs)"
+        subtitle="Remplace entièrement la liste de chaque Spelc mentionné dans le fichier (les Spelcs absents du fichier ne sont pas touchés)."
+        expectedColumns={["spelc", "nom", "prenom", "mail", "mobile"]}
+        accept=".csv,.xlsx"
+        onUpload={async (file) => {
+          const fd = new FormData();
+          fd.append("file", file);
+          const res = await api.upload<{ spelcsProcessed: number; totalAdherents: number; errors: { row: number; message: string }[] }>(
+            "/adherents/import-all",
+            fd
+          );
+          const summary = `${res.spelcsProcessed} Spelc(s) mis à jour, ${res.totalAdherents} adhérent(s) importé(s).`;
+          if (res.errors.length > 0) {
+            const errorLines = res.errors.map((e) => `Ligne ${e.row} : ${e.message}`);
+            throw new Error(`${summary}\n${errorLines.join("\n")}`);
+          }
+          return summary;
+        }}
+      />
+      <Card title="Supprimer tous les adhérents">
+        <p className="mb-3 text-sm text-slate-500">
+          Supprime la liste d'adhérents de tous les Spelcs, sans exception. Action irréversible.
+        </p>
+        <button
+          disabled={busy}
+          onClick={async () => {
+            if (!confirm("Supprimer tous les adhérents de tous les Spelcs ? Cette action est irréversible.")) return;
+            setBusy(true);
+            setMessage(null);
+            try {
+              const res = await api.delete<{ deleted: number }>("/adherents/all");
+              setMessage(`${res.deleted} adhérent(s) supprimé(s).`);
+            } catch (err) {
+              setMessage((err as Error).message);
+            } finally {
+              setBusy(false);
+            }
+          }}
+          className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-60"
+        >
+          {busy ? "Suppression en cours…" : "Supprimer tous les adhérents"}
+        </button>
+        {message && <p className="mt-2 text-sm text-slate-600">{message}</p>}
+      </Card>
     </div>
   );
 }
