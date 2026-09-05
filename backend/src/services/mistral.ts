@@ -3,7 +3,12 @@ import { getSetting, setSetting } from "./settings.js";
 import type { ToolDef } from "./chatTools.js";
 
 const MISTRAL_API = "https://api.mistral.ai/v1/chat/completions";
-const MODEL = "mistral-large-latest";
+// mistral-small-latest plutôt que mistral-large-latest : supporte aussi le
+// function calling, et surtout reste accessible sur les paliers Mistral les
+// plus restreints (large a renvoyé "tier_not_allowed" sur un compte réel) —
+// suffisant ici puisque les réponses s'appuient sur les résultats d'outils,
+// pas sur les capacités de raisonnement brut du modèle.
+const MODEL = "mistral-small-latest";
 const MAX_TOOL_ROUNDS = 5;
 
 export function isMistralConfigured(): boolean {
