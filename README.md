@@ -210,3 +210,36 @@ jamais exposé publiquement. Ses identifiants se configurent via
 vrais portails ouverts, il suffit de reconfigurer les encarts avec les
 vraies URLs — ce service de test peut alors être retiré du
 `docker-compose.yml`.
+
+## Assistant conversationnel (IA)
+
+Chaque tableau de bord (admin général, académique, Spelc) possède un onglet
+« Assistant » permettant de poser des questions en langage naturel sur les
+données de participation (« Quel est le taux de participation de mon
+académie ? », « Combien de mes adhérents ont voté ? »...).
+
+Techniquement, ce n'est pas un RAG par recherche vectorielle : les données
+étant entièrement structurées (tables SQL), le modèle **Mistral**
+(`mistral-large-latest`, appelé via son API de *function calling*) choisit
+parmi un jeu d'outils prédéfinis (résumé de participation, courbe,
+répartition par établissement, par type de scrutin, adhérents d'un Spelc...),
+chacun correspondant à une requête SQL déjà utilisée par les tableaux de
+bord — le modèle ne peut donc jamais halluciner un chiffre.
+
+**Cloisonnement des données** : le périmètre (académie/Spelc) n'est jamais
+confié au modèle. Il est toujours forcé côté serveur à partir du rôle de
+l'utilisateur authentifié (`backend/src/services/chatTools.ts`), quel que
+soit ce que le prompt ou le modèle tenterait de demander :
+
+- **admin général** : accès à toutes les données (CCMMEP national, toutes
+  les académies, tous les Spelcs, y compris leurs adhérents).
+- **admin académique** : uniquement les données de sa propre académie
+  (scrutin national filtré + scrutin académique local) ; pas d'accès aux
+  données d'adhérents (propres aux Spelcs), ni aux autres académies.
+- **admin Spelc** : uniquement les données de son propre Spelc (votants,
+  non-votants, adhérents et non-adhérents) ; pas d'accès aux autres Spelcs
+  ni aux données académiques globales.
+
+La clé API Mistral se configure une seule fois par l'admin général (onglet
+Assistant), chiffrée en base (même mécanisme que les mots de passe de
+scraping) et jamais renvoyée en clair par l'API.

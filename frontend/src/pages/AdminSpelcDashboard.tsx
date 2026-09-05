@@ -3,6 +3,7 @@ import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, X
 import { CamembertCard } from "../components/CamembertCard";
 import { CATEGORICAL } from "../lib/colors";
 import { Card } from "../components/Card";
+import { ChatAssistantPanel } from "../components/ChatAssistantPanel";
 import { CourbeCard } from "../components/CourbeCard";
 import { EtablissementsTab } from "../components/EtablissementsTab";
 import { FileUploadCard } from "../components/FileUploadCard";
@@ -12,7 +13,7 @@ import { api, qs } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import type { CourbePoint } from "../lib/types";
 
-const TABS = ["Vue Spelc", "Scrutins", "Participation par établissement", "Adhérents", "Brevo"] as const;
+const TABS = ["Vue Spelc", "Scrutins", "Participation par établissement", "Adhérents", "Brevo", "Assistant"] as const;
 type Tab = (typeof TABS)[number];
 
 export function AdminSpelcDashboard() {
@@ -47,6 +48,7 @@ export function AdminSpelcDashboard() {
       {tab === "Participation par établissement" && <EtablissementsTab scope={scope} spelc={spelc} />}
       {tab === "Adhérents" && <AdherentsPanel spelc={spelc} />}
       {tab === "Brevo" && <BrevoPanel spelc={spelc} />}
+      {tab === "Assistant" && <ChatAssistantPanel />}
     </div>
   );
 }

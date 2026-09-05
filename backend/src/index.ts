@@ -9,6 +9,7 @@ import statsRoutes from "./routes/stats.js";
 import brevoRoutes from "./routes/brevo.js";
 import psaRoutes from "./routes/psa.js";
 import scrapingRoutes from "./routes/scraping.js";
+import chatRoutes from "./routes/chat.js";
 
 migrate();
 
@@ -26,6 +27,7 @@ app.use("/api/stats", statsRoutes);
 app.use("/api/brevo", brevoRoutes);
 app.use("/api/psa", psaRoutes);
 app.use("/api/scraping", scrapingRoutes);
+app.use("/api/chat", chatRoutes);
 
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error(err);

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { CamembertCard } from "../components/CamembertCard";
 import { Card } from "../components/Card";
+import { ChatAssistantPanel } from "../components/ChatAssistantPanel";
 import { CourbeCard } from "../components/CourbeCard";
 import { FileUploadCard } from "../components/FileUploadCard";
 import { PivotTree } from "../components/PivotTree";
@@ -9,7 +10,16 @@ import { ScrutinsTab } from "../components/ScrutinsTab";
 import { api } from "../lib/api";
 import type { AcademieNode, CourbePoint, ImportRecord, ManagedUser } from "../lib/types";
 
-const TABS = ["Vue nationale", "Scrutins", "Imports", "Utilisateurs", "Adhérents", "Référentiels", "PSA"] as const;
+const TABS = [
+  "Vue nationale",
+  "Scrutins",
+  "Imports",
+  "Utilisateurs",
+  "Adhérents",
+  "Référentiels",
+  "PSA",
+  "Assistant",
+] as const;
 type Tab = (typeof TABS)[number];
 
 export function AdminGeneralDashboard() {
@@ -38,6 +48,7 @@ export function AdminGeneralDashboard() {
       {tab === "Adhérents" && <AdherentsAdminPanel />}
       {tab === "Référentiels" && <ReferentielsPanel />}
       {tab === "PSA" && <PsaPanel />}
+      {tab === "Assistant" && <ChatAssistantPanel />}
     </div>
   );
 }
