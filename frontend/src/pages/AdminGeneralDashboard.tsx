@@ -6,18 +6,9 @@ import { FileUploadCard } from "../components/FileUploadCard";
 import { PivotTree } from "../components/PivotTree";
 import { ScrutinsTab } from "../components/ScrutinsTab";
 import { api } from "../lib/api";
-import { formatPercent } from "../lib/colors";
 import type { AcademieNode, CourbePoint, ImportRecord, ManagedUser } from "../lib/types";
 
-const TABS = [
-  "Vue nationale",
-  "Scrutins",
-  "Participation par académies",
-  "Imports",
-  "Utilisateurs",
-  "Référentiels",
-  "PSA",
-] as const;
+const TABS = ["Vue nationale", "Scrutins", "Imports", "Utilisateurs", "Référentiels", "PSA"] as const;
 type Tab = (typeof TABS)[number];
 
 export function AdminGeneralDashboard() {
@@ -41,7 +32,6 @@ export function AdminGeneralDashboard() {
 
       {tab === "Vue nationale" && <VueNationale />}
       {tab === "Scrutins" && <ScrutinsTab scope="national" />}
-      {tab === "Participation par académies" && <AcademiesParticipationPanel />}
       {tab === "Imports" && <ImportsPanel />}
       {tab === "Utilisateurs" && <UsersPanel />}
       {tab === "Référentiels" && <ReferentielsPanel />}
@@ -69,67 +59,6 @@ function VueNationale() {
       </div>
       <PivotTree tree={tree} />
     </div>
-  );
-}
-
-function AcademiesParticipationPanel() {
-  const [academies, setAcademies] = useState<AcademieNode[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-
-  useEffect(() => {
-    setLoading(true);
-    api
-      .get<{ tree: AcademieNode[] }>("/stats/participation-tree")
-      .then((r) => setAcademies(r.tree))
-      .finally(() => setLoading(false));
-  }, []);
-
-  const filtered = academies
-    .filter((a) => a.label.toLowerCase().includes(search.toLowerCase()))
-    .sort((a, b) => b.taux - a.taux);
-
-  return (
-    <Card title="Participation par académies" subtitle={`${academies.length} académies · scrutin national CCMMEP`}>
-      <input
-        type="text"
-        placeholder="Rechercher une académie…"
-        className="mb-3 w-full max-w-sm rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-      />
-      <div className="max-h-[32rem] overflow-auto">
-        <table className="w-full text-sm">
-          <thead className="sticky top-0 bg-white">
-            <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-500">
-              <th className="py-2 pr-4">Académie</th>
-              <th className="px-4 py-2">Inscrits</th>
-              <th className="px-4 py-2">Votants</th>
-              <th className="px-4 py-2">Taux de participation</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((a) => (
-              <tr key={a.label} className="border-b border-slate-100">
-                <td className="py-1.5 pr-4 font-medium text-slate-800">{a.label}</td>
-                <td className="px-4 py-1.5 text-slate-500">{a.inscrits.toLocaleString("fr-FR")}</td>
-                <td className="px-4 py-1.5 text-slate-500">{a.votants.toLocaleString("fr-FR")}</td>
-                <td className="px-4 py-1.5">
-                  <div className="flex items-center gap-2">
-                    <div className="h-2 w-28 overflow-hidden rounded-full bg-slate-100">
-                      <div className="h-full bg-emerald-600" style={{ width: `${Math.min(a.taux * 100, 100)}%` }} />
-                    </div>
-                    <span className="text-slate-600">{formatPercent(a.taux)}</span>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {loading && <p className="py-4 text-sm text-slate-400">Chargement…</p>}
-        {!loading && filtered.length === 0 && <p className="py-4 text-sm text-slate-400">Aucun résultat.</p>}
-      </div>
-    </Card>
   );
 }
 

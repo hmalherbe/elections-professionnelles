@@ -3,6 +3,18 @@ import { Card } from "./Card";
 import { COLOR_VOTANT, formatPercent } from "../lib/colors";
 import type { CourbePoint } from "../lib/types";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function renderPointLabel(props: any) {
+  const x = Number(props.x ?? 0);
+  const y = Number(props.y ?? 0);
+  const value = Number(props.value ?? 0);
+  return (
+    <text x={x} y={y - 10} textAnchor="middle" fontSize={12} fill="#334155">
+      {formatPercent(value)}
+    </text>
+  );
+}
+
 export function CourbeCard({ title, points }: { title: string; points: CourbePoint[] }) {
   return (
     <Card title={title} subtitle="Taux de participation cumulé par jour">
@@ -20,7 +32,15 @@ export function CourbeCard({ title, points }: { title: string; points: CourbePoi
               formatter={(value) => formatPercent(Number(value))}
               labelFormatter={(label) => `Jour du ${label}`}
             />
-            <Line type="monotone" dataKey="taux" stroke={COLOR_VOTANT} strokeWidth={2} dot={{ r: 3 }} />
+            <Line
+              type="monotone"
+              dataKey="taux"
+              stroke={COLOR_VOTANT}
+              strokeWidth={2}
+              dot={{ r: 3 }}
+              isAnimationActive={false}
+              label={renderPointLabel}
+            />
           </LineChart>
         </ResponsiveContainer>
       </div>
