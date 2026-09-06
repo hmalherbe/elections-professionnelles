@@ -76,6 +76,7 @@ function ImportsPanel({ academie }: { academie: string }) {
   const [degre, setDegre] = useState<"1D" | "2D">("1D");
   const [snapshotDate, setSnapshotDate] = useState(todayIso());
   const [imports, setImports] = useState<ImportRecord[]>([]);
+  const [degreFilter, setDegreFilter] = useState<"" | "1D" | "2D">("");
 
   function refresh() {
     api.get<{ imports: ImportRecord[] }>("/imports").then((r) => setImports(r.imports.filter((i) => i.scope === "academique")));
@@ -141,6 +142,18 @@ function ImportsPanel({ academie }: { academie: string }) {
         }}
       />
       <Card title="Historique des imports académiques">
+        <div className="mb-3 flex items-center gap-2">
+          <label className="text-xs font-medium text-slate-500">Filtrer par degré :</label>
+          <select
+            className="rounded-md border border-slate-300 px-2 py-1 text-sm"
+            value={degreFilter}
+            onChange={(e) => setDegreFilter(e.target.value as "" | "1D" | "2D")}
+          >
+            <option value="">Tous</option>
+            <option value="1D">1er degré</option>
+            <option value="2D">2nd degré</option>
+          </select>
+        </div>
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-500">
@@ -152,7 +165,9 @@ function ImportsPanel({ academie }: { academie: string }) {
             </tr>
           </thead>
           <tbody>
-            {imports.map((imp) => (
+            {imports
+              .filter((imp) => !degreFilter || imp.degre === degreFilter)
+              .map((imp) => (
               <tr key={imp.id} className="border-b border-slate-100">
                 <td className="py-1.5 pr-4">{imp.snapshot_date}</td>
                 <td className="px-4 py-1.5">{imp.degre}</td>

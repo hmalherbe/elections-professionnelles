@@ -8,7 +8,7 @@ import { sendBrevoEmails, sendBrevoSms } from "../services/brevo.js";
 import { getTestContactSettings, getPsaBranding, setPsaLogo, setPsaSocialLinks } from "../services/settings.js";
 import { buildLogoHtml, buildSocialLinksHtml, type SocialLinks } from "../lib/socialLinks.js";
 import { appendRelanceLog } from "../lib/relanceLog.js";
-import { insertRelanceTracking } from "../services/relanceTracking.js";
+import { insertRelanceTracking, getMailSeriesByScope, getSmsSeriesByScope } from "../services/relanceTracking.js";
 import { normalizeFrenchMobile } from "../lib/phone.js";
 
 /** Plafond d'envoi SMS pour ne pas consommer plus de crédits Brevo que prévu. */
@@ -476,6 +476,15 @@ router.post("/relance", async (req, res) => {
   }
 
   res.status(201).json({ mailSent, mailErrors, smsSent, smsErrors });
+});
+
+/** Séries quotidiennes pour les courbes de suivi des relances PSA, même principe que le suivi Spelc. */
+router.get("/tracking/mail", (_req, res) => {
+  res.json({ rows: getMailSeriesByScope("PSA") });
+});
+
+router.get("/tracking/sms", (_req, res) => {
+  res.json({ rows: getSmsSeriesByScope("PSA") });
 });
 
 export default router;

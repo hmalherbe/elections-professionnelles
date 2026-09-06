@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { CamembertCard } from "../components/CamembertCard";
 import { Card } from "../components/Card";
 import { Ccm2022MapPanel } from "../components/Ccm2022MapPanel";
@@ -11,6 +12,7 @@ import { ScrapingPanel } from "../components/ScrapingPanel";
 import { ScrutinsTab } from "../components/ScrutinsTab";
 import { SocialLinksEditor } from "../components/SocialLinksEditor";
 import { api } from "../lib/api";
+import { CATEGORICAL } from "../lib/colors";
 import type { AcademieNode, CourbePoint, ImportRecord, ManagedUser } from "../lib/types";
 import type { SocialLinks } from "../lib/socialLinks";
 
@@ -702,7 +704,72 @@ function PsaPanel() {
       <PsaBrevoSettings />
       <PsaTemplates />
       {runId && <PsaRelanceSection runId={runId} onSent={() => setLogRefreshKey((k) => k + 1)} />}
+      <PsaRelanceCharts key={`charts-${logRefreshKey}`} />
       <RelanceLogPanel key={logRefreshKey} />
+    </div>
+  );
+}
+
+interface RelanceMail {
+  date: string;
+  total_envoye: number;
+  erreurs_envoi: number;
+  mails_lus: number;
+  liens_clique: number;
+}
+/** Idem pour la courbe de suivi des SMS. */
+interface RelanceSms {
+  date: string;
+  sms_envoyes: number;
+  erreurs_envoi: number;
+  sms_delivres: number;
+  sms_rejetes: number;
+}
+
+/** Courbes de suivi des relances PSA (mails/SMS envoyés par jour), même principe que le tableau de bord Spelc. */
+function PsaRelanceCharts() {
+  const [mailRows, setMailRows] = useState<RelanceMail[]>([]);
+  const [smsRows, setSmsRows] = useState<RelanceSms[]>([]);
+
+  useEffect(() => {
+    api.get<{ rows: RelanceMail[] }>("/psa/tracking/mail").then((r) => setMailRows(r.rows));
+    api.get<{ rows: RelanceSms[] }>("/psa/tracking/sms").then((r) => setSmsRows(r.rows));
+  }, []);
+
+  return (
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <Card title="Courbe de suivi des mails">
+        <div className="h-48">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={mailRows}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+              <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+              <Tooltip />
+              <Legend />
+              <Line type="monotone" dataKey="total_envoye" name="Envoyés" stroke={CATEGORICAL[0]} strokeWidth={2} />
+              <Line type="monotone" dataKey="mails_lus" name="Lus" stroke={CATEGORICAL[4]} strokeWidth={2} />
+              <Line type="monotone" dataKey="liens_clique" name="Cliqués" stroke={CATEGORICAL[2]} strokeWidth={2} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </Card>
+      <Card title="Courbe de suivi des SMS">
+        <div className="h-48">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={smsRows}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+              <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+              <Tooltip />
+              <Legend />
+              <Line type="monotone" dataKey="sms_envoyes" name="Envoyés" stroke={CATEGORICAL[0]} strokeWidth={2} />
+              <Line type="monotone" dataKey="sms_delivres" name="Délivrés" stroke={CATEGORICAL[4]} strokeWidth={2} />
+              <Line type="monotone" dataKey="sms_rejetes" name="Rejetés" stroke={CATEGORICAL[3]} strokeWidth={2} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </Card>
     </div>
   );
 }
