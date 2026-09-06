@@ -181,6 +181,33 @@ horodatage, type, périmètre, campagne, nom, prénom, contact utilisé, mode
 test, succès). Consultable depuis l'onglet PSA de l'admin général
 (« Journal des relances ») ou directement sur le serveur.
 
+## Personnalisation des mails de relance (logo, réseaux sociaux, envois de test)
+
+Les modèles de mail (relances PSA côté admin général, campagnes côté admin
+Spelc) supportent deux champs supplémentaires dans leur « modèle prégarni » :
+
+- `{{logo}}` : image d'entête, uploadée une fois (encodée en base64,
+  stockée en base — pas de fichier ni d'URL publique nécessaire). Un logo
+  global pour les relances PSA (onglet « Journée des PSA... ») et un logo
+  propre à chaque Spelc (onglet Brevo).
+- `{{reseaux_sociaux}}` : pied de page listant les réseaux sociaux cochés
+  (Facebook, X/Twitter, Instagram, LinkedIn, YouTube) avec leur URL,
+  configurables au même endroit que le logo.
+
+Chaque écran de modèle propose aussi un bouton **« Mail de test »** /
+**« SMS de test »** : envoie un unique message avec le contenu du modèle
+actuellement affiché (pas forcément encore enregistré), avec les champs
+dynamiques calculés pour le premier PSA/adhérent encore non-votant — utile
+pour vérifier le rendu avant d'enregistrer puis de lancer une vraie
+relance/campagne.
+
+Le mail/mobile de test utilisé par ces envois (et par le mode test des
+campagnes) est réglable à deux niveaux : un réglage **global** (onglet PSA,
+admin général), utilisé par défaut partout, et un réglage **propre à
+chaque Spelc** (onglet Brevo), prioritaire sur le réglage global pour les
+campagnes de ce Spelc uniquement — les relances PSA continuent, elles,
+d'utiliser uniquement le réglage global.
+
 ## Récupération automatique des fichiers (scraping)
 
 Sur l'onglet Imports de l'admin général (scrutin national) et de chaque

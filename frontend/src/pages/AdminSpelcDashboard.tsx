@@ -7,11 +7,14 @@ import { ChatAssistantPanel } from "../components/ChatAssistantPanel";
 import { CourbeCard } from "../components/CourbeCard";
 import { EtablissementsTab } from "../components/EtablissementsTab";
 import { FileUploadCard } from "../components/FileUploadCard";
+import { LogoUploadCard } from "../components/LogoUploadCard";
 import { ScopeToggle } from "../components/ScopeToggle";
 import { ScrutinsTab } from "../components/ScrutinsTab";
+import { SocialLinksEditor } from "../components/SocialLinksEditor";
 import { api, qs } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import type { CourbePoint } from "../lib/types";
+import type { SocialLinks } from "../lib/socialLinks";
 
 const TABS = ["Vue Spelc", "Scrutins", "Participation par établissement", "Adhérents", "Brevo", "Assistant"] as const;
 type Tab = (typeof TABS)[number];
@@ -152,11 +155,13 @@ interface RelanceSms {
 const DEFAULT_EMAIL_TEMPLATE = {
   subject: "Rappel : votez aux élections professionnelles 2026",
   body:
+    "{{logo}}" +
     "Bonjour {{prenom}} {{nom}},\n\n" +
     "merci de voter aux élections professionnelles" +
     "{{#if CCMMEP_non_votant and scrutin_local_non_votant}} aux scrutins CCMMEP et {{scrutin_local}}{{/if}}" +
     "{{#if CCMMEP_non_votant and not(scrutin_local_non_votant)}} au scrutin CCMMEP{{/if}}" +
-    "{{#if not(CCMMEP_non_votant) and scrutin_local_non_votant}} au scrutin {{scrutin_local}}{{/if}}.",
+    "{{#if not(CCMMEP_non_votant) and scrutin_local_non_votant}} au scrutin {{scrutin_local}}{{/if}}." +
+    "{{reseaux_sociaux}}",
 };
 
 const DEFAULT_SMS_TEMPLATE = {
@@ -199,6 +204,19 @@ function BrevoPanel({ spelc }: { spelc: string }) {
   const [testMode, setTestMode] = useState(false);
   const [testMailLimit, setTestMailLimit] = useState(3);
   const [smsLimit, setSmsLimit] = useState(20);
+  const [spelcSettings, setSpelcSettings] = useState<{
+    logoDataUri: string | null;
+    socialLinks: SocialLinks;
+    testEmail: string | null;
+    testMobile: string | null;
+  }>({ logoDataUri: null, socialLinks: {}, testEmail: null, testMobile: null });
+  const [ownTestEmail, setOwnTestEmail] = useState("");
+  const [ownTestMobile, setOwnTestMobile] = useState("");
+  const [ownTestSaved, setOwnTestSaved] = useState<string | null>(null);
+  const [testMailMsg, setTestMailMsg] = useState<string | null>(null);
+  const [testSmsMsg, setTestSmsMsg] = useState<string | null>(null);
+  const [testMailBusy, setTestMailBusy] = useState(false);
+  const [testSmsBusy, setTestSmsBusy] = useState(false);
 
   function refreshAll() {
     api.get<{ configured: boolean; maskedKey: string | null }>("/brevo/settings").then((r) => {
@@ -221,8 +239,49 @@ function BrevoPanel({ spelc }: { spelc: string }) {
     api.get<{ body: string }>(`/brevo/templates/sms${qs({ spelc })}`).then(setSmsTemplate);
     api.get<{ rows: RelanceMail[] }>(`/brevo/tracking/mail${qs({ spelc })}`).then((r) => setMailRows(r.rows));
     api.get<{ rows: RelanceSms[] }>(`/brevo/tracking/sms${qs({ spelc })}`).then((r) => setSmsRows(r.rows));
+    api
+      .get<{ logoDataUri: string | null; socialLinks: SocialLinks; testEmail: string | null; testMobile: string | null }>(
+        `/brevo/spelc-settings${qs({ spelc })}`
+      )
+      .then((r) => {
+        setSpelcSettings(r);
+        setOwnTestEmail(r.testEmail ?? "");
+        setOwnTestMobile(r.testMobile ?? "");
+      });
   }
   useEffect(refreshAll, [spelc]);
+
+  async function sendTestMail() {
+    setTestMailBusy(true);
+    setTestMailMsg(null);
+    try {
+      const res = await api.post<{ sent: number; errors: number }>("/brevo/templates/email/test", {
+        spelc,
+        ...emailTemplate,
+      });
+      setTestMailMsg(res.sent > 0 ? "Mail de test envoyé." : "Échec de l'envoi.");
+    } catch (err) {
+      setTestMailMsg((err as Error).message);
+    } finally {
+      setTestMailBusy(false);
+    }
+  }
+
+  async function sendTestSms() {
+    setTestSmsBusy(true);
+    setTestSmsMsg(null);
+    try {
+      const res = await api.post<{ sent: number; errors: number }>("/brevo/templates/sms/test", {
+        spelc,
+        body: smsTemplate.body,
+      });
+      setTestSmsMsg(res.sent > 0 ? "SMS de test envoyé." : "Échec de l'envoi.");
+    } catch (err) {
+      setTestSmsMsg((err as Error).message);
+    } finally {
+      setTestSmsBusy(false);
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -290,11 +349,69 @@ function BrevoPanel({ spelc }: { spelc: string }) {
       )}
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <LogoUploadCard
+          title="Logo (entête des mails)"
+          currentLogo={spelcSettings.logoDataUri}
+          onSave={async (dataUri) => {
+            await api.put("/brevo/spelc-settings", { spelc, logoDataUri: dataUri });
+            setSpelcSettings((s) => ({ ...s, logoDataUri: dataUri }));
+          }}
+        />
+        <SocialLinksEditor
+          value={spelcSettings.socialLinks}
+          onSave={async (links) => {
+            await api.put("/brevo/spelc-settings", { spelc, socialLinks: links });
+            setSpelcSettings((s) => ({ ...s, socialLinks: links }));
+          }}
+        />
+      </div>
+
+      <Card
+        title="Mail / mobile de test de ce Spelc"
+        subtitle="Prioritaires sur le mail/mobile de test global de l'admin général pour les campagnes de ce Spelc (laisser vide pour utiliser le réglage global)."
+      >
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <div>
+            <label className="block text-xs font-medium text-slate-500">Mail de test</label>
+            <input
+              type="email"
+              placeholder="moi@exemple.fr"
+              className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+              value={ownTestEmail}
+              onChange={(e) => setOwnTestEmail(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-500">Mobile de test</label>
+            <input
+              type="tel"
+              placeholder="06 00 00 00 00"
+              className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+              value={ownTestMobile}
+              onChange={(e) => setOwnTestMobile(e.target.value)}
+            />
+          </div>
+        </div>
+        <button
+          className="mt-2 rounded-md bg-slate-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-900"
+          onClick={async () => {
+            await api.put("/brevo/spelc-settings", { spelc, testEmail: ownTestEmail, testMobile: ownTestMobile });
+            setSpelcSettings((s) => ({ ...s, testEmail: ownTestEmail, testMobile: ownTestMobile }));
+            setOwnTestSaved("Enregistré.");
+            setTimeout(() => setOwnTestSaved(null), 2000);
+          }}
+        >
+          Enregistrer
+        </button>
+        {ownTestSaved && <span className="ml-2 text-sm text-emerald-600">{ownTestSaved}</span>}
+      </Card>
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Card
           title="Modèle de mail de relance"
           subtitle={
             "Champs : {{nom}} {{prenom}} {{scrutin_local}} · {{CCMMEP_non_votant}} {{scrutin_local_non_votant}} · " +
-            "{{#if expr}}…{{else}}…{{/if}} avec expr combinant and/or/not(...), ex. " +
+            "{{logo}} {{reseaux_sociaux}} · {{#if expr}}…{{else}}…{{/if}} avec expr combinant and/or/not(...), ex. " +
             "\"CCMMEP_non_votant and not(scrutin_local_non_votant)\""
           }
         >
@@ -425,6 +542,13 @@ function BrevoPanel({ spelc }: { spelc: string }) {
             Envoyer les mails
           </button>
           <button
+            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 disabled:opacity-60"
+            disabled={testMailBusy}
+            onClick={sendTestMail}
+          >
+            {testMailBusy ? "Envoi…" : "Mail de test"}
+          </button>
+          <button
             className="rounded-md bg-slate-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-900"
             onClick={async () => {
               try {
@@ -443,6 +567,13 @@ function BrevoPanel({ spelc }: { spelc: string }) {
             Envoyer les SMS
           </button>
           <button
+            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 disabled:opacity-60"
+            disabled={testSmsBusy}
+            onClick={sendTestSms}
+          >
+            {testSmsBusy ? "Envoi…" : "SMS de test"}
+          </button>
+          <button
             className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
             onClick={async () => {
               try {
@@ -457,6 +588,8 @@ function BrevoPanel({ spelc }: { spelc: string }) {
           </button>
         </div>
         {message && <p className="mt-2 text-sm text-slate-600">{message}</p>}
+        {testMailMsg && <p className="mt-1 text-sm text-slate-600">{testMailMsg}</p>}
+        {testSmsMsg && <p className="mt-1 text-sm text-slate-600">{testSmsMsg}</p>}
       </Card>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

@@ -183,6 +183,20 @@ export function migrate(): void {
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
+    -- Réglages propres à un Spelc pour ses campagnes de relance : logo
+    -- (image encodée en base64, insérée en entête des mails), réseaux
+    -- sociaux (JSON) insérés en pied de mail, et mail/mobile de test propres
+    -- à ce Spelc (indépendants du mail/mobile de test global de l'admin
+    -- général, utilisé lui pour les relances PSA).
+    CREATE TABLE IF NOT EXISTS spelc_settings (
+      spelc TEXT PRIMARY KEY,
+      logo_data_uri TEXT,
+      social_links TEXT,
+      test_email TEXT,
+      test_mobile TEXT,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
     -- Configuration du scraping Playwright des portails de gestion CCMMEP
     -- (academie = '' pour le national) / académiques. Mot de passe chiffré
     -- au repos (voir lib/crypto.ts), jamais stocké ni renvoyé en clair.

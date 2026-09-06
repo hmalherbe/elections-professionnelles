@@ -4,7 +4,8 @@ import { requireAuth, requireRole } from "../middleware/auth.js";
 import { runPsaSimulation } from "../services/psaSimulation.js";
 import { renderTemplate, type TemplateFields } from "../lib/template.js";
 import { sendBrevoEmails, sendBrevoSms } from "../services/brevo.js";
-import { getTestContactSettings } from "../services/settings.js";
+import { getTestContactSettings, getPsaBranding, setPsaLogo, setPsaSocialLinks } from "../services/settings.js";
+import { buildLogoHtml, buildSocialLinksHtml, type SocialLinks } from "../lib/socialLinks.js";
 import { appendRelanceLog } from "../lib/relanceLog.js";
 import { normalizeFrenchMobile } from "../lib/phone.js";
 
@@ -104,6 +105,18 @@ router.put("/templates/sms", (req, res) => {
   res.json({ ok: true });
 });
 
+/** Logo et réseaux sociaux insérés dans les modèles de relance PSA (global, admin général). */
+router.get("/branding", (_req, res) => {
+  res.json(getPsaBranding());
+});
+
+router.put("/branding", (req, res) => {
+  const { logoDataUri, socialLinks } = req.body ?? {};
+  if (typeof logoDataUri === "string") setPsaLogo(logoDataUri);
+  if (socialLinks && typeof socialLinks === "object") setPsaSocialLinks(socialLinks as SocialLinks);
+  res.json({ ok: true });
+});
+
 interface PsaVoteInfo {
   psaId: number;
   nom: string;
@@ -133,6 +146,7 @@ function templateFieldsForPsa(p: PsaVoteInfo, endOfDay: string): TemplateFields 
   const nonVotantNational = !p.nationalDate || p.nationalDate > endOfDay;
   const nonVotantLocal = !p.localDate || p.localDate > endOfDay;
   const scrutinLocal = p.typeScrutin ?? "";
+  const branding = getPsaBranding();
   return {
     nom: p.nom,
     prenom: p.prenom,
@@ -143,8 +157,110 @@ function templateFieldsForPsa(p: PsaVoteInfo, endOfDay: string): TemplateFields 
     votant: !nonVotantLocal,
     nonVotantNational,
     nonVotantLocal,
+    logo: buildLogoHtml(branding.logoDataUri),
+    reseaux_sociaux: buildSocialLinksHtml(branding.socialLinks),
   };
 }
+
+/** Premier PSA encore non-votant (national ou local) dans la dernière simulation, pour prévisualiser un modèle. */
+function firstNonVotantPsa(): PsaVoteInfo | null {
+  const run = db.prepare("SELECT id FROM psa_simulation_runs ORDER BY run_at DESC, id DESC LIMIT 1").get() as
+    | { id: number }
+    | undefined;
+  if (!run) return null;
+  const now = new Date().toISOString();
+  const people = getPsaVoteInfo(run.id);
+  return people.find((p) => templateFieldsForPsa(p, now).nonVotantNational || templateFieldsForPsa(p, now).nonVotantLocal) ?? null;
+}
+
+/**
+ * Envoie un mail/SMS de test unique, en utilisant le contenu actuellement
+ * saisi (pas forcément encore enregistré) et les champs dynamiques du
+ * premier PSA non-votant de la dernière simulation — pour prévisualiser le
+ * rendu réel sans attendre d'enregistrer puis de lancer une vraie relance.
+ */
+router.post("/templates/email/test", async (req, res) => {
+  const { subject = "", body = "" } = req.body ?? {};
+  const testContact = getTestContactSettings();
+  if (!testContact.testEmail) {
+    res.status(400).json({ error: "Aucun mail de test configuré." });
+    return;
+  }
+  const user = db.prepare("SELECT brevo_api_key FROM users WHERE id = ?").get(req.user!.id) as {
+    brevo_api_key: string | null;
+  };
+  if (!user.brevo_api_key) {
+    res.status(400).json({ error: "Clé API Brevo non configurée pour l'admin général." });
+    return;
+  }
+  const psa = firstNonVotantPsa();
+  if (!psa) {
+    res.status(400).json({ error: "Aucune simulation PSA disponible pour prévisualiser le modèle." });
+    return;
+  }
+  const fields = templateFieldsForPsa(psa, new Date().toISOString());
+  const result = await sendBrevoEmails({
+    apiKey: user.brevo_api_key,
+    to: [{ email: testContact.testEmail, name: `${psa.prenom} ${psa.nom}` }],
+    subject: renderTemplate(String(subject), fields),
+    htmlContent: renderTemplate(String(body), fields),
+    tag: "psa-test-modele",
+  });
+  appendRelanceLog({
+    timestamp: new Date().toISOString(),
+    type: "mail",
+    provider: "Brevo",
+    scope: "PSA",
+    campagneTag: "psa-test-modele",
+    nom: psa.nom,
+    prenom: psa.prenom,
+    contact: testContact.testEmail,
+    testMode: true,
+    success: result.sent > 0,
+  });
+  res.json({ sent: result.sent, errors: result.errors });
+});
+
+router.post("/templates/sms/test", async (req, res) => {
+  const { body = "" } = req.body ?? {};
+  const testContact = getTestContactSettings();
+  if (!testContact.testMobile) {
+    res.status(400).json({ error: "Aucun mobile de test configuré." });
+    return;
+  }
+  const user = db.prepare("SELECT brevo_api_key FROM users WHERE id = ?").get(req.user!.id) as {
+    brevo_api_key: string | null;
+  };
+  if (!user.brevo_api_key) {
+    res.status(400).json({ error: "Clé API Brevo non configurée pour l'admin général." });
+    return;
+  }
+  const psa = firstNonVotantPsa();
+  if (!psa) {
+    res.status(400).json({ error: "Aucune simulation PSA disponible pour prévisualiser le modèle." });
+    return;
+  }
+  const fields = templateFieldsForPsa(psa, new Date().toISOString());
+  const result = await sendBrevoSms({
+    apiKey: user.brevo_api_key,
+    recipients: [normalizeFrenchMobile(testContact.testMobile)],
+    content: renderTemplate(String(body), fields),
+    tag: "psa-test-modele",
+  });
+  appendRelanceLog({
+    timestamp: new Date().toISOString(),
+    type: "sms",
+    provider: "Brevo",
+    scope: "PSA",
+    campagneTag: "psa-test-modele",
+    nom: psa.nom,
+    prenom: psa.prenom,
+    contact: testContact.testMobile,
+    testMode: true,
+    success: result.sent > 0,
+  });
+  res.json({ sent: result.sent, errors: result.errors });
+});
 
 /**
  * Relance simulée des PSA aux dates cochées (mail et/ou SMS). Pour chaque

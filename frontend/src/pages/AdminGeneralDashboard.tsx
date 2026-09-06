@@ -4,11 +4,14 @@ import { Card } from "../components/Card";
 import { ChatAssistantPanel } from "../components/ChatAssistantPanel";
 import { CourbeCard } from "../components/CourbeCard";
 import { FileUploadCard } from "../components/FileUploadCard";
+import { LogoUploadCard } from "../components/LogoUploadCard";
 import { PivotTree } from "../components/PivotTree";
 import { ScrapingPanel } from "../components/ScrapingPanel";
 import { ScrutinsTab } from "../components/ScrutinsTab";
+import { SocialLinksEditor } from "../components/SocialLinksEditor";
 import { api } from "../lib/api";
 import type { AcademieNode, CourbePoint, ImportRecord, ManagedUser } from "../lib/types";
+import type { SocialLinks } from "../lib/socialLinks";
 
 const TABS = [
   "Vue nationale",
@@ -479,11 +482,13 @@ function formatDateFr(iso: string): string {
 const DEFAULT_PSA_EMAIL_TEMPLATE = {
   subject: "Rappel : votez aux élections professionnelles 2026",
   body:
+    "{{logo}}" +
     "Bonjour {{prenom}} {{nom}},\n\n" +
     "merci de voter aux élections professionnelles" +
     "{{#if CCMMEP_non_votant and scrutin_local_non_votant}} aux scrutins CCMMEP et {{scrutin_local}}{{/if}}" +
     "{{#if CCMMEP_non_votant and not(scrutin_local_non_votant)}} au scrutin CCMMEP{{/if}}" +
-    "{{#if not(CCMMEP_non_votant) and scrutin_local_non_votant}} au scrutin {{scrutin_local}}{{/if}}.",
+    "{{#if not(CCMMEP_non_votant) and scrutin_local_non_votant}} au scrutin {{scrutin_local}}{{/if}}." +
+    "{{reseaux_sociaux}}",
 };
 
 const DEFAULT_PSA_SMS_TEMPLATE = {
@@ -744,71 +749,145 @@ function PsaBrevoSettings() {
 function PsaTemplates() {
   const [emailTemplate, setEmailTemplate] = useState({ subject: "", body: "" });
   const [smsTemplate, setSmsTemplate] = useState({ body: "" });
+  const [branding, setBranding] = useState<{ logoDataUri: string | null; socialLinks: SocialLinks }>({
+    logoDataUri: null,
+    socialLinks: {},
+  });
+  const [testMailMsg, setTestMailMsg] = useState<string | null>(null);
+  const [testSmsMsg, setTestSmsMsg] = useState<string | null>(null);
+  const [testMailBusy, setTestMailBusy] = useState(false);
+  const [testSmsBusy, setTestSmsBusy] = useState(false);
 
   useEffect(() => {
     api.get<{ subject: string; body: string }>("/psa/templates/email").then(setEmailTemplate);
     api.get<{ body: string }>("/psa/templates/sms").then(setSmsTemplate);
+    api.get<{ logoDataUri: string | null; socialLinks: SocialLinks }>("/psa/branding").then(setBranding);
   }, []);
 
+  async function sendTestMail() {
+    setTestMailBusy(true);
+    setTestMailMsg(null);
+    try {
+      const res = await api.post<{ sent: number; errors: number }>("/psa/templates/email/test", emailTemplate);
+      setTestMailMsg(res.sent > 0 ? "Mail de test envoyé." : "Échec de l'envoi.");
+    } catch (err) {
+      setTestMailMsg((err as Error).message);
+    } finally {
+      setTestMailBusy(false);
+    }
+  }
+
+  async function sendTestSms() {
+    setTestSmsBusy(true);
+    setTestSmsMsg(null);
+    try {
+      const res = await api.post<{ sent: number; errors: number }>("/psa/templates/sms/test", smsTemplate);
+      setTestSmsMsg(res.sent > 0 ? "SMS de test envoyé." : "Échec de l'envoi.");
+    } catch (err) {
+      setTestSmsMsg((err as Error).message);
+    } finally {
+      setTestSmsBusy(false);
+    }
+  }
+
   return (
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-      <Card
-        title="Modèle de mail de relance PSA"
-        subtitle={
-          "Champs : {{nom}} {{prenom}} {{scrutin_local}} · {{CCMMEP_non_votant}} {{scrutin_local_non_votant}} · " +
-          "{{#if expr}}…{{else}}…{{/if}} avec expr combinant and/or/not(...)"
-        }
-      >
-        <button
-          type="button"
-          className="mb-2 rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
-          onClick={() => setEmailTemplate(DEFAULT_PSA_EMAIL_TEMPLATE)}
-        >
-          Charger le modèle prégarni
-        </button>
-        <input
-          className="mb-2 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-          placeholder="Objet du mail"
-          value={emailTemplate.subject}
-          onChange={(e) => setEmailTemplate({ ...emailTemplate, subject: e.target.value })}
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <LogoUploadCard
+          title="Logo (entête des mails PSA)"
+          currentLogo={branding.logoDataUri}
+          onSave={async (dataUri) => {
+            await api.put("/psa/branding", { logoDataUri: dataUri });
+            setBranding((b) => ({ ...b, logoDataUri: dataUri }));
+          }}
         />
-        <textarea
-          className="h-40 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-          placeholder="Bonjour {{prenom}}, ..."
-          value={emailTemplate.body}
-          onChange={(e) => setEmailTemplate({ ...emailTemplate, body: e.target.value })}
+        <SocialLinksEditor
+          value={branding.socialLinks}
+          onSave={async (links) => {
+            await api.put("/psa/branding", { socialLinks: links });
+            setBranding((b) => ({ ...b, socialLinks: links }));
+          }}
         />
-        <button
-          className="mt-2 rounded-md bg-slate-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-900"
-          onClick={() => api.put("/psa/templates/email", emailTemplate)}
+      </div>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <Card
+          title="Modèle de mail de relance PSA"
+          subtitle={
+            "Champs : {{nom}} {{prenom}} {{scrutin_local}} · {{CCMMEP_non_votant}} {{scrutin_local_non_votant}} · " +
+            "{{logo}} {{reseaux_sociaux}} · {{#if expr}}…{{else}}…{{/if}} avec expr combinant and/or/not(...)"
+          }
         >
-          Enregistrer le modèle
-        </button>
-      </Card>
-      <Card
-        title="Modèle de SMS de relance PSA"
-        subtitle="Mêmes champs que le mail : {{nom}} {{prenom}} {{scrutin_local}} · {{CCMMEP_non_votant}} {{scrutin_local_non_votant}}"
-      >
-        <button
-          type="button"
-          className="mb-2 rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
-          onClick={() => setSmsTemplate(DEFAULT_PSA_SMS_TEMPLATE)}
+          <button
+            type="button"
+            className="mb-2 rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
+            onClick={() => setEmailTemplate(DEFAULT_PSA_EMAIL_TEMPLATE)}
+          >
+            Charger le modèle prégarni
+          </button>
+          <input
+            className="mb-2 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+            placeholder="Objet du mail"
+            value={emailTemplate.subject}
+            onChange={(e) => setEmailTemplate({ ...emailTemplate, subject: e.target.value })}
+          />
+          <textarea
+            className="h-40 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+            placeholder="Bonjour {{prenom}}, ..."
+            value={emailTemplate.body}
+            onChange={(e) => setEmailTemplate({ ...emailTemplate, body: e.target.value })}
+          />
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <button
+              className="rounded-md bg-slate-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-900"
+              onClick={() => api.put("/psa/templates/email", emailTemplate)}
+            >
+              Enregistrer le modèle
+            </button>
+            <button
+              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 disabled:opacity-60"
+              disabled={testMailBusy}
+              onClick={sendTestMail}
+            >
+              {testMailBusy ? "Envoi…" : "Mail de test"}
+            </button>
+          </div>
+          {testMailMsg && <p className="mt-1 text-xs text-slate-600">{testMailMsg}</p>}
+        </Card>
+        <Card
+          title="Modèle de SMS de relance PSA"
+          subtitle="Mêmes champs que le mail : {{nom}} {{prenom}} {{scrutin_local}} · {{CCMMEP_non_votant}} {{scrutin_local_non_votant}}"
         >
-          Charger le modèle prégarni
-        </button>
-        <textarea
-          className="h-40 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-          placeholder="{{prenom}}, pensez à voter au {{scrutin_local}} avant le 10/12."
-          value={smsTemplate.body}
-          onChange={(e) => setSmsTemplate({ body: e.target.value })}
-        />
-        <button
-          className="mt-2 rounded-md bg-slate-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-900"
-          onClick={() => api.put("/psa/templates/sms", { body: smsTemplate.body })}
-        >
-          Enregistrer le modèle
-        </button>
-      </Card>
+          <button
+            type="button"
+            className="mb-2 rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
+            onClick={() => setSmsTemplate(DEFAULT_PSA_SMS_TEMPLATE)}
+          >
+            Charger le modèle prégarni
+          </button>
+          <textarea
+            className="h-40 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+            placeholder="{{prenom}}, pensez à voter au {{scrutin_local}} avant le 10/12."
+            value={smsTemplate.body}
+            onChange={(e) => setSmsTemplate({ body: e.target.value })}
+          />
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <button
+              className="rounded-md bg-slate-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-900"
+              onClick={() => api.put("/psa/templates/sms", { body: smsTemplate.body })}
+            >
+              Enregistrer le modèle
+            </button>
+            <button
+              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 disabled:opacity-60"
+              disabled={testSmsBusy}
+              onClick={sendTestSms}
+            >
+              {testSmsBusy ? "Envoi…" : "SMS de test"}
+            </button>
+          </div>
+          {testSmsMsg && <p className="mt-1 text-xs text-slate-600">{testSmsMsg}</p>}
+        </Card>
+      </div>
     </div>
   );
 }

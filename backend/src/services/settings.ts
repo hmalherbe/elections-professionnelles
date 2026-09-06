@@ -1,4 +1,5 @@
 import { db } from "../db/index.js";
+import { parseSocialLinks, type SocialLinks } from "../lib/socialLinks.js";
 
 export function getSetting(key: string): string | null {
   const row = db.prepare("SELECT value FROM app_settings WHERE key = ?").get(key) as
@@ -24,4 +25,25 @@ export function getTestContactSettings(): TestContactSettings {
     testEmail: getSetting("test_email"),
     testMobile: getSetting("test_mobile"),
   };
+}
+
+export interface PsaBranding {
+  logoDataUri: string | null;
+  socialLinks: SocialLinks;
+}
+
+/** Logo et réseaux sociaux insérés dans les modèles de relance PSA (admin général, global). */
+export function getPsaBranding(): PsaBranding {
+  return {
+    logoDataUri: getSetting("psa_logo_data_uri"),
+    socialLinks: parseSocialLinks(getSetting("psa_social_links")),
+  };
+}
+
+export function setPsaLogo(dataUri: string): void {
+  setSetting("psa_logo_data_uri", dataUri);
+}
+
+export function setPsaSocialLinks(links: SocialLinks): void {
+  setSetting("psa_social_links", JSON.stringify(links));
 }
