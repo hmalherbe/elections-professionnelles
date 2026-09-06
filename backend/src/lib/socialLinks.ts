@@ -74,7 +74,12 @@ export function buildSocialLinksHtml(links: SocialLinks): string {
 /** Logo en tête de mail, centré horizontalement (text-align sur le conteneur
  * : la propriété CSS la plus fiable pour un centrage universel en HTML mail,
  * y compris sur les clients qui ignorent flexbox/margin:auto sur un <img>). */
-export function buildLogoHtml(logoDataUri: string | null): string {
-  if (!logoDataUri) return "";
-  return `<div style="margin-bottom:16px;text-align:center;"><img src="${logoDataUri}" alt="Logo" style="max-height:80px;max-width:280px;" /></div>`;
+export function buildLogoHtml(logoRef: string | null): string {
+  if (!logoRef) return "";
+  // logoRef est soit un chemin relatif /api/uploads/logos/... (nouveaux
+  // envois, voir lib/uploads.ts) à préfixer par PUBLIC_BASE_URL, soit une
+  // data URI historique (anciens logos enregistrés avant ce changement),
+  // conservée telle quelle pour ne pas casser l'existant.
+  const src = logoRef.startsWith("/") ? `${publicBaseUrl()}${logoRef}` : logoRef;
+  return `<div style="margin-bottom:16px;text-align:center;"><img src="${src}" alt="Logo" style="max-height:80px;max-width:280px;" /></div>`;
 }

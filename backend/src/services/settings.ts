@@ -1,5 +1,6 @@
 import { db } from "../db/index.js";
 import { parseSocialLinks, type SocialLinks } from "../lib/socialLinks.js";
+import { saveLogoUpload } from "../lib/uploads.js";
 
 export function getSetting(key: string): string | null {
   const row = db.prepare("SELECT value FROM app_settings WHERE key = ?").get(key) as
@@ -41,7 +42,8 @@ export function getPsaBranding(): PsaBranding {
 }
 
 export function setPsaLogo(dataUri: string): void {
-  setSetting("psa_logo_data_uri", dataUri);
+  const stored = saveLogoUpload("psa", dataUri) ?? dataUri;
+  setSetting("psa_logo_data_uri", stored);
 }
 
 export function setPsaSocialLinks(links: SocialLinks): void {

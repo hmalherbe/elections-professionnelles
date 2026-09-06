@@ -13,6 +13,7 @@ import brevoRoutes from "./routes/brevo.js";
 import psaRoutes from "./routes/psa.js";
 import scrapingRoutes from "./routes/scraping.js";
 import chatRoutes from "./routes/chat.js";
+import { UPLOADS_DIR } from "./lib/uploads.js";
 
 migrate();
 
@@ -27,6 +28,11 @@ app.get("/api/health", (_req, res) => res.json({ ok: true }));
 // data URI, que de nombreux clients mail (Gmail, Outlook.com...) bloquent.
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 app.use("/api/assets", express.static(path.resolve(__dirname, "../assets")));
+
+// Logos uploadés par les admins (PSA / Spelc) : mêmes raisons que ci-dessus,
+// mais stockés dans le volume persistant (voir lib/uploads.ts) puisqu'il
+// s'agit de contenu généré à l'exécution, pas d'un fichier versionné.
+app.use("/api/uploads/logos", express.static(UPLOADS_DIR));
 
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);

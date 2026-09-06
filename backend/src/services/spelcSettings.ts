@@ -1,5 +1,6 @@
 import { db } from "../db/index.js";
 import { parseSocialLinks, type SocialLinks } from "../lib/socialLinks.js";
+import { saveLogoUpload } from "../lib/uploads.js";
 
 export interface SpelcSettings {
   logoDataUri: string | null;
@@ -40,7 +41,10 @@ export function updateSpelcSettings(spelc: string, update: SpelcSettingsUpdate):
     | SpelcSettingsRow
     | undefined;
   const next = {
-    logo_data_uri: update.logoDataUri !== undefined ? update.logoDataUri : (current?.logo_data_uri ?? null),
+    logo_data_uri:
+      update.logoDataUri !== undefined
+        ? (saveLogoUpload(`spelc-${spelc}`, update.logoDataUri) ?? update.logoDataUri)
+        : (current?.logo_data_uri ?? null),
     social_links: update.socialLinks !== undefined ? JSON.stringify(update.socialLinks) : (current?.social_links ?? null),
     test_email: update.testEmail !== undefined ? update.testEmail : (current?.test_email ?? null),
     test_mobile: update.testMobile !== undefined ? update.testMobile : (current?.test_mobile ?? null),
