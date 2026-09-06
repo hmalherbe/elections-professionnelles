@@ -3,7 +3,7 @@ import { db } from "../db/index.js";
 import { requireAuth, requireRole } from "../middleware/auth.js";
 import { runPsaSimulation } from "../services/psaSimulation.js";
 import { renderTemplate, type TemplateFields } from "../lib/template.js";
-import { wrapEmailHtml } from "../lib/emailLayout.js";
+import { wrapEmailHtml, ensureSiteLink } from "../lib/emailLayout.js";
 import { sendBrevoEmails, sendBrevoSms } from "../services/brevo.js";
 import { getTestContactSettings, getPsaBranding, setPsaLogo, setPsaSocialLinks } from "../services/settings.js";
 import { buildLogoHtml, buildSocialLinksHtml, type SocialLinks } from "../lib/socialLinks.js";
@@ -185,7 +185,7 @@ router.post("/templates/email/test", async (req, res) => {
   const { subject = "", body = "" } = req.body ?? {};
   const testContact = getTestContactSettings();
   if (!testContact.testEmail) {
-    res.status(400).json({ error: "Aucun mail de test configuré." });
+    res.status(400).json({ error: "Renseigner votre mail." });
     return;
   }
   const user = db.prepare("SELECT brevo_api_key FROM users WHERE id = ?").get(req.user!.id) as {
@@ -205,7 +205,7 @@ router.post("/templates/email/test", async (req, res) => {
     apiKey: user.brevo_api_key,
     to: [{ email: testContact.testEmail, name: `${psa.prenom} ${psa.nom}` }],
     subject: renderTemplate(String(subject), fields),
-    htmlContent: wrapEmailHtml(renderTemplate(String(body), fields)),
+    htmlContent: wrapEmailHtml(renderTemplate(ensureSiteLink(String(body)), fields)),
     tag: "psa-test-modele",
   });
   appendRelanceLog({
@@ -239,7 +239,7 @@ router.post("/templates/sms/test", async (req, res) => {
   const { body = "" } = req.body ?? {};
   const testContact = getTestContactSettings();
   if (!testContact.testMobile) {
-    res.status(400).json({ error: "Aucun mobile de test configuré." });
+    res.status(400).json({ error: "Renseigner le numéro de mobile." });
     return;
   }
   const user = db.prepare("SELECT brevo_api_key FROM users WHERE id = ?").get(req.user!.id) as {
@@ -335,7 +335,7 @@ router.post("/relance", async (req, res) => {
       return;
     }
     if (testMode && !testContact?.testEmail) {
-      res.status(400).json({ error: "Aucun mail de test configuré. Renseignez-le dans les réglages." });
+      res.status(400).json({ error: "Renseigner votre mail." });
       return;
     }
   }
@@ -345,7 +345,7 @@ router.post("/relance", async (req, res) => {
       return;
     }
     if (testMode && !testContact?.testMobile) {
-      res.status(400).json({ error: "Aucun mobile de test configuré. Renseignez-le dans les réglages." });
+      res.status(400).json({ error: "Renseigner le numéro de mobile." });
       return;
     }
   }
@@ -376,7 +376,7 @@ router.post("/relance", async (req, res) => {
           apiKey: user.brevo_api_key!,
           to: [{ email, name: `${p.prenom} ${p.nom}` }],
           subject: renderTemplate(template.subject, fields),
-          htmlContent: wrapEmailHtml(renderTemplate(template.body, fields)),
+          htmlContent: wrapEmailHtml(renderTemplate(ensureSiteLink(template.body), fields)),
           tag: campagneTag,
         });
         mailSent += result.sent;

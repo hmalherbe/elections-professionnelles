@@ -17,7 +17,7 @@ import { useAuth } from "../lib/auth";
 import type { CourbePoint } from "../lib/types";
 import type { SocialLinks } from "../lib/socialLinks";
 
-const TABS = ["Vue Spelc", "Résultats 2022", "Scrutins", "Participation par établissement", "Adhérents", "Brevo", "Assistant"] as const;
+const TABS = ["Vue Spelc", "Résultats 2022", "Scrutins", "Participation par établissement", "Adhérents", "Relances adhérents", "Assistant"] as const;
 type Tab = (typeof TABS)[number];
 
 export function AdminSpelcDashboard() {
@@ -52,7 +52,7 @@ export function AdminSpelcDashboard() {
       {tab === "Scrutins" && <ScrutinsTab scope={scope} spelc={spelc} allowAdherentFilter={scope === "academique"} />}
       {tab === "Participation par établissement" && <EtablissementsTab scope={scope} spelc={spelc} />}
       {tab === "Adhérents" && <AdherentsPanel spelc={spelc} />}
-      {tab === "Brevo" && <BrevoPanel spelc={spelc} />}
+      {tab === "Relances adhérents" && <BrevoPanel spelc={spelc} />}
       {tab === "Assistant" && <ChatAssistantPanel />}
     </div>
   );

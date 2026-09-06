@@ -12,6 +12,26 @@
  */
 const EMAIL_COLUMN_WIDTH = 600;
 
+export const ELECTIONS_SITE_URL = "https://electionsprofessionnelles.spelc.fr/";
+
+/**
+ * Le lien du site des élections est un texte libre du modèle (comme le
+ * reste du corps), pas un champ calculé comme {{logo}}/{{reseaux_sociaux}} :
+ * un modèle personnalisé enregistré avant l'ajout de cette phrase (ou dont
+ * l'admin l'aurait effacée) ne l'affiche donc jamais tout seul. On la
+ * garantit ici, insérée juste avant {{reseaux_sociaux}} (même position que
+ * dans le modèle prégarni) si ce champ est présent, sinon en fin de corps ;
+ * si le lien figure déjà dans le texte (modèle prégarni chargé tel quel),
+ * on ne l'ajoute pas une seconde fois.
+ */
+export function ensureSiteLink(body: string): string {
+  if (body.includes(ELECTIONS_SITE_URL)) return body;
+  const sentence = `Pour consulter le site des élections : <a href="${ELECTIONS_SITE_URL}">${ELECTIONS_SITE_URL}</a>`;
+  const suffix = `\n\n${sentence}`;
+  const idx = body.indexOf("{{reseaux_sociaux}}");
+  return idx === -1 ? body + suffix : body.slice(0, idx) + suffix + body.slice(idx);
+}
+
 export function wrapEmailHtml(bodyHtml: string): string {
   // Les retours à la ligne saisis dans le modèle (ex. la ligne vide avant le
   // lien du site des élections) sont de simples "\n" : en HTML, un saut de

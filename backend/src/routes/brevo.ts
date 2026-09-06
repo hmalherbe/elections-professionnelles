@@ -3,7 +3,7 @@ import dayjs from "dayjs";
 import { db } from "../db/index.js";
 import { requireAuth, requireRole, canAccessSpelc } from "../middleware/auth.js";
 import { renderTemplate, type TemplateFields } from "../lib/template.js";
-import { wrapEmailHtml } from "../lib/emailLayout.js";
+import { wrapEmailHtml, ensureSiteLink } from "../lib/emailLayout.js";
 import {
   sendBrevoEmails,
   sendBrevoSms,
@@ -256,7 +256,7 @@ router.post("/templates/email/test", requireRole("admin_spelc", "admin_general")
   const { subject = "", body = "" } = req.body ?? {};
   const testEmail = resolveTestContact(spelc).testEmail;
   if (!testEmail) {
-    res.status(400).json({ error: "Aucun mail de test configuré (ni pour ce Spelc, ni globalement)." });
+    res.status(400).json({ error: "Renseigner votre mail." });
     return;
   }
   const user = db.prepare("SELECT brevo_api_key FROM users WHERE id = ?").get(req.user!.id) as {
@@ -276,7 +276,7 @@ router.post("/templates/email/test", requireRole("admin_spelc", "admin_general")
     apiKey: user.brevo_api_key,
     to: [{ email: testEmail, name: `${recipient.prenom} ${recipient.nom}` }],
     subject: renderTemplate(String(subject), fields),
-    htmlContent: wrapEmailHtml(renderTemplate(String(body), fields)),
+    htmlContent: wrapEmailHtml(renderTemplate(ensureSiteLink(String(body)), fields)),
     tag: "test-modele",
   });
   appendRelanceLog({
@@ -312,7 +312,7 @@ router.post("/templates/sms/test", requireRole("admin_spelc", "admin_general"), 
   const { body = "" } = req.body ?? {};
   const testMobile = resolveTestContact(spelc).testMobile;
   if (!testMobile) {
-    res.status(400).json({ error: "Aucun mobile de test configuré (ni pour ce Spelc, ni globalement)." });
+    res.status(400).json({ error: "Renseigner le numéro de mobile." });
     return;
   }
   const user = db.prepare("SELECT brevo_api_key FROM users WHERE id = ?").get(req.user!.id) as {
@@ -380,7 +380,7 @@ router.post("/campaigns/email", requireRole("admin_spelc"), async (req, res) => 
   }
   const testEmail = testMode ? resolveTestContact(spelc).testEmail : null;
   if (testMode && !testEmail) {
-    res.status(400).json({ error: "Aucun mail de test configuré (ni pour ce Spelc, ni globalement par l'admin général)." });
+    res.status(400).json({ error: "Renseigner votre mail." });
     return;
   }
 
@@ -394,7 +394,7 @@ router.post("/campaigns/email", requireRole("admin_spelc"), async (req, res) => 
     nom: r.nom,
     prenom: r.prenom,
     subject: renderTemplate(template.subject, templateFieldsFor(r, spelc)),
-    html: wrapEmailHtml(renderTemplate(template.body, templateFieldsFor(r, spelc))),
+    html: wrapEmailHtml(renderTemplate(ensureSiteLink(template.body), templateFieldsFor(r, spelc))),
   }));
 
   const campagneTag = (tag ?? "relance") + (testMode ? "-test" : "");
@@ -466,7 +466,7 @@ router.post("/campaigns/sms", requireRole("admin_spelc"), async (req, res) => {
   }
   const testMobile = testMode ? resolveTestContact(spelc).testMobile : null;
   if (testMode && !testMobile) {
-    res.status(400).json({ error: "Aucun mobile de test configuré (ni pour ce Spelc, ni globalement par l'admin général)." });
+    res.status(400).json({ error: "Renseigner le numéro de mobile." });
     return;
   }
 
