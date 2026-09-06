@@ -1,8 +1,16 @@
 import { useMemo, useState } from "react";
 import { CCM_2022_ACADEMIE_MAP, type CcmOsEntry } from "../data/ccm2022AcademieMap";
+import { CCM_2022_DEPARTEMENTS, CCM_2022_SPELCS } from "../data/ccm2022Breakdowns";
 import { Card } from "./Card";
 
 type Scrutin = "1D" | "2D";
+type Vue = "academie" | "departement" | "spelc";
+
+const VUE_LABELS: Record<Vue, string> = {
+  academie: "Académie",
+  departement: "Département",
+  spelc: "Spelc",
+};
 
 const OS_LABELS: Record<string, string> = {
   CFDT: "Fep-CFDT",
@@ -42,6 +50,7 @@ function votesFor(entries: CcmOsEntry[], os: string): number {
 
 export function Ccm2022MapPanel() {
   const [scrutin, setScrutin] = useState<Scrutin>("1D");
+  const [vue, setVue] = useState<Vue>("academie");
   const [selected, setSelected] = useState<string | null>(null);
 
   const data = CCM_2022_ACADEMIE_MAP;
@@ -57,11 +66,31 @@ export function Ccm2022MapPanel() {
 
   const selectedEntries = selected ? data.academies[selected]?.[scrutin] ?? [] : [];
 
+  function entriesForAcademie(academie: string): CcmOsEntry[] {
+    return data.academies[academie]?.[scrutin] ?? overseas[academie] ?? [];
+  }
+
   const tableRows = useMemo(() => {
-    const metropole = Object.entries(data.academies).map(([name, info]) => ({ name, entries: info[scrutin] }));
-    const domTom = Object.entries(overseas).map(([name, entries]) => ({ name, entries }));
-    return [...metropole, ...domTom].sort((a, b) => a.name.localeCompare(b.name, "fr"));
-  }, [data, overseas, scrutin]);
+    if (vue === "academie") {
+      const metropole = Object.entries(data.academies).map(([name, info]) => ({ name, entries: info[scrutin] }));
+      const domTom = Object.entries(overseas).map(([name, entries]) => ({ name, entries }));
+      return [...metropole, ...domTom].sort((a, b) => a.name.localeCompare(b.name, "fr"));
+    }
+    if (vue === "departement") {
+      return CCM_2022_DEPARTEMENTS.map((d) => ({
+        name: d.code ? `${d.code} – ${d.name}` : d.name,
+        entries: entriesForAcademie(d.academies[0]),
+      }));
+    }
+    // vue === "spelc" : le Spelc Centre-Poitou-Charente chevauche deux académies
+    // réelles (Poitiers et Orléans-Tours) et ne peut pas être réduit à une seule
+    // ligne sans mélanger deux élections distinctes.
+    return CCM_2022_SPELCS.flatMap((s) =>
+      s.academies.length > 1
+        ? s.academies.map((a) => ({ name: `${s.name} (${a})`, entries: entriesForAcademie(a) }))
+        : [{ name: s.name, entries: entriesForAcademie(s.academies[0]) }]
+    ).sort((a, b) => a.name.localeCompare(b.name, "fr"));
+  }, [data, overseas, scrutin, vue]);
 
   const tableTotals = useMemo(() => {
     const totals: Record<string, number> = {};
@@ -232,15 +261,37 @@ export function Ccm2022MapPanel() {
         </div>
       </div>
 
-      <Card
-        title={`Tableau des résultats — ${scrutin === "1D" ? "1er degré" : "2nd degré"}`}
-        subtitle="Nombre de voix obtenues par chaque organisation syndicale, académie par académie (métropole et outre-mer)."
-      >
+      <Card title={`Tableau des résultats — ${scrutin === "1D" ? "1er degré" : "2nd degré"}`}>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-xs text-slate-500">
+            Nombre de voix obtenues par chaque organisation syndicale, {vue === "spelc" ? "Spelc par Spelc" : vue === "departement" ? "département par département" : "académie par académie"} (métropole et outre-mer).
+          </p>
+          <div className="inline-flex rounded-md border border-slate-200 bg-slate-50 p-1">
+            {(["academie", "departement", "spelc"] as Vue[]).map((v) => (
+              <button
+                key={v}
+                onClick={() => setVue(v)}
+                className={`rounded px-2.5 py-1 text-xs font-medium ${
+                  vue === v ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"
+                }`}
+              >
+                {VUE_LABELS[v]}
+              </button>
+            ))}
+          </div>
+        </div>
+        {vue !== "academie" && (
+          <p className="mb-3 text-xs text-slate-400">
+            {vue === "departement"
+              ? "Les sièges ne sont attribués que par académie dans ce scrutin : chaque département affiche les résultats de son académie de rattachement (les départements d'une même académie affichent donc les mêmes chiffres)."
+              : "Chaque Spelc affiche les résultats de son académie de rattachement. Le Spelc « Centre-Poitou-Charente » chevauche deux académies réelles (Poitiers et Orléans-Tours) : ses deux académies sont affichées séparément plutôt qu'un total qui mélangerait deux élections distinctes."}
+          </p>
+        )}
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-400">
-                <th className="py-1.5 pr-4 font-medium">Académie</th>
+                <th className="py-1.5 pr-4 font-medium">{VUE_LABELS[vue]}</th>
                 {TABLE_OS.map((os) => (
                   <th key={os} className="px-3 py-1.5 text-right font-medium">
                     <span className="inline-flex items-center gap-1.5">
