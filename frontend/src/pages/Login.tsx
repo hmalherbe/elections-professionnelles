@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 
 export function Login() {
@@ -58,6 +59,9 @@ export function Login() {
             {busy ? "Connexion…" : "Se connecter"}
           </button>
         </form>
+        <Link to="/forgot-password" className="mt-4 block text-center text-sm text-slate-500 hover:underline">
+          Mot de passe oublié ?
+        </Link>
       </div>
     </div>
   );

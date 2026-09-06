@@ -4,7 +4,9 @@ import { AdminAcademiqueDashboard } from "./pages/AdminAcademiqueDashboard";
 import { AdminGeneralDashboard } from "./pages/AdminGeneralDashboard";
 import { AdminSpelcDashboard } from "./pages/AdminSpelcDashboard";
 import { ForcedPasswordChange } from "./pages/ForcedPasswordChange";
+import { ForgotPassword } from "./pages/ForgotPassword";
 import { Login } from "./pages/Login";
+import { ResetPassword } from "./pages/ResetPassword";
 import { useAuth } from "./lib/auth";
 
 function LoadingScreen() {
@@ -15,7 +17,17 @@ export default function App() {
   const { user, loading } = useAuth();
 
   if (loading) return <LoadingScreen />;
-  if (!user) return <Login />;
+
+  if (!user) {
+    return (
+      <Routes>
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="*" element={<Login />} />
+      </Routes>
+    );
+  }
+
   if (user.mustChangePassword) return <ForcedPasswordChange />;
 
   if (user.role === "admin_general") {
