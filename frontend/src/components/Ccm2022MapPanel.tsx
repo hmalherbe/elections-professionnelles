@@ -3,6 +3,7 @@ import { CCM_2022_ACADEMIE_MAP, type CcmOsEntry } from "../data/ccm2022AcademieM
 import { CCM_2022_DEPARTEMENTS, CCM_2022_SPELCS } from "../data/ccm2022Breakdowns";
 import { CCM_2022_DEPARTEMENT_GEO } from "../data/ccm2022DepartementGeo";
 import { CCM_2022_SPELC_GEO } from "../data/ccm2022SpelcGeo";
+import { OS_COLORS, OS_LABELS, TABLE_OS, formatVotes, leaderInfo, votesFor } from "../lib/ccm2022";
 import { Card } from "./Card";
 
 type Scrutin = "1D" | "2D";
@@ -13,42 +14,6 @@ const VUE_LABELS: Record<Vue, string> = {
   departement: "Département",
   spelc: "Spelc",
 };
-
-const OS_LABELS: Record<string, string> = {
-  CFDT: "Fep-CFDT",
-  CFTC: "CFTC",
-  CGT: "CGT Educ'action",
-  SPELC: "Spelc",
-  Autres: "Autres",
-};
-
-// Palette dédiée à cette carte : 4 teintes validées colorblind-safe en comparaison
-// "toutes paires" (choroplethe), au-delà de ce que la palette générale de l'appli
-// (lib/colors.ts, prévue pour des séries adjacentes) peut garantir.
-const OS_COLORS: Record<string, string> = {
-  CFDT: "#2261dd",
-  CFTC: "#cd5800",
-  CGT: "#a2008f",
-  SPELC: "#009476",
-  Autres: "#8a9088",
-};
-
-function leaderInfo(entries: CcmOsEntry[]): { leaders: CcmOsEntry[]; tie: boolean } {
-  if (!entries.length) return { leaders: [], tie: false };
-  const top = entries[0].sieges;
-  const leaders = entries.filter((e) => e.sieges === top);
-  return { leaders, tie: leaders.length > 1 };
-}
-
-function formatVotes(n: number): string {
-  return n.toLocaleString("fr-FR");
-}
-
-const TABLE_OS = ["CFDT", "CFTC", "CGT", "SPELC", "Autres"] as const;
-
-function votesFor(entries: CcmOsEntry[], os: string): number {
-  return entries.find((e) => e.os === os)?.votes ?? 0;
-}
 
 const DEPT_NAME: Record<string, string> = Object.fromEntries(
   CCM_2022_DEPARTEMENTS.filter((d) => d.code).map((d) => [d.code as string, d.name])

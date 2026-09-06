@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { CamembertCard } from "../components/CamembertCard";
 import { Card } from "../components/Card";
+import { Ccm2022ResultsTab } from "../components/Ccm2022ResultsTab";
 import { ChatAssistantPanel } from "../components/ChatAssistantPanel";
 import { CourbeCard } from "../components/CourbeCard";
 import { EtablissementsTab } from "../components/EtablissementsTab";
@@ -12,7 +13,7 @@ import { api, qs } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import type { CourbePoint, ImportRecord } from "../lib/types";
 
-const TABS = ["Vue académie", "Scrutins", "Participation par établissement", "Imports", "Assistant"] as const;
+const TABS = ["Vue académie", "Résultats 2022", "Scrutins", "Participation par établissement", "Imports", "Assistant"] as const;
 type Tab = (typeof TABS)[number];
 
 export function AdminAcademiqueDashboard() {
@@ -37,10 +38,11 @@ export function AdminAcademiqueDashboard() {
             </button>
           ))}
         </div>
-        {tab !== "Imports" && <ScopeToggle scope={scope} onChange={setScope} />}
+        {tab !== "Imports" && tab !== "Résultats 2022" && <ScopeToggle scope={scope} onChange={setScope} />}
       </div>
 
       {tab === "Vue académie" && <VueAcademie academie={academie} scope={scope} />}
+      {tab === "Résultats 2022" && <Ccm2022ResultsTab mode="academie" value={academie} />}
       {tab === "Scrutins" && <ScrutinsTab scope={scope} academie={academie} />}
       {tab === "Participation par établissement" && <EtablissementsTab scope={scope} academie={academie} />}
       {tab === "Imports" && <ImportsPanel academie={academie} />}
