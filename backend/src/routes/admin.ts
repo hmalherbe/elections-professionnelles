@@ -10,7 +10,7 @@ import {
   clearDeptCache,
 } from "../services/reference.js";
 import { getTestContactSettings, setSetting } from "../services/settings.js";
-import { readRelanceLog } from "../lib/relanceLog.js";
+import { listAllRelanceTracking, refreshPendingRelanceTracking } from "../services/relanceTracking.js";
 import { importUsersFromFile } from "../services/userImport.js";
 
 const router = Router();
@@ -168,9 +168,37 @@ router.put("/test-settings", (req, res) => {
   res.json(getTestContactSettings());
 });
 
+/**
+ * Journal des relances par personne (PSA et Spelcs confondus), avec statut
+ * d'envoi et clics — mis à jour au fil du temps par le sondage périodique de
+ * l'API Brevo (voir services/relanceTracking.ts), jamais disponible en
+ * totalité au moment de l'envoi lui-même.
+ */
 router.get("/relance-log", (req, res) => {
   const limit = Math.min(Number(req.query.limit) || 200, 2000);
-  res.json({ entries: readRelanceLog(limit) });
+  const entries = listAllRelanceTracking(limit).map((r) => ({
+    timestamp: r.created_at,
+    type: r.type,
+    provider: "Brevo",
+    scope: r.scope,
+    campagneTag: r.campagne_tag,
+    nom: r.nom,
+    prenom: r.prenom,
+    contact: r.contact,
+    testMode: Boolean(r.test_mode),
+    success: r.statusLabel !== "echec",
+    deliveryStatus: r.delivery_status,
+    clicked: Boolean(r.clicked),
+    clickedAt: r.clicked_at,
+    lastCheckedAt: r.last_checked_at,
+  }));
+  res.json({ entries });
+});
+
+/** Sonde Brevo immédiatement pour toutes les relances en attente (bouton "Vérifier maintenant"). */
+router.post("/relance-log/refresh", async (_req, res) => {
+  const result = await refreshPendingRelanceTracking();
+  res.json(result);
 });
 
 export default router;

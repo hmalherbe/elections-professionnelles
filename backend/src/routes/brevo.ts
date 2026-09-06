@@ -15,6 +15,11 @@ import { getTestContactSettings } from "../services/settings.js";
 import { getSpelcSettings, updateSpelcSettings } from "../services/spelcSettings.js";
 import { buildLogoHtml, buildSocialLinksHtml, type SocialLinks } from "../lib/socialLinks.js";
 import { appendRelanceLog } from "../lib/relanceLog.js";
+import {
+  insertRelanceTracking,
+  listRelanceTrackingByScope,
+  refreshPendingRelanceTracking,
+} from "../services/relanceTracking.js";
 import { normalizeFrenchMobile } from "../lib/phone.js";
 
 const MAX_TEST_RECIPIENTS = 20;
@@ -285,6 +290,18 @@ router.post("/templates/email/test", requireRole("admin_spelc", "admin_general")
     testMode: true,
     success: result.sent > 0,
   });
+  insertRelanceTracking({
+    ownerUserId: req.user!.id,
+    type: "mail",
+    scope: spelc,
+    campagneTag: "test-modele",
+    nom: recipient.nom,
+    prenom: recipient.prenom,
+    contact: testEmail,
+    testMode: true,
+    sendOk: result.sent > 0,
+    messageId: result.messageId,
+  });
   res.json({ sent: result.sent, errors: result.errors });
 });
 
@@ -327,6 +344,18 @@ router.post("/templates/sms/test", requireRole("admin_spelc", "admin_general"), 
     contact: testMobile,
     testMode: true,
     success: result.sent > 0,
+  });
+  insertRelanceTracking({
+    ownerUserId: req.user!.id,
+    type: "sms",
+    scope: spelc,
+    campagneTag: "test-modele",
+    nom: recipient.nom,
+    prenom: recipient.prenom,
+    contact: normalizeFrenchMobile(testMobile),
+    testMode: true,
+    sendOk: result.sent > 0,
+    messageId: result.messageId,
   });
   res.json({ sent: result.sent, errors: result.errors });
 });
@@ -395,6 +424,18 @@ router.post("/campaigns/email", requireRole("admin_spelc"), async (req, res) => 
       testMode: Boolean(testMode),
       success: result.sent > 0,
     });
+    insertRelanceTracking({
+      ownerUserId: req.user!.id,
+      type: "mail",
+      scope: spelc,
+      campagneTag,
+      nom: item.nom,
+      prenom: item.prenom,
+      contact: item.email,
+      testMode: Boolean(testMode),
+      sendOk: result.sent > 0,
+      messageId: result.messageId,
+    });
   }
 
   db.prepare(
@@ -458,6 +499,18 @@ router.post("/campaigns/sms", requireRole("admin_spelc"), async (req, res) => {
       testMode: Boolean(testMode),
       success: result.sent > 0,
     });
+    insertRelanceTracking({
+      ownerUserId: req.user!.id,
+      type: "sms",
+      scope: spelc,
+      campagneTag,
+      nom: r.nom,
+      prenom: r.prenom,
+      contact: normalizeFrenchMobile(contact),
+      testMode: Boolean(testMode),
+      sendOk: result.sent > 0,
+      messageId: result.messageId,
+    });
   }
 
   db.prepare(
@@ -480,6 +533,27 @@ router.get("/tracking/sms", (req, res) => {
   if (!spelc || !assertSpelcAccess(req, res, spelc)) return;
   const rows = db.prepare("SELECT * FROM relances_sms WHERE spelc = ? ORDER BY date").all(spelc);
   res.json({ rows });
+});
+
+/**
+ * Suivi par personne des relances de ce Spelc : statut d'envoi et clics,
+ * mis à jour au fil du temps par le sondage périodique de l'API Brevo (voir
+ * services/relanceTracking.ts) — le statut final et les clics n'arrivent
+ * jamais au moment de l'envoi lui-même.
+ */
+router.get("/relance-tracking", (req, res) => {
+  const spelc = req.query.spelc as string;
+  if (!spelc || !assertSpelcAccess(req, res, spelc)) return;
+  const limit = Math.min(Number(req.query.limit) || 500, 2000);
+  res.json({ rows: listRelanceTrackingByScope(spelc, limit) });
+});
+
+/** Sonde Brevo immédiatement pour les relances en attente de ce Spelc (bouton "Vérifier maintenant"). */
+router.post("/relance-tracking/refresh", requireRole("admin_spelc", "admin_general"), async (req, res) => {
+  const spelc = (req.body?.spelc as string) || req.user!.spelc || "";
+  if (!spelc || !assertSpelcAccess(req, res, spelc)) return;
+  const result = await refreshPendingRelanceTracking({ ownerUserId: req.user!.id, scope: spelc });
+  res.json(result);
 });
 
 /** Rafraîchit les statistiques (lus/cliqués, délivrés/rejetés) depuis l'API Brevo. */

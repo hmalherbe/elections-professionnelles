@@ -7,6 +7,7 @@ import { sendBrevoEmails, sendBrevoSms } from "../services/brevo.js";
 import { getTestContactSettings, getPsaBranding, setPsaLogo, setPsaSocialLinks } from "../services/settings.js";
 import { buildLogoHtml, buildSocialLinksHtml, type SocialLinks } from "../lib/socialLinks.js";
 import { appendRelanceLog } from "../lib/relanceLog.js";
+import { insertRelanceTracking } from "../services/relanceTracking.js";
 import { normalizeFrenchMobile } from "../lib/phone.js";
 
 /** Plafond d'envoi SMS pour ne pas consommer plus de crédits Brevo que prévu. */
@@ -218,6 +219,18 @@ router.post("/templates/email/test", async (req, res) => {
     testMode: true,
     success: result.sent > 0,
   });
+  insertRelanceTracking({
+    ownerUserId: req.user!.id,
+    type: "mail",
+    scope: "PSA",
+    campagneTag: "psa-test-modele",
+    nom: psa.nom,
+    prenom: psa.prenom,
+    contact: testContact.testEmail,
+    testMode: true,
+    sendOk: result.sent > 0,
+    messageId: result.messageId,
+  });
   res.json({ sent: result.sent, errors: result.errors });
 });
 
@@ -258,6 +271,18 @@ router.post("/templates/sms/test", async (req, res) => {
     contact: testContact.testMobile,
     testMode: true,
     success: result.sent > 0,
+  });
+  insertRelanceTracking({
+    ownerUserId: req.user!.id,
+    type: "sms",
+    scope: "PSA",
+    campagneTag: "psa-test-modele",
+    nom: psa.nom,
+    prenom: psa.prenom,
+    contact: normalizeFrenchMobile(testContact.testMobile),
+    testMode: true,
+    sendOk: result.sent > 0,
+    messageId: result.messageId,
   });
   res.json({ sent: result.sent, errors: result.errors });
 });
@@ -367,6 +392,18 @@ router.post("/relance", async (req, res) => {
           testMode: Boolean(testMode),
           success: result.sent > 0,
         });
+        insertRelanceTracking({
+          ownerUserId: req.user!.id,
+          type: "mail",
+          scope: "PSA",
+          campagneTag,
+          nom: p.nom,
+          prenom: p.prenom,
+          contact: email,
+          testMode: Boolean(testMode),
+          sendOk: result.sent > 0,
+          messageId: result.messageId,
+        });
       }
     }
   }
@@ -415,6 +452,18 @@ router.post("/relance", async (req, res) => {
         contact: mobile,
         testMode: Boolean(testMode),
         success: result.sent > 0,
+      });
+      insertRelanceTracking({
+        ownerUserId: req.user!.id,
+        type: "sms",
+        scope: "PSA",
+        campagneTag,
+        nom: p.nom,
+        prenom: p.prenom,
+        contact: normalizeFrenchMobile(mobile),
+        testMode: Boolean(testMode),
+        sendOk: result.sent > 0,
+        messageId: result.messageId,
       });
     }
   }

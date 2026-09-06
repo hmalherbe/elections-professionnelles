@@ -154,6 +154,20 @@ interface RelanceSms {
   statut_global: string;
 }
 
+interface RelanceTrackingRow {
+  id: number;
+  created_at: string;
+  type: "mail" | "sms";
+  campagne_tag: string;
+  nom: string;
+  prenom: string;
+  contact: string;
+  test_mode: number;
+  clicked: number;
+  last_checked_at: string | null;
+  statusLabel: "ok" | "echec" | "en_attente";
+}
+
 const DEFAULT_EMAIL_TEMPLATE = {
   subject: "Rappel : votez aux élections professionnelles 2026",
   body:
@@ -219,6 +233,36 @@ function BrevoPanel({ spelc }: { spelc: string }) {
   const [testSmsMsg, setTestSmsMsg] = useState<string | null>(null);
   const [testMailBusy, setTestMailBusy] = useState(false);
   const [testSmsBusy, setTestSmsBusy] = useState(false);
+  const [trackingRows, setTrackingRows] = useState<RelanceTrackingRow[]>([]);
+  const [trackingLoadedAt, setTrackingLoadedAt] = useState<Date | null>(null);
+  const [trackingChecking, setTrackingChecking] = useState(false);
+
+  function reloadTracking() {
+    api
+      .get<{ rows: RelanceTrackingRow[] }>(`/brevo/relance-tracking${qs({ spelc })}`)
+      .then((r) => {
+        setTrackingRows(r.rows);
+        setTrackingLoadedAt(new Date());
+      });
+  }
+  // Le statut final et les clics n'arrivent jamais au moment de l'envoi
+  // (sondage Brevo côté serveur toutes les 5 minutes) : on relit régulièrement
+  // pour refléter la dernière valeur connue sans action de l'admin.
+  useEffect(() => {
+    reloadTracking();
+    const id = setInterval(reloadTracking, 60_000);
+    return () => clearInterval(id);
+  }, [spelc]);
+
+  async function checkTrackingNow() {
+    setTrackingChecking(true);
+    try {
+      await api.post("/brevo/relance-tracking/refresh", { spelc });
+      reloadTracking();
+    } finally {
+      setTrackingChecking(false);
+    }
+  }
 
   function refreshAll() {
     api.get<{ configured: boolean; maskedKey: string | null }>("/brevo/settings").then((r) => {
@@ -683,6 +727,85 @@ function BrevoPanel({ spelc }: { spelc: string }) {
           </table>
         </Card>
       </div>
+
+      <Card
+        title="Suivi détaillé des relances, par personne"
+        subtitle={`${trackingRows.length} envois récents${
+          trackingLoadedAt ? ` · dernière mise à jour ${trackingLoadedAt.toLocaleTimeString("fr-FR")}` : ""
+        }`}
+      >
+        <div className="mb-2 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
+            onClick={reloadTracking}
+          >
+            Actualiser
+          </button>
+          <button
+            type="button"
+            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 disabled:opacity-60"
+            disabled={trackingChecking}
+            onClick={checkTrackingNow}
+            title="Interroge Brevo maintenant pour les statuts et clics en attente, au lieu d'attendre le prochain sondage automatique (toutes les 5 minutes)."
+          >
+            {trackingChecking ? "Vérification…" : "Vérifier les statuts Brevo"}
+          </button>
+          <span className="text-xs text-slate-400">
+            Le statut final et les clics ne sont jamais immédiats : mis à jour automatiquement toutes les 5 minutes.
+          </span>
+        </div>
+        <div className="max-h-96 overflow-auto">
+          <table className="w-full text-sm">
+            <thead className="sticky top-0 bg-white">
+              <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-500">
+                <th className="py-2 pr-4">Horodatage</th>
+                <th className="px-4 py-2">Type</th>
+                <th className="px-4 py-2">Campagne</th>
+                <th className="px-4 py-2">Nom</th>
+                <th className="px-4 py-2">Prénom</th>
+                <th className="px-4 py-2">Contact</th>
+                <th className="px-4 py-2">Statut</th>
+                <th className="px-4 py-2">Clic</th>
+              </tr>
+            </thead>
+            <tbody>
+              {trackingRows.map((r) => (
+                <tr key={r.id} className="border-b border-slate-100">
+                  <td className="py-1.5 pr-4 text-slate-500">{new Date(r.created_at).toLocaleString("fr-FR")}</td>
+                  <td className="px-4 py-1.5">
+                    {r.type === "mail" ? "Mail" : "SMS"}
+                    {Boolean(r.test_mode) && (
+                      <span className="ml-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-xs text-amber-700">test</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-1.5 text-slate-500">{r.campagne_tag}</td>
+                  <td className="px-4 py-1.5">{r.nom}</td>
+                  <td className="px-4 py-1.5">{r.prenom}</td>
+                  <td className="px-4 py-1.5 text-slate-500">{r.contact}</td>
+                  <td className="px-4 py-1.5">
+                    {r.statusLabel === "ok" ? (
+                      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700">OK</span>
+                    ) : (
+                      <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700">Échec</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-1.5">
+                    {r.type === "sms" ? (
+                      <span className="text-xs text-slate-300">—</span>
+                    ) : r.clicked ? (
+                      <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-xs text-indigo-700">Oui</span>
+                    ) : (
+                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">Non</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {trackingRows.length === 0 && <p className="py-4 text-sm text-slate-400">Aucune relance envoyée pour le moment.</p>}
+        </div>
+      </Card>
     </div>
   );
 }

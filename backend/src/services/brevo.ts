@@ -9,6 +9,15 @@ interface SendEmailPayload {
 export interface BrevoSendSummary {
   sent: number;
   errors: number;
+  /**
+   * Identifiant Brevo du dernier envoi réussi de cette boucle (chaque appel
+   * de ce module n'envoie en pratique qu'à un seul destinataire à la fois —
+   * voir les call sites dans routes/psa.ts et routes/brevo.ts), utilisé pour
+   * retrouver plus tard le statut de livraison et les clics de CE destinataire
+   * précis via l'API d'évènements Brevo. `null` si l'envoi a échoué ou si
+   * Brevo n'a pas renvoyé d'identifiant exploitable.
+   */
+  messageId: string | null;
 }
 
 const BREVO_BASE = "https://api.brevo.com/v3";
@@ -16,6 +25,7 @@ const BREVO_BASE = "https://api.brevo.com/v3";
 export async function sendBrevoEmails(payload: SendEmailPayload): Promise<BrevoSendSummary> {
   let sent = 0;
   let errors = 0;
+  let messageId: string | null = null;
   for (const recipient of payload.to) {
     try {
       const response = await fetch(`${BREVO_BASE}/smtp/email`, {
@@ -33,8 +43,11 @@ export async function sendBrevoEmails(payload: SendEmailPayload): Promise<BrevoS
           tags: [payload.tag],
         }),
       });
-      if (response.ok) sent++;
-      else {
+      if (response.ok) {
+        sent++;
+        const data = (await response.json().catch(() => null)) as { messageId?: string; messageIds?: string[] } | null;
+        messageId = data?.messageId ?? data?.messageIds?.[0] ?? null;
+      } else {
         errors++;
         console.error("Échec envoi mail Brevo:", response.status, await response.text());
       }
@@ -43,7 +56,7 @@ export async function sendBrevoEmails(payload: SendEmailPayload): Promise<BrevoS
       console.error("Échec envoi mail Brevo (exception):", err);
     }
   }
-  return { sent, errors };
+  return { sent, errors, messageId };
 }
 
 interface SendSmsPayload {
@@ -56,6 +69,7 @@ interface SendSmsPayload {
 export async function sendBrevoSms(payload: SendSmsPayload): Promise<BrevoSendSummary> {
   let sent = 0;
   let errors = 0;
+  let messageId: string | null = null;
   for (const recipient of payload.recipients) {
     try {
       const response = await fetch(`${BREVO_BASE}/transactionalSMS/sms`, {
@@ -72,8 +86,13 @@ export async function sendBrevoSms(payload: SendSmsPayload): Promise<BrevoSendSu
           tag: payload.tag,
         }),
       });
-      if (response.ok) sent++;
-      else {
+      if (response.ok) {
+        sent++;
+        // Réponse Brevo : { reference, messageId, smsCount, usedCredits, remainingCredit }.
+        // `reference` est la clé stable pour retrouver l'évènement plus tard.
+        const data = (await response.json().catch(() => null)) as { reference?: string; messageId?: number | string } | null;
+        messageId = data?.reference ?? (data?.messageId != null ? String(data.messageId) : null);
+      } else {
         errors++;
         console.error("Échec envoi SMS Brevo:", response.status, await response.text());
       }
@@ -82,7 +101,64 @@ export async function sendBrevoSms(payload: SendSmsPayload): Promise<BrevoSendSu
       console.error("Échec envoi SMS Brevo (exception):", err);
     }
   }
-  return { sent, errors };
+  return { sent, errors, messageId };
+}
+
+export interface BrevoEmailEvent {
+  email?: string;
+  date?: string;
+  event?: string;
+  messageId?: string;
+  tag?: string;
+}
+
+/**
+ * Évènements bruts d'un mail transactionnel (delivered, opened, clicks,
+ * hardBounces, softBounces, blocked, invalid...), filtrés par tag et fenêtre
+ * de dates puis recoupés côté appelant par messageId — plus robuste qu'un
+ * filtre serveur dont on ne peut pas vérifier la précision exacte depuis cet
+ * environnement (accès réseau à api.brevo.com bloqué en sandbox).
+ */
+export async function fetchEmailEvents(
+  apiKey: string,
+  { tag, startDate, endDate, limit = 100 }: { tag: string; startDate: string; endDate: string; limit?: number }
+): Promise<BrevoEmailEvent[]> {
+  const url = `${BREVO_BASE}/smtp/statistics/events?tags=${encodeURIComponent(tag)}&startDate=${startDate}&endDate=${endDate}&limit=${limit}`;
+  try {
+    const response = await fetch(url, { headers: { "api-key": apiKey, Accept: "application/json" } });
+    if (!response.ok) return [];
+    const data = (await response.json().catch(() => null)) as { events?: BrevoEmailEvent[] } | null;
+    return Array.isArray(data?.events) ? data!.events! : [];
+  } catch (err) {
+    console.error("Échec récupération évènements mail Brevo:", err);
+    return [];
+  }
+}
+
+export interface BrevoSmsEvent {
+  phoneNumber?: string;
+  sms?: string;
+  reference?: string;
+  date?: string;
+  event?: string;
+  tag?: string;
+}
+
+/** Évènements bruts d'un SMS transactionnel (sent, delivered, softBounces, hardBounces, blocked). */
+export async function fetchSmsEvents(
+  apiKey: string,
+  { tag, startDate, endDate, limit = 100 }: { tag: string; startDate: string; endDate: string; limit?: number }
+): Promise<BrevoSmsEvent[]> {
+  const url = `${BREVO_BASE}/transactionalSMS/statistics/events?tags=${encodeURIComponent(tag)}&startDate=${startDate}&endDate=${endDate}&limit=${limit}`;
+  try {
+    const response = await fetch(url, { headers: { "api-key": apiKey, Accept: "application/json" } });
+    if (!response.ok) return [];
+    const data = (await response.json().catch(() => null)) as { events?: BrevoSmsEvent[] } | null;
+    return Array.isArray(data?.events) ? data!.events! : [];
+  } catch (err) {
+    console.error("Échec récupération évènements SMS Brevo:", err);
+    return [];
+  }
 }
 
 export async function fetchAggregatedEmailStats(

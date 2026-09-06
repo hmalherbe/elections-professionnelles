@@ -513,6 +513,10 @@ interface RelanceLogEntry {
   contact: string;
   testMode: boolean;
   success: boolean;
+  deliveryStatus: string | null;
+  clicked: boolean;
+  clickedAt: string | null;
+  lastCheckedAt: string | null;
 }
 
 function PsaPanel() {
@@ -1008,23 +1012,87 @@ function PsaRelanceSection({ runId, onSent }: { runId: number; onSent: () => voi
   );
 }
 
+/** Actualisation automatique en tâche de fond : le statut final et les clics
+ * n'arrivent jamais au moment de l'envoi (sondage Brevo côté serveur toutes
+ * les 5 minutes), donc on relit régulièrement pour refléter la dernière
+ * valeur connue sans que l'admin ait à cliquer sur "Actualiser". */
+const RELANCE_AUTO_REFRESH_MS = 60_000;
+
+function ClicBadge({ type, clicked }: { type: "mail" | "sms"; clicked: boolean }) {
+  if (type === "sms") return <span className="text-xs text-slate-300">—</span>;
+  return clicked ? (
+    <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-xs text-indigo-700">Oui</span>
+  ) : (
+    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">Non</span>
+  );
+}
+
+function StatutBadge({ success }: { success: boolean }) {
+  return success ? (
+    <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700">OK</span>
+  ) : (
+    <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700">Échec</span>
+  );
+}
+
 function RelanceLogPanel() {
   const [entries, setEntries] = useState<RelanceLogEntry[]>([]);
+  const [lastLoadedAt, setLastLoadedAt] = useState<Date | null>(null);
+  const [checking, setChecking] = useState(false);
 
-  function refresh() {
-    api.get<{ entries: RelanceLogEntry[] }>("/admin/relance-log?limit=300").then((r) => setEntries(r.entries));
+  function reload() {
+    api
+      .get<{ entries: RelanceLogEntry[] }>("/admin/relance-log?limit=300")
+      .then((r) => {
+        setEntries(r.entries);
+        setLastLoadedAt(new Date());
+      });
   }
-  useEffect(refresh, []);
+
+  useEffect(() => {
+    reload();
+    const id = setInterval(reload, RELANCE_AUTO_REFRESH_MS);
+    return () => clearInterval(id);
+  }, []);
+
+  async function checkNow() {
+    setChecking(true);
+    try {
+      await api.post("/admin/relance-log/refresh", {});
+      reload();
+    } finally {
+      setChecking(false);
+    }
+  }
 
   return (
-    <Card title="Journal des relances" subtitle={`${entries.length} envois récents (mails et SMS, Spelcs et PSA)`}>
-      <button
-        type="button"
-        className="mb-2 rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
-        onClick={refresh}
-      >
-        Actualiser
-      </button>
+    <Card
+      title="Journal des relances"
+      subtitle={`${entries.length} envois récents (mails et SMS, Spelcs et PSA)${
+        lastLoadedAt ? ` · dernière mise à jour ${lastLoadedAt.toLocaleTimeString("fr-FR")}` : ""
+      }`}
+    >
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
+          onClick={reload}
+        >
+          Actualiser
+        </button>
+        <button
+          type="button"
+          className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 disabled:opacity-60"
+          disabled={checking}
+          onClick={checkNow}
+          title="Interroge Brevo maintenant pour les statuts et clics en attente, au lieu d'attendre le prochain sondage automatique (toutes les 5 minutes)."
+        >
+          {checking ? "Vérification…" : "Vérifier les statuts Brevo"}
+        </button>
+        <span className="text-xs text-slate-400">
+          Le statut final et les clics ne sont jamais immédiats : mis à jour automatiquement toutes les 5 minutes.
+        </span>
+      </div>
       <div className="max-h-96 overflow-auto">
         <table className="w-full text-sm">
           <thead className="sticky top-0 bg-white">
@@ -1037,6 +1105,7 @@ function RelanceLogPanel() {
               <th className="px-4 py-2">Prénom</th>
               <th className="px-4 py-2">Contact</th>
               <th className="px-4 py-2">Statut</th>
+              <th className="px-4 py-2">Clic</th>
             </tr>
           </thead>
           <tbody>
@@ -1053,11 +1122,10 @@ function RelanceLogPanel() {
                 <td className="px-4 py-1.5">{e.prenom}</td>
                 <td className="px-4 py-1.5 text-slate-500">{e.contact}</td>
                 <td className="px-4 py-1.5">
-                  {e.success ? (
-                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700">OK</span>
-                  ) : (
-                    <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700">Échec</span>
-                  )}
+                  <StatutBadge success={e.success} />
+                </td>
+                <td className="px-4 py-1.5">
+                  <ClicBadge type={e.type} clicked={e.clicked} />
                 </td>
               </tr>
             ))}

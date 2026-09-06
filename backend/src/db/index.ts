@@ -212,6 +212,33 @@ export function migrate(): void {
       submit_selector TEXT,
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
+
+    -- Suivi par personne d'un envoi de relance (mail ou SMS) : une ligne par
+    -- destinataire, mise à jour au fil du temps par le sondage périodique de
+    -- l'API Brevo (le statut de livraison final et les clics n'arrivent
+    -- jamais au moment de l'envoi lui-même, seulement l'acceptation initiale
+    -- par Brevo). owner_user_id identifie le compte (donc la clé API Brevo)
+    -- à utiliser pour interroger le statut de cette ligne plus tard.
+    CREATE TABLE IF NOT EXISTS relance_tracking (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      owner_user_id INTEGER NOT NULL REFERENCES users(id),
+      type TEXT NOT NULL CHECK (type IN ('mail','sms')),
+      scope TEXT NOT NULL,
+      campagne_tag TEXT NOT NULL,
+      nom TEXT NOT NULL,
+      prenom TEXT NOT NULL,
+      contact TEXT NOT NULL,
+      test_mode INTEGER NOT NULL DEFAULT 0,
+      send_ok INTEGER NOT NULL,
+      message_id TEXT,
+      delivery_status TEXT,
+      clicked INTEGER NOT NULL DEFAULT 0,
+      clicked_at TEXT,
+      last_checked_at TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_relance_tracking_scope ON relance_tracking(scope, created_at);
+    CREATE INDEX IF NOT EXISTS idx_relance_tracking_pending ON relance_tracking(owner_user_id, message_id);
   `);
 
   addColumnIfMissing("relances_mail", "is_test", "INTEGER NOT NULL DEFAULT 0");
