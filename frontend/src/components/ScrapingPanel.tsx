@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../lib/api";
 import { Card } from "./Card";
+import type { ImportRecord } from "../lib/types";
 
 interface ScrapingConfigResponse {
   configured: boolean;
@@ -30,7 +31,27 @@ const DEFAULT_FILE_URLS: Record<"national" | "academique", { url1: string; url2:
   academique: { url1: "http://mock-portal:8081/academie/1d.json", url2: "http://mock-portal:8081/academie/2d.json" },
 };
 
-export function ScrapingPanel({ mode }: { mode: "national" | "academique" }) {
+function formatImportDate(iso: string): string {
+  return new Date(iso).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" });
+}
+
+/** Le dernier import (manuel ou par scraping) le plus récent d'une liste, ou null si aucun. */
+function lastImportDate(imports: ImportRecord[]): string | null {
+  if (imports.length === 0) return null;
+  return imports.reduce((latest, imp) => (imp.imported_at > latest ? imp.imported_at : latest), imports[0].imported_at);
+}
+
+export function ScrapingPanel({
+  mode,
+  imports,
+  onImported,
+}: {
+  mode: "national" | "academique";
+  /** Historique des imports (national et académique confondus) : sert à afficher la date du dernier téléchargement. */
+  imports: ImportRecord[];
+  /** Appelé après un scraping réussi, pour que le parent rafraîchisse son historique des imports. */
+  onImported?: () => void;
+}) {
   const [configured, setConfigured] = useState(false);
   const [portalUrl, setPortalUrl] = useState(DEFAULT_PORTAL_URL);
   const [username, setUsername] = useState("");
@@ -134,12 +155,29 @@ export function ScrapingPanel({ mode }: { mode: "national" | "academique" }) {
         message += ` — Attention : ${crossDegreDuplicates.length} personne(s) présente(s) dans les deux fichiers (${names}), vérifiez qu'ils ne se chevauchent pas.`;
       }
       setRunMessage(message);
+      onImported?.();
     } catch (err) {
       setRunMessage((err as Error).message);
     } finally {
       setBusy(false);
     }
   }
+
+  const lastDownloadLabel =
+    mode === "national"
+      ? (() => {
+          const last = lastImportDate(imports.filter((i) => i.scope === "national"));
+          return last ? `Dernier téléchargement : ${formatImportDate(last)}.` : "Aucun téléchargement pour l'instant.";
+        })()
+      : (() => {
+          const last1D = lastImportDate(imports.filter((i) => i.degre === "1D"));
+          const last2D = lastImportDate(imports.filter((i) => i.degre === "2D"));
+          if (!last1D && !last2D) return "Aucun téléchargement pour l'instant.";
+          return (
+            `Dernier téléchargement — 1er degré : ${last1D ? formatImportDate(last1D) : "jamais"}` +
+            ` · 2nd degré : ${last2D ? formatImportDate(last2D) : "jamais"}.`
+          );
+        })();
 
   return (
     <Card
@@ -261,6 +299,7 @@ export function ScrapingPanel({ mode }: { mode: "national" | "academique" }) {
           {busy ? "Récupération en cours…" : "Récupérer le(s) fichier(s) maintenant"}
         </button>
       </div>
+      <p className="mt-2 text-xs text-slate-500">{lastDownloadLabel}</p>
       {savedMessage && <p className="mt-2 text-sm text-slate-600">{savedMessage}</p>}
       {runMessage && <p className="mt-2 text-sm text-slate-600">{runMessage}</p>}
 

@@ -102,7 +102,7 @@ function ImportsPanel() {
 
   return (
     <div className="space-y-4">
-      <ScrapingPanel mode="national" />
+      <ScrapingPanel mode="national" imports={imports} onImported={refresh} />
       <FileUploadCard
         title="Import quotidien CCMMEP"
         subtitle="Fichier JSON des émargements du scrutin national (champs : nom, prenom, dateEmargement, corps, affectation, referenceBulletin)."
