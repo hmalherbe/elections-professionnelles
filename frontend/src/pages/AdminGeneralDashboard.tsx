@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { CamembertCard } from "../components/CamembertCard";
 import { Card } from "../components/Card";
+import { Ccm2022MapPanel } from "../components/Ccm2022MapPanel";
 import { ChatAssistantPanel } from "../components/ChatAssistantPanel";
 import { CourbeCard } from "../components/CourbeCard";
 import { FileUploadCard } from "../components/FileUploadCard";
@@ -15,6 +16,7 @@ import type { SocialLinks } from "../lib/socialLinks";
 
 const TABS = [
   "Vue nationale",
+  "Résultats CCM 2022",
   "Scrutins",
   "Imports",
   "Utilisateurs",
@@ -45,6 +47,7 @@ export function AdminGeneralDashboard() {
       </div>
 
       {tab === "Vue nationale" && <VueNationale />}
+      {tab === "Résultats CCM 2022" && <Ccm2022MapPanel />}
       {tab === "Scrutins" && <ScrutinsTab scope="national" />}
       {tab === "Imports" && <ImportsPanel />}
       {tab === "Utilisateurs" && <UsersPanel />}
