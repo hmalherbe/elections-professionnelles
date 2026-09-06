@@ -63,6 +63,7 @@ export interface ImportRecord {
   imported_at: string;
   snapshot_date: string;
   row_count: number;
+  votants: number | null;
 }
 
 export interface ManagedUser {

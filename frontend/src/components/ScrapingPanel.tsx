@@ -36,9 +36,13 @@ function formatImportDate(iso: string): string {
 }
 
 /** Le dernier import (manuel ou par scraping) le plus récent d'une liste, ou null si aucun. */
-function lastImportDate(imports: ImportRecord[]): string | null {
+function lastImport(imports: ImportRecord[]): ImportRecord | null {
   if (imports.length === 0) return null;
-  return imports.reduce((latest, imp) => (imp.imported_at > latest ? imp.imported_at : latest), imports[0].imported_at);
+  return imports.reduce((latest, imp) => (imp.imported_at > latest.imported_at ? imp : latest), imports[0]);
+}
+
+function describeImport(imp: ImportRecord): string {
+  return `${formatImportDate(imp.imported_at)} — ${imp.row_count} électeur(s), ${imp.votants ?? 0} votant(s)`;
 }
 
 export function ScrapingPanel({
@@ -166,16 +170,16 @@ export function ScrapingPanel({
   const lastDownloadLabel =
     mode === "national"
       ? (() => {
-          const last = lastImportDate(imports.filter((i) => i.scope === "national"));
-          return last ? `Dernier téléchargement : ${formatImportDate(last)}.` : "Aucun téléchargement pour l'instant.";
+          const last = lastImport(imports.filter((i) => i.scope === "national"));
+          return last ? `Dernier téléchargement : ${describeImport(last)}.` : "Aucun téléchargement pour l'instant.";
         })()
       : (() => {
-          const last1D = lastImportDate(imports.filter((i) => i.degre === "1D"));
-          const last2D = lastImportDate(imports.filter((i) => i.degre === "2D"));
+          const last1D = lastImport(imports.filter((i) => i.degre === "1D"));
+          const last2D = lastImport(imports.filter((i) => i.degre === "2D"));
           if (!last1D && !last2D) return "Aucun téléchargement pour l'instant.";
           return (
-            `Dernier téléchargement — 1er degré : ${last1D ? formatImportDate(last1D) : "jamais"}` +
-            ` · 2nd degré : ${last2D ? formatImportDate(last2D) : "jamais"}.`
+            `Dernier téléchargement — 1er degré : ${last1D ? describeImport(last1D) : "jamais"}` +
+            ` · 2nd degré : ${last2D ? describeImport(last2D) : "jamais"}.`
           );
         })();
 

@@ -126,19 +126,25 @@ router.delete("/:id", requireRole("admin_academique", "admin_general"), (req, re
   res.status(204).end();
 });
 
+const VOTANTS_SUBQUERY = `(SELECT SUM(e.votant) FROM emargements e WHERE e.import_id = i.id) AS votants`;
+
 router.get("/", (req, res) => {
   const user = req.user!;
   let rows;
   if (user.role === "admin_general") {
-    rows = db.prepare("SELECT * FROM imports ORDER BY imported_at DESC LIMIT 200").all();
+    rows = db.prepare(`SELECT i.*, ${VOTANTS_SUBQUERY} FROM imports i ORDER BY i.imported_at DESC LIMIT 200`).all();
   } else if (user.role === "admin_academique") {
     rows = db
       .prepare(
-        "SELECT * FROM imports WHERE (scope = 'academique' AND academie = ?) OR scope = 'national' ORDER BY imported_at DESC LIMIT 200"
+        `SELECT i.*, ${VOTANTS_SUBQUERY} FROM imports i
+         WHERE (i.scope = 'academique' AND i.academie = ?) OR i.scope = 'national'
+         ORDER BY i.imported_at DESC LIMIT 200`
       )
       .all(user.academie);
   } else {
-    rows = db.prepare("SELECT * FROM imports WHERE scope = 'national' ORDER BY imported_at DESC LIMIT 200").all();
+    rows = db
+      .prepare(`SELECT i.*, ${VOTANTS_SUBQUERY} FROM imports i WHERE i.scope = 'national' ORDER BY i.imported_at DESC LIMIT 200`)
+      .all();
   }
   res.json({ imports: rows });
 });
