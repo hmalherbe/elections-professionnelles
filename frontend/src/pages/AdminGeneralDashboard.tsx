@@ -482,6 +482,8 @@ function formatDateFr(iso: string): string {
   return `${d}/${m}`;
 }
 
+const ELECTIONS_SITE_URL = "https://electionsprofessionnelles.spelc.fr/";
+
 const DEFAULT_PSA_EMAIL_TEMPLATE = {
   subject: "Rappel : votez aux élections professionnelles 2026",
   body:
@@ -491,6 +493,7 @@ const DEFAULT_PSA_EMAIL_TEMPLATE = {
     "{{#if CCMMEP_non_votant and scrutin_local_non_votant}} aux scrutins CCMMEP et {{scrutin_local}}{{/if}}" +
     "{{#if CCMMEP_non_votant and not(scrutin_local_non_votant)}} au scrutin CCMMEP{{/if}}" +
     "{{#if not(CCMMEP_non_votant) and scrutin_local_non_votant}} au scrutin {{scrutin_local}}{{/if}}." +
+    `\n\nPour consulter le site des élections : <a href="${ELECTIONS_SITE_URL}">${ELECTIONS_SITE_URL}</a>` +
     "{{reseaux_sociaux}}",
 };
 
