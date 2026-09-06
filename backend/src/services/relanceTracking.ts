@@ -14,6 +14,8 @@ export interface RelanceTrackingInput {
   testMode: boolean;
   sendOk: boolean;
   messageId: string | null;
+  /** Raison de l'échec d'envoi (voir services/brevo.ts), affichée à l'admin en survol du statut. */
+  errorMessage?: string | null;
 }
 
 /** Journal par personne, distinct du journal NDJSON (lib/relanceLog.ts) qui reste
@@ -22,8 +24,8 @@ export interface RelanceTrackingInput {
 export function insertRelanceTracking(entry: RelanceTrackingInput): void {
   db.prepare(
     `INSERT INTO relance_tracking
-       (owner_user_id, type, scope, campagne_tag, nom, prenom, contact, test_mode, send_ok, message_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+       (owner_user_id, type, scope, campagne_tag, nom, prenom, contact, test_mode, send_ok, message_id, error_message)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     entry.ownerUserId,
     entry.type,
@@ -34,7 +36,8 @@ export function insertRelanceTracking(entry: RelanceTrackingInput): void {
     entry.contact,
     entry.testMode ? 1 : 0,
     entry.sendOk ? 1 : 0,
-    entry.messageId
+    entry.messageId,
+    entry.errorMessage ?? null
   );
 }
 
@@ -51,6 +54,7 @@ export interface RelanceTrackingRow {
   test_mode: number;
   send_ok: number;
   message_id: string | null;
+  error_message: string | null;
   delivery_status: string | null;
   clicked: number;
   clicked_at: string | null;

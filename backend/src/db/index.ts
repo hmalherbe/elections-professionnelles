@@ -246,6 +246,7 @@ export function migrate(): void {
   addColumnIfMissing("users", "nom", "TEXT");
   addColumnIfMissing("users", "prenom", "TEXT");
   addColumnIfMissing("users", "must_change_password", "INTEGER NOT NULL DEFAULT 0");
+  addColumnIfMissing("relance_tracking", "error_message", "TEXT");
 }
 
 /**

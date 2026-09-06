@@ -187,6 +187,7 @@ router.get("/relance-log", (req, res) => {
     contact: r.contact,
     testMode: Boolean(r.test_mode),
     success: r.statusLabel !== "echec",
+    errorMessage: r.error_message,
     deliveryStatus: r.delivery_status,
     clicked: Boolean(r.clicked),
     clickedAt: r.clicked_at,

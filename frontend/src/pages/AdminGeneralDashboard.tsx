@@ -516,6 +516,7 @@ interface RelanceLogEntry {
   contact: string;
   testMode: boolean;
   success: boolean;
+  errorMessage: string | null;
   deliveryStatus: string | null;
   clicked: boolean;
   clickedAt: string | null;
@@ -778,8 +779,11 @@ function PsaTemplates() {
     setTestMailBusy(true);
     setTestMailMsg(null);
     try {
-      const res = await api.post<{ sent: number; errors: number }>("/psa/templates/email/test", emailTemplate);
-      setTestMailMsg(res.sent > 0 ? "Mail de test envoyé." : "Échec de l'envoi.");
+      const res = await api.post<{ sent: number; errors: number; errorMessage: string | null }>(
+        "/psa/templates/email/test",
+        emailTemplate
+      );
+      setTestMailMsg(res.sent > 0 ? "Mail de test envoyé." : `Échec de l'envoi : ${res.errorMessage ?? "raison inconnue."}`);
     } catch (err) {
       setTestMailMsg((err as Error).message);
     } finally {
@@ -791,8 +795,11 @@ function PsaTemplates() {
     setTestSmsBusy(true);
     setTestSmsMsg(null);
     try {
-      const res = await api.post<{ sent: number; errors: number }>("/psa/templates/sms/test", smsTemplate);
-      setTestSmsMsg(res.sent > 0 ? "SMS de test envoyé." : "Échec de l'envoi.");
+      const res = await api.post<{ sent: number; errors: number; errorMessage: string | null }>(
+        "/psa/templates/sms/test",
+        smsTemplate
+      );
+      setTestSmsMsg(res.sent > 0 ? "SMS de test envoyé." : `Échec de l'envoi : ${res.errorMessage ?? "raison inconnue."}`);
     } catch (err) {
       setTestSmsMsg((err as Error).message);
     } finally {
@@ -1030,11 +1037,16 @@ function ClicBadge({ type, clicked }: { type: "mail" | "sms"; clicked: boolean }
   );
 }
 
-function StatutBadge({ success }: { success: boolean }) {
+function StatutBadge({ success, errorMessage }: { success: boolean; errorMessage?: string | null }) {
   return success ? (
     <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700">OK</span>
   ) : (
-    <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700">Échec</span>
+    <span
+      className="cursor-help rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700"
+      title={errorMessage ?? "Échec de l'envoi (raison non disponible)."}
+    >
+      Échec
+    </span>
   );
 }
 
@@ -1125,7 +1137,7 @@ function RelanceLogPanel() {
                 <td className="px-4 py-1.5">{e.prenom}</td>
                 <td className="px-4 py-1.5 text-slate-500">{e.contact}</td>
                 <td className="px-4 py-1.5">
-                  <StatutBadge success={e.success} />
+                  <StatutBadge success={e.success} errorMessage={e.errorMessage} />
                 </td>
                 <td className="px-4 py-1.5">
                   <ClicBadge type={e.type} clicked={e.clicked} />

@@ -302,8 +302,9 @@ router.post("/templates/email/test", requireRole("admin_spelc", "admin_general")
     testMode: true,
     sendOk: result.sent > 0,
     messageId: result.messageId,
+    errorMessage: result.errorMessage,
   });
-  res.json({ sent: result.sent, errors: result.errors });
+  res.json({ sent: result.sent, errors: result.errors, errorMessage: result.errorMessage });
 });
 
 router.post("/templates/sms/test", requireRole("admin_spelc", "admin_general"), async (req, res) => {
@@ -357,8 +358,9 @@ router.post("/templates/sms/test", requireRole("admin_spelc", "admin_general"), 
     testMode: true,
     sendOk: result.sent > 0,
     messageId: result.messageId,
+    errorMessage: result.errorMessage,
   });
-  res.json({ sent: result.sent, errors: result.errors });
+  res.json({ sent: result.sent, errors: result.errors, errorMessage: result.errorMessage });
 });
 
 router.post("/campaigns/email", requireRole("admin_spelc"), async (req, res) => {
@@ -436,6 +438,7 @@ router.post("/campaigns/email", requireRole("admin_spelc"), async (req, res) => 
       testMode: Boolean(testMode),
       sendOk: result.sent > 0,
       messageId: result.messageId,
+      errorMessage: result.errorMessage,
     });
   }
 
@@ -511,6 +514,7 @@ router.post("/campaigns/sms", requireRole("admin_spelc"), async (req, res) => {
       testMode: Boolean(testMode),
       sendOk: result.sent > 0,
       messageId: result.messageId,
+      errorMessage: result.errorMessage,
     });
   }
 

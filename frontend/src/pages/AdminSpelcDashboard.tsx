@@ -165,6 +165,7 @@ interface RelanceTrackingRow {
   test_mode: number;
   clicked: number;
   last_checked_at: string | null;
+  error_message: string | null;
   statusLabel: "ok" | "echec" | "en_attente";
 }
 
@@ -304,11 +305,11 @@ function BrevoPanel({ spelc }: { spelc: string }) {
     setTestMailBusy(true);
     setTestMailMsg(null);
     try {
-      const res = await api.post<{ sent: number; errors: number }>("/brevo/templates/email/test", {
-        spelc,
-        ...emailTemplate,
-      });
-      setTestMailMsg(res.sent > 0 ? "Mail de test envoyé." : "Échec de l'envoi.");
+      const res = await api.post<{ sent: number; errors: number; errorMessage: string | null }>(
+        "/brevo/templates/email/test",
+        { spelc, ...emailTemplate }
+      );
+      setTestMailMsg(res.sent > 0 ? "Mail de test envoyé." : `Échec de l'envoi : ${res.errorMessage ?? "raison inconnue."}`);
     } catch (err) {
       setTestMailMsg((err as Error).message);
     } finally {
@@ -320,11 +321,11 @@ function BrevoPanel({ spelc }: { spelc: string }) {
     setTestSmsBusy(true);
     setTestSmsMsg(null);
     try {
-      const res = await api.post<{ sent: number; errors: number }>("/brevo/templates/sms/test", {
-        spelc,
-        body: smsTemplate.body,
-      });
-      setTestSmsMsg(res.sent > 0 ? "SMS de test envoyé." : "Échec de l'envoi.");
+      const res = await api.post<{ sent: number; errors: number; errorMessage: string | null }>(
+        "/brevo/templates/sms/test",
+        { spelc, body: smsTemplate.body }
+      );
+      setTestSmsMsg(res.sent > 0 ? "SMS de test envoyé." : `Échec de l'envoi : ${res.errorMessage ?? "raison inconnue."}`);
     } catch (err) {
       setTestSmsMsg((err as Error).message);
     } finally {
@@ -790,7 +791,12 @@ function BrevoPanel({ spelc }: { spelc: string }) {
                     {r.statusLabel === "ok" ? (
                       <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700">OK</span>
                     ) : (
-                      <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700">Échec</span>
+                      <span
+                        className="cursor-help rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700"
+                        title={r.error_message ?? "Échec de l'envoi (raison non disponible)."}
+                      >
+                        Échec
+                      </span>
                     )}
                   </td>
                   <td className="px-4 py-1.5">

@@ -231,8 +231,9 @@ router.post("/templates/email/test", async (req, res) => {
     testMode: true,
     sendOk: result.sent > 0,
     messageId: result.messageId,
+    errorMessage: result.errorMessage,
   });
-  res.json({ sent: result.sent, errors: result.errors });
+  res.json({ sent: result.sent, errors: result.errors, errorMessage: result.errorMessage });
 });
 
 router.post("/templates/sms/test", async (req, res) => {
@@ -284,8 +285,9 @@ router.post("/templates/sms/test", async (req, res) => {
     testMode: true,
     sendOk: result.sent > 0,
     messageId: result.messageId,
+    errorMessage: result.errorMessage,
   });
-  res.json({ sent: result.sent, errors: result.errors });
+  res.json({ sent: result.sent, errors: result.errors, errorMessage: result.errorMessage });
 });
 
 /**
@@ -404,6 +406,7 @@ router.post("/relance", async (req, res) => {
           testMode: Boolean(testMode),
           sendOk: result.sent > 0,
           messageId: result.messageId,
+          errorMessage: result.errorMessage,
         });
       }
     }
@@ -465,6 +468,7 @@ router.post("/relance", async (req, res) => {
         testMode: Boolean(testMode),
         sendOk: result.sent > 0,
         messageId: result.messageId,
+        errorMessage: result.errorMessage,
       });
     }
   }

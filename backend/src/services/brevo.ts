@@ -18,14 +18,35 @@ export interface BrevoSendSummary {
    * Brevo n'a pas renvoyé d'identifiant exploitable.
    */
   messageId: string | null;
+  /**
+   * Raison du dernier échec de cette boucle (réponse d'erreur Brevo ou
+   * exception réseau), pour affichage à l'admin — auparavant seulement
+   * journalisée en console (donc invisible sans accès aux logs serveur).
+   * `null` si aucun échec.
+   */
+  errorMessage: string | null;
 }
 
 const BREVO_BASE = "https://api.brevo.com/v3";
+
+/** Réponse d'erreur Brevo typique : {"code":"...","message":"..."}. On
+ * retombe sur le texte brut (tronqué) si ce n'est pas ce format. */
+async function describeBrevoError(response: Response): Promise<string> {
+  const text = await response.text();
+  try {
+    const data = JSON.parse(text) as { code?: string; message?: string };
+    if (data.message) return data.code ? `${data.code} : ${data.message}` : data.message;
+  } catch {
+    /* pas du JSON, on garde le texte brut */
+  }
+  return `HTTP ${response.status}${text ? ` : ${text.slice(0, 500)}` : ""}`;
+}
 
 export async function sendBrevoEmails(payload: SendEmailPayload): Promise<BrevoSendSummary> {
   let sent = 0;
   let errors = 0;
   let messageId: string | null = null;
+  let errorMessage: string | null = null;
   for (const recipient of payload.to) {
     try {
       const response = await fetch(`${BREVO_BASE}/smtp/email`, {
@@ -49,14 +70,16 @@ export async function sendBrevoEmails(payload: SendEmailPayload): Promise<BrevoS
         messageId = data?.messageId ?? data?.messageIds?.[0] ?? null;
       } else {
         errors++;
-        console.error("Échec envoi mail Brevo:", response.status, await response.text());
+        errorMessage = await describeBrevoError(response);
+        console.error("Échec envoi mail Brevo:", errorMessage);
       }
     } catch (err) {
       errors++;
+      errorMessage = err instanceof Error ? err.message : String(err);
       console.error("Échec envoi mail Brevo (exception):", err);
     }
   }
-  return { sent, errors, messageId };
+  return { sent, errors, messageId, errorMessage };
 }
 
 interface SendSmsPayload {
@@ -70,6 +93,7 @@ export async function sendBrevoSms(payload: SendSmsPayload): Promise<BrevoSendSu
   let sent = 0;
   let errors = 0;
   let messageId: string | null = null;
+  let errorMessage: string | null = null;
   for (const recipient of payload.recipients) {
     try {
       const response = await fetch(`${BREVO_BASE}/transactionalSMS/sms`, {
@@ -94,14 +118,16 @@ export async function sendBrevoSms(payload: SendSmsPayload): Promise<BrevoSendSu
         messageId = data?.reference ?? (data?.messageId != null ? String(data.messageId) : null);
       } else {
         errors++;
-        console.error("Échec envoi SMS Brevo:", response.status, await response.text());
+        errorMessage = await describeBrevoError(response);
+        console.error("Échec envoi SMS Brevo:", errorMessage);
       }
     } catch (err) {
       errors++;
+      errorMessage = err instanceof Error ? err.message : String(err);
       console.error("Échec envoi SMS Brevo (exception):", err);
     }
   }
-  return { sent, errors, messageId };
+  return { sent, errors, messageId, errorMessage };
 }
 
 export interface BrevoEmailEvent {
