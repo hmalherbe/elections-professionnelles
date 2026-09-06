@@ -118,19 +118,6 @@ export function migrate(): void {
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
-    CREATE TABLE IF NOT EXISTS relances_mail (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      spelc TEXT NOT NULL,
-      date TEXT NOT NULL,
-      campagne_tag TEXT NOT NULL,
-      total_envoye INTEGER NOT NULL DEFAULT 0,
-      erreurs_envoi INTEGER NOT NULL DEFAULT 0,
-      mails_lus INTEGER NOT NULL DEFAULT 0,
-      liens_clique INTEGER NOT NULL DEFAULT 0,
-      is_test INTEGER NOT NULL DEFAULT 0,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-
     CREATE TABLE IF NOT EXISTS psa_simulation_runs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       run_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -147,20 +134,6 @@ export function migrate(): void {
       date_emargement TEXT
     );
     CREATE INDEX IF NOT EXISTS idx_psa_emargements_run ON psa_emargements(run_id);
-
-    CREATE TABLE IF NOT EXISTS relances_sms (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      spelc TEXT NOT NULL,
-      date TEXT NOT NULL,
-      campagne_tag TEXT NOT NULL,
-      sms_envoyes INTEGER NOT NULL DEFAULT 0,
-      erreurs_envoi INTEGER NOT NULL DEFAULT 0,
-      sms_delivres INTEGER NOT NULL DEFAULT 0,
-      sms_rejetes INTEGER NOT NULL DEFAULT 0,
-      statut_global TEXT NOT NULL DEFAULT '',
-      is_test INTEGER NOT NULL DEFAULT 0,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
 
     -- Réglages globaux (admin général) : mail/mobile de test utilisés
     -- partout où le mode test est actif (campagnes Spelc et relances PSA).
@@ -241,12 +214,13 @@ export function migrate(): void {
     CREATE INDEX IF NOT EXISTS idx_relance_tracking_pending ON relance_tracking(owner_user_id, message_id);
   `);
 
-  addColumnIfMissing("relances_mail", "is_test", "INTEGER NOT NULL DEFAULT 0");
-  addColumnIfMissing("relances_sms", "is_test", "INTEGER NOT NULL DEFAULT 0");
   addColumnIfMissing("users", "nom", "TEXT");
   addColumnIfMissing("users", "prenom", "TEXT");
   addColumnIfMissing("users", "must_change_password", "INTEGER NOT NULL DEFAULT 0");
   addColumnIfMissing("relance_tracking", "error_message", "TEXT");
+  addColumnIfMissing("relance_tracking", "opened", "INTEGER NOT NULL DEFAULT 0");
+  addColumnIfMissing("relance_tracking", "opened_at", "TEXT");
+  addColumnIfMissing("spelc_settings", "sms_sender", "TEXT");
 }
 
 /**

@@ -261,6 +261,7 @@ router.post("/templates/sms/test", async (req, res) => {
     recipients: [normalizeFrenchMobile(testContact.testMobile)],
     content: renderTemplate(String(body), fields),
     tag: "psa-test-modele",
+    sender: "SPELC",
   });
   appendRelanceLog({
     timestamp: new Date().toISOString(),
@@ -442,6 +443,7 @@ router.post("/relance", async (req, res) => {
         recipients: [normalizeFrenchMobile(mobile)],
         content: renderTemplate(template.body, fields),
         tag: campagneTag,
+        sender: "SPELC",
       });
       smsSent += result.sent;
       smsErrors += result.errors;

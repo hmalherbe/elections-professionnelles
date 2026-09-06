@@ -134,24 +134,22 @@ function AdherentsPanel({ spelc }: { spelc: string }) {
   );
 }
 
+/** Point de la courbe de suivi des mails : agrégat quotidien calculé côté
+ * serveur à partir du suivi par personne (relance_tracking). */
 interface RelanceMail {
-  id: number;
   date: string;
-  campagne_tag: string;
   total_envoye: number;
   erreurs_envoi: number;
   mails_lus: number;
   liens_clique: number;
 }
+/** Idem pour la courbe de suivi des SMS. */
 interface RelanceSms {
-  id: number;
   date: string;
-  campagne_tag: string;
   sms_envoyes: number;
   erreurs_envoi: number;
   sms_delivres: number;
   sms_rejetes: number;
-  statut_global: string;
 }
 
 interface RelanceTrackingRow {
@@ -209,6 +207,21 @@ function findSmsCredits(plan: BrevoPlanEntry[] | null): number | null {
   return plan?.find((p) => p.type.toLowerCase().includes("sms"))?.credits ?? null;
 }
 
+/** Miroir de lib/smsSender.ts côté backend : "Spelc" + le nom du Spelc (sans
+ * accents ni espaces, non autorisés dans un expéditeur SMS alphanumérique),
+ * tronqué à 11 caractères — la limite Brevo. */
+function suggestSmsSender(spelcName: string): string {
+  const clean = spelcName
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^A-Za-z0-9]/g, "");
+  return `Spelc${clean}`.slice(0, 11);
+}
+
+function sanitizeSmsSenderInput(value: string): string {
+  return value.replace(/[^A-Za-z0-9]/g, "").slice(0, 11);
+}
+
 function BrevoPanel({ spelc }: { spelc: string }) {
   const [configured, setConfigured] = useState(false);
   const [maskedKey, setMaskedKey] = useState<string | null>(null);
@@ -229,9 +242,11 @@ function BrevoPanel({ spelc }: { spelc: string }) {
     socialLinks: SocialLinks;
     testEmail: string | null;
     testMobile: string | null;
-  }>({ logoDataUri: null, socialLinks: {}, testEmail: null, testMobile: null });
+    smsSender: string | null;
+  }>({ logoDataUri: null, socialLinks: {}, testEmail: null, testMobile: null, smsSender: null });
   const [ownTestEmail, setOwnTestEmail] = useState("");
   const [ownTestMobile, setOwnTestMobile] = useState("");
+  const [ownSmsSender, setOwnSmsSender] = useState("");
   const [ownTestSaved, setOwnTestSaved] = useState<string | null>(null);
   const [testMailMsg, setTestMailMsg] = useState<string | null>(null);
   const [testSmsMsg, setTestSmsMsg] = useState<string | null>(null);
@@ -248,6 +263,8 @@ function BrevoPanel({ spelc }: { spelc: string }) {
         setTrackingRows(r.rows);
         setTrackingLoadedAt(new Date());
       });
+    api.get<{ rows: RelanceMail[] }>(`/brevo/tracking/mail${qs({ spelc })}`).then((r) => setMailRows(r.rows));
+    api.get<{ rows: RelanceSms[] }>(`/brevo/tracking/sms${qs({ spelc })}`).then((r) => setSmsRows(r.rows));
   }
   // Le statut final et les clics n'arrivent jamais au moment de l'envoi
   // (sondage Brevo côté serveur toutes les 5 minutes) : on relit régulièrement
@@ -287,16 +304,19 @@ function BrevoPanel({ spelc }: { spelc: string }) {
     });
     api.get<{ subject: string; body: string }>(`/brevo/templates/email${qs({ spelc })}`).then(setEmailTemplate);
     api.get<{ body: string }>(`/brevo/templates/sms${qs({ spelc })}`).then(setSmsTemplate);
-    api.get<{ rows: RelanceMail[] }>(`/brevo/tracking/mail${qs({ spelc })}`).then((r) => setMailRows(r.rows));
-    api.get<{ rows: RelanceSms[] }>(`/brevo/tracking/sms${qs({ spelc })}`).then((r) => setSmsRows(r.rows));
     api
-      .get<{ logoDataUri: string | null; socialLinks: SocialLinks; testEmail: string | null; testMobile: string | null }>(
-        `/brevo/spelc-settings${qs({ spelc })}`
-      )
+      .get<{
+        logoDataUri: string | null;
+        socialLinks: SocialLinks;
+        testEmail: string | null;
+        testMobile: string | null;
+        smsSender: string | null;
+      }>(`/brevo/spelc-settings${qs({ spelc })}`)
       .then((r) => {
         setSpelcSettings(r);
         setOwnTestEmail(r.testEmail ?? "");
         setOwnTestMobile(r.testMobile ?? "");
+        setOwnSmsSender(r.smsSender ?? suggestSmsSender(spelc));
       });
   }
   useEffect(refreshAll, [spelc]);
@@ -314,6 +334,7 @@ function BrevoPanel({ spelc }: { spelc: string }) {
       setTestMailMsg((err as Error).message);
     } finally {
       setTestMailBusy(false);
+      reloadTracking();
     }
   }
 
@@ -330,6 +351,7 @@ function BrevoPanel({ spelc }: { spelc: string }) {
       setTestSmsMsg((err as Error).message);
     } finally {
       setTestSmsBusy(false);
+      reloadTracking();
     }
   }
 
@@ -417,10 +439,10 @@ function BrevoPanel({ spelc }: { spelc: string }) {
       </div>
 
       <Card
-        title="Mail / mobile de test de ce Spelc"
-        subtitle="Prioritaires sur le mail/mobile de test global de l'admin général pour les campagnes de ce Spelc (laisser vide pour utiliser le réglage global)."
+        title="Mail / mobile de test & expéditeur SMS de ce Spelc"
+        subtitle="Mail/mobile de test prioritaires sur le réglage global de l'admin général (laisser vide pour l'utiliser). L'expéditeur SMS est celui affiché comme « De » chez le destinataire."
       >
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
           <div>
             <label className="block text-xs font-medium text-slate-500">Mail de test</label>
             <input
@@ -441,12 +463,26 @@ function BrevoPanel({ spelc }: { spelc: string }) {
               onChange={(e) => setOwnTestMobile(e.target.value)}
             />
           </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-500">Expéditeur SMS</label>
+            <input
+              type="text"
+              maxLength={11}
+              placeholder={suggestSmsSender(spelc)}
+              className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+              value={ownSmsSender}
+              onChange={(e) => setOwnSmsSender(sanitizeSmsSenderInput(e.target.value))}
+            />
+            <p className="mt-1 text-xs text-slate-400">11 caractères max, lettres et chiffres uniquement (norme SMS).</p>
+          </div>
         </div>
         <button
           className="mt-2 rounded-md bg-slate-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-900"
           onClick={async () => {
-            await api.put("/brevo/spelc-settings", { spelc, testEmail: ownTestEmail, testMobile: ownTestMobile });
-            setSpelcSettings((s) => ({ ...s, testEmail: ownTestEmail, testMobile: ownTestMobile }));
+            const smsSender = ownSmsSender || suggestSmsSender(spelc);
+            await api.put("/brevo/spelc-settings", { spelc, testEmail: ownTestEmail, testMobile: ownTestMobile, smsSender });
+            setSpelcSettings((s) => ({ ...s, testEmail: ownTestEmail, testMobile: ownTestMobile, smsSender }));
+            setOwnSmsSender(smsSender);
             setOwnTestSaved("Enregistré.");
             setTimeout(() => setOwnTestSaved(null), 2000);
           }}
@@ -583,7 +619,7 @@ function BrevoPanel({ spelc }: { spelc: string }) {
                   testLimit: testMailLimit,
                 });
                 setMessage(`Mails : ${res.sent}/${res.total} envoyés, ${res.errors} erreurs.`);
-                refreshAll();
+                reloadTracking();
               } catch (err) {
                 setMessage((err as Error).message);
               }
@@ -608,7 +644,7 @@ function BrevoPanel({ spelc }: { spelc: string }) {
                   smsLimit,
                 });
                 setMessage(`SMS : ${res.sent}/${res.total} envoyés, ${res.errors} erreurs.`);
-                refreshAll();
+                reloadTracking();
               } catch (err) {
                 setMessage((err as Error).message);
               }
@@ -622,19 +658,6 @@ function BrevoPanel({ spelc }: { spelc: string }) {
             onClick={sendTestSms}
           >
             {testSmsBusy ? "Envoi…" : "SMS de test"}
-          </button>
-          <button
-            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
-            onClick={async () => {
-              try {
-                await api.post("/brevo/tracking/sync", { tag: campagneTag });
-                refreshAll();
-              } catch (err) {
-                setMessage((err as Error).message);
-              }
-            }}
-          >
-            Synchroniser les statistiques Brevo
           </button>
         </div>
         {message && <p className="mt-2 text-sm text-slate-600">{message}</p>}
@@ -674,61 +697,6 @@ function BrevoPanel({ spelc }: { spelc: string }) {
               </LineChart>
             </ResponsiveContainer>
           </div>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <Card title="Suivi des relances mail">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-500">
-                <th className="py-2 pr-4">Date</th>
-                <th className="px-4 py-2">Campagne</th>
-                <th className="px-4 py-2">Envoyés</th>
-                <th className="px-4 py-2">Erreurs</th>
-                <th className="px-4 py-2">Lus</th>
-                <th className="px-4 py-2">Cliqués</th>
-              </tr>
-            </thead>
-            <tbody>
-              {mailRows.map((r) => (
-                <tr key={r.id} className="border-b border-slate-100">
-                  <td className="py-1.5 pr-4">{r.date}</td>
-                  <td className="px-4 py-1.5">{r.campagne_tag}</td>
-                  <td className="px-4 py-1.5">{r.total_envoye}</td>
-                  <td className="px-4 py-1.5">{r.erreurs_envoi}</td>
-                  <td className="px-4 py-1.5">{r.mails_lus}</td>
-                  <td className="px-4 py-1.5">{r.liens_clique}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Card>
-        <Card title="Suivi des relances SMS">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-500">
-                <th className="py-2 pr-4">Date</th>
-                <th className="px-4 py-2">Campagne</th>
-                <th className="px-4 py-2">Envoyés</th>
-                <th className="px-4 py-2">Erreurs</th>
-                <th className="px-4 py-2">Délivrés</th>
-                <th className="px-4 py-2">Rejetés</th>
-              </tr>
-            </thead>
-            <tbody>
-              {smsRows.map((r) => (
-                <tr key={r.id} className="border-b border-slate-100">
-                  <td className="py-1.5 pr-4">{r.date}</td>
-                  <td className="px-4 py-1.5">{r.campagne_tag}</td>
-                  <td className="px-4 py-1.5">{r.sms_envoyes}</td>
-                  <td className="px-4 py-1.5">{r.erreurs_envoi}</td>
-                  <td className="px-4 py-1.5">{r.sms_delivres}</td>
-                  <td className="px-4 py-1.5">{r.sms_rejetes}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
         </Card>
       </div>
 

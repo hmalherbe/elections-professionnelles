@@ -1,16 +1,9 @@
 import { Router } from "express";
-import dayjs from "dayjs";
 import { db } from "../db/index.js";
 import { requireAuth, requireRole, canAccessSpelc } from "../middleware/auth.js";
 import { renderTemplate, type TemplateFields } from "../lib/template.js";
 import { wrapEmailHtml, ensureSiteLink } from "../lib/emailLayout.js";
-import {
-  sendBrevoEmails,
-  sendBrevoSms,
-  fetchAggregatedEmailStats,
-  fetchAggregatedSmsStats,
-  fetchAccountInfo,
-} from "../services/brevo.js";
+import { sendBrevoEmails, sendBrevoSms, fetchAccountInfo } from "../services/brevo.js";
 import { currentImportIds } from "../services/stats.js";
 import { getTestContactSettings } from "../services/settings.js";
 import { getSpelcSettings, updateSpelcSettings } from "../services/spelcSettings.js";
@@ -20,8 +13,11 @@ import {
   insertRelanceTracking,
   listRelanceTrackingByScope,
   refreshPendingRelanceTracking,
+  getMailSeriesByScope,
+  getSmsSeriesByScope,
 } from "../services/relanceTracking.js";
 import { normalizeFrenchMobile } from "../lib/phone.js";
+import { isValidSmsSender, suggestSmsSender } from "../lib/smsSender.js";
 
 const MAX_TEST_RECIPIENTS = 20;
 const DEFAULT_TEST_RECIPIENTS = 3;
@@ -154,12 +150,19 @@ router.get("/spelc-settings", (req, res) => {
 router.put("/spelc-settings", requireRole("admin_spelc", "admin_general"), (req, res) => {
   const spelc = (req.body?.spelc as string) || req.user!.spelc || "";
   if (!spelc || !assertSpelcAccess(req, res, spelc)) return;
-  const { logoDataUri, socialLinks, testEmail, testMobile } = req.body ?? {};
+  const { logoDataUri, socialLinks, testEmail, testMobile, smsSender } = req.body ?? {};
+  if (typeof smsSender === "string" && smsSender && !isValidSmsSender(smsSender)) {
+    res.status(400).json({
+      error: "Expéditeur SMS invalide : 11 caractères maximum, lettres et chiffres uniquement, au moins une lettre.",
+    });
+    return;
+  }
   updateSpelcSettings(spelc, {
     logoDataUri: typeof logoDataUri === "string" ? logoDataUri : undefined,
     socialLinks: socialLinks && typeof socialLinks === "object" ? (socialLinks as SocialLinks) : undefined,
     testEmail: typeof testEmail === "string" ? testEmail : undefined,
     testMobile: typeof testMobile === "string" ? testMobile : undefined,
+    smsSender: typeof smsSender === "string" ? smsSender : undefined,
   });
   res.json({ ok: true });
 });
@@ -233,6 +236,11 @@ function resolveTestContact(spelc: string): { testEmail: string | null; testMobi
     testEmail: spelcSettings.testEmail || global.testEmail,
     testMobile: spelcSettings.testMobile || global.testMobile,
   };
+}
+
+/** Expéditeur SMS de ce Spelc si configuré, sinon une suggestion calculée à partir de son nom. */
+function resolveSmsSender(spelc: string): string {
+  return getSpelcSettings(spelc).smsSender || suggestSmsSender(spelc);
 }
 
 /** Une personne est ciblée par une relance si elle n'a voté à AU MOINS un des deux scrutins. */
@@ -334,6 +342,7 @@ router.post("/templates/sms/test", requireRole("admin_spelc", "admin_general"), 
     recipients: [normalizeFrenchMobile(testMobile)],
     content: renderTemplate(String(body), fields),
     tag: "test-modele",
+    sender: resolveSmsSender(spelc),
   });
   appendRelanceLog({
     timestamp: new Date().toISOString(),
@@ -442,11 +451,6 @@ router.post("/campaigns/email", requireRole("admin_spelc"), async (req, res) => 
     });
   }
 
-  db.prepare(
-    `INSERT INTO relances_mail (spelc, date, campagne_tag, total_envoye, erreurs_envoi, mails_lus, liens_clique, is_test)
-     VALUES (?, ?, ?, ?, ?, 0, 0, ?)`
-  ).run(spelc, dayjs().format("YYYY-MM-DD"), campagneTag, sent, errors, testMode ? 1 : 0);
-
   res.status(201).json({ sent, errors, total: to.length });
 });
 
@@ -478,6 +482,7 @@ router.post("/campaigns/sms", requireRole("admin_spelc"), async (req, res) => {
   recipients = recipients.slice(0, clampSmsLimit(smsLimit));
 
   const campagneTag = (tag ?? "relance") + (testMode ? "-test" : "");
+  const smsSender = resolveSmsSender(spelc);
   let sent = 0;
   let errors = 0;
   for (const r of recipients) {
@@ -488,6 +493,7 @@ router.post("/campaigns/sms", requireRole("admin_spelc"), async (req, res) => {
       recipients: [normalizeFrenchMobile(contact)],
       content,
       tag: campagneTag,
+      sender: smsSender,
     });
     sent += result.sent;
     errors += result.errors;
@@ -518,26 +524,21 @@ router.post("/campaigns/sms", requireRole("admin_spelc"), async (req, res) => {
     });
   }
 
-  db.prepare(
-    `INSERT INTO relances_sms (spelc, date, campagne_tag, sms_envoyes, erreurs_envoi, sms_delivres, sms_rejetes, statut_global, is_test)
-     VALUES (?, ?, ?, ?, ?, 0, 0, 'En attente', ?)`
-  ).run(spelc, dayjs().format("YYYY-MM-DD"), campagneTag, sent, errors, testMode ? 1 : 0);
-
   res.status(201).json({ sent, errors, total: recipients.length });
 });
 
+/** Série quotidienne pour la courbe de suivi des mails, calculée à partir du suivi par personne. */
 router.get("/tracking/mail", (req, res) => {
   const spelc = req.query.spelc as string;
   if (!spelc || !assertSpelcAccess(req, res, spelc)) return;
-  const rows = db.prepare("SELECT * FROM relances_mail WHERE spelc = ? ORDER BY date").all(spelc);
-  res.json({ rows });
+  res.json({ rows: getMailSeriesByScope(spelc) });
 });
 
+/** Série quotidienne pour la courbe de suivi des SMS, même principe. */
 router.get("/tracking/sms", (req, res) => {
   const spelc = req.query.spelc as string;
   if (!spelc || !assertSpelcAccess(req, res, spelc)) return;
-  const rows = db.prepare("SELECT * FROM relances_sms WHERE spelc = ? ORDER BY date").all(spelc);
-  res.json({ rows });
+  res.json({ rows: getSmsSeriesByScope(spelc) });
 });
 
 /**
@@ -559,43 +560,6 @@ router.post("/relance-tracking/refresh", requireRole("admin_spelc", "admin_gener
   if (!spelc || !assertSpelcAccess(req, res, spelc)) return;
   const result = await refreshPendingRelanceTracking({ ownerUserId: req.user!.id, scope: spelc });
   res.json(result);
-});
-
-/** Rafraîchit les statistiques (lus/cliqués, délivrés/rejetés) depuis l'API Brevo. */
-router.post("/tracking/sync", requireRole("admin_spelc"), async (req, res) => {
-  const spelc = req.user!.spelc!;
-  const { tag, startDate, endDate } = req.body ?? {};
-  const user = db.prepare("SELECT brevo_api_key FROM users WHERE id = ?").get(req.user!.id) as {
-    brevo_api_key: string | null;
-  };
-  if (!user.brevo_api_key) {
-    res.status(400).json({ error: "Clé API Brevo non configurée." });
-    return;
-  }
-  const start = startDate ?? dayjs().subtract(30, "day").format("YYYY-MM-DD");
-  const end = endDate ?? dayjs().format("YYYY-MM-DD");
-
-  const emailStats = await fetchAggregatedEmailStats(user.brevo_api_key, tag ?? "", start, end);
-  if (emailStats) {
-    db.prepare(
-      `UPDATE relances_mail SET mails_lus = ?, liens_clique = ?
-       WHERE spelc = ? AND campagne_tag = ? AND id = (
-         SELECT id FROM relances_mail WHERE spelc = ? AND campagne_tag = ? ORDER BY date DESC LIMIT 1
-       )`
-    ).run(emailStats.opens, emailStats.clicks, spelc, tag, spelc, tag);
-  }
-
-  const smsStats = await fetchAggregatedSmsStats(user.brevo_api_key, start, end);
-  if (smsStats) {
-    db.prepare(
-      `UPDATE relances_sms SET sms_delivres = ?, sms_rejetes = ?, statut_global = ?
-       WHERE spelc = ? AND campagne_tag = ? AND id = (
-         SELECT id FROM relances_sms WHERE spelc = ? AND campagne_tag = ? ORDER BY date DESC LIMIT 1
-       )`
-    ).run(smsStats.delivered, smsStats.softBounces + smsStats.hardBounces, "Synchronisé", spelc, tag, spelc, tag);
-  }
-
-  res.json({ emailStats, smsStats });
 });
 
 export default router;

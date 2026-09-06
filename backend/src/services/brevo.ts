@@ -87,6 +87,9 @@ interface SendSmsPayload {
   recipients: string[];
   content: string;
   tag: string;
+  /** Nom d'expéditeur alphanumérique (max 11 caractères, lettres/chiffres
+   * uniquement — voir lib/smsSender.ts) affiché comme "From" chez le destinataire. */
+  sender: string;
 }
 
 export async function sendBrevoSms(payload: SendSmsPayload): Promise<BrevoSendSummary> {
@@ -104,7 +107,7 @@ export async function sendBrevoSms(payload: SendSmsPayload): Promise<BrevoSendSu
           Accept: "application/json",
         },
         body: JSON.stringify({
-          sender: "SPELC",
+          sender: payload.sender,
           recipient,
           content: payload.content,
           tag: payload.tag,
@@ -185,35 +188,6 @@ export async function fetchSmsEvents(
     console.error("Échec récupération évènements SMS Brevo:", err);
     return [];
   }
-}
-
-export async function fetchAggregatedEmailStats(
-  apiKey: string,
-  tag: string,
-  startDate: string,
-  endDate: string
-): Promise<{ delivered: number; opens: number; clicks: number; hardBounces: number; softBounces: number } | null> {
-  const url = `${BREVO_BASE}/smtp/statistics/aggregatedReport?startDate=${startDate}&endDate=${endDate}&tag=${encodeURIComponent(tag)}`;
-  const response = await fetch(url, { headers: { "api-key": apiKey, Accept: "application/json" } });
-  if (!response.ok) return null;
-  return (await response.json()) as {
-    delivered: number;
-    opens: number;
-    clicks: number;
-    hardBounces: number;
-    softBounces: number;
-  };
-}
-
-export async function fetchAggregatedSmsStats(
-  apiKey: string,
-  startDate: string,
-  endDate: string
-): Promise<{ delivered: number; sent: number; softBounces: number; hardBounces: number } | null> {
-  const url = `${BREVO_BASE}/transactionalSMS/statistics/aggregatedReport?startDate=${startDate}&endDate=${endDate}`;
-  const response = await fetch(url, { headers: { "api-key": apiKey, Accept: "application/json" } });
-  if (!response.ok) return null;
-  return (await response.json()) as { delivered: number; sent: number; softBounces: number; hardBounces: number };
 }
 
 export interface BrevoPlanEntry {

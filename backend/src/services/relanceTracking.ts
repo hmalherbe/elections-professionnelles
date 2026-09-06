@@ -58,6 +58,8 @@ export interface RelanceTrackingRow {
   delivery_status: string | null;
   clicked: number;
   clicked_at: string | null;
+  opened: number;
+  opened_at: string | null;
   last_checked_at: string | null;
 }
 
@@ -92,6 +94,61 @@ export function listRelanceTrackingByScope(scope: string, limit = 500): (Relance
 export function listAllRelanceTracking(limit = 500): (RelanceTrackingRow & { statusLabel: StatusLabel })[] {
   const rows = db.prepare("SELECT * FROM relance_tracking ORDER BY created_at DESC LIMIT ?").all(limit) as RelanceTrackingRow[];
   return rows.map(withStatus);
+}
+
+export interface MailSeriesPoint {
+  date: string;
+  total_envoye: number;
+  erreurs_envoi: number;
+  mails_lus: number;
+  liens_clique: number;
+}
+
+/** Série quotidienne pour la courbe de suivi des mails, calculée à partir du
+ * suivi par personne (relance_tracking) — seule source réellement alimentée
+ * à chaque envoi, test ou campagne réelle confondus. */
+export function getMailSeriesByScope(scope: string): MailSeriesPoint[] {
+  return db
+    .prepare(
+      `SELECT date(created_at) AS date,
+              SUM(send_ok) AS total_envoye,
+              SUM(CASE WHEN send_ok = 0 THEN 1 ELSE 0 END) AS erreurs_envoi,
+              SUM(opened) AS mails_lus,
+              SUM(clicked) AS liens_clique
+       FROM relance_tracking
+       WHERE scope = ? AND type = 'mail'
+       GROUP BY date(created_at)
+       ORDER BY date(created_at)`
+    )
+    .all(scope) as MailSeriesPoint[];
+}
+
+export interface SmsSeriesPoint {
+  date: string;
+  sms_envoyes: number;
+  erreurs_envoi: number;
+  sms_delivres: number;
+  sms_rejetes: number;
+}
+
+/** Série quotidienne pour la courbe de suivi des SMS, même principe que
+ * getMailSeriesByScope. "Délivrés"/"Rejetés" ne sont connus qu'après le
+ * sondage périodique de l'API Brevo (delivery_status), jamais à l'envoi. */
+export function getSmsSeriesByScope(scope: string): SmsSeriesPoint[] {
+  const rejectList = [...SMS_FAILURE_STATUSES].map(() => "?").join(",");
+  return db
+    .prepare(
+      `SELECT date(created_at) AS date,
+              SUM(send_ok) AS sms_envoyes,
+              SUM(CASE WHEN send_ok = 0 THEN 1 ELSE 0 END) AS erreurs_envoi,
+              SUM(CASE WHEN delivery_status = 'delivered' THEN 1 ELSE 0 END) AS sms_delivres,
+              SUM(CASE WHEN delivery_status IN (${rejectList}) THEN 1 ELSE 0 END) AS sms_rejetes
+       FROM relance_tracking
+       WHERE scope = ? AND type = 'sms'
+       GROUP BY date(created_at)
+       ORDER BY date(created_at)`
+    )
+    .all(...SMS_FAILURE_STATUSES, scope) as SmsSeriesPoint[];
 }
 
 /** Les clics peuvent survenir n'importe quand après l'envoi ; au-delà de cette
@@ -135,20 +192,19 @@ function pickStatus(events: { event?: string }[], priority: string[]): string | 
   return priority.find((s) => present.has(s)) ?? null;
 }
 
-function applyUpdate(rowId: number, status: string | null, clicked: boolean): void {
+function applyUpdate(rowId: number, status: string | null, clicked: boolean, opened = false): void {
   const now = new Date().toISOString();
+  const sets = ["delivery_status = COALESCE(?, delivery_status)", "last_checked_at = ?"];
+  const params: unknown[] = [status, now];
   if (clicked) {
-    db.prepare(
-      `UPDATE relance_tracking
-       SET delivery_status = COALESCE(?, delivery_status), clicked = 1,
-           clicked_at = COALESCE(clicked_at, ?), last_checked_at = ?
-       WHERE id = ?`
-    ).run(status, now, now, rowId);
-  } else {
-    db.prepare(
-      `UPDATE relance_tracking SET delivery_status = COALESCE(?, delivery_status), last_checked_at = ? WHERE id = ?`
-    ).run(status, now, rowId);
+    sets.push("clicked = 1", "clicked_at = COALESCE(clicked_at, ?)");
+    params.push(now);
   }
+  if (opened) {
+    sets.push("opened = 1", "opened_at = COALESCE(opened_at, ?)");
+    params.push(now);
+  }
+  db.prepare(`UPDATE relance_tracking SET ${sets.join(", ")} WHERE id = ?`).run(...params, rowId);
 }
 
 function touchLastChecked(rowId: number): void {
@@ -208,8 +264,9 @@ export async function refreshPendingRelanceTracking(
             continue;
           }
           const clicked = matched.some((e) => e.event === "clicks");
+          const opened = matched.some((e) => e.event === "opened" || e.event === "uniqueOpened");
           const status = pickStatus(matched, EMAIL_STATUS_PRIORITY);
-          applyUpdate(row.id, status, clicked);
+          applyUpdate(row.id, status, clicked, opened);
           updated++;
         }
       } else {
