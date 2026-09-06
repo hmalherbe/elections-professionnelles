@@ -14,6 +14,11 @@ export interface ScrapingConfigRow {
   password_selector: string | null;
   submit_selector: string | null;
   schedule_times: string | null;
+  scrutin_page_url: string | null;
+  scrutin_selector: string | null;
+  scrutin_value_1d: string | null;
+  scrutin_value_2d: string | null;
+  download_trigger_selector: string | null;
   updated_at: string;
 }
 
@@ -59,8 +64,12 @@ export interface ScrapingRunResult {
 export async function runScrapingAndImport(academie: string, importedBy: number | null): Promise<ScrapingRunResult> {
   const row = getScrapingConfig(academie);
   if (!row) throw new Error("Aucune configuration de scraping enregistrée pour ce périmètre.");
-  if (academie !== "" && !row.file_url_2) {
+  const usesScrutinSelector = Boolean(row.scrutin_selector && row.scrutin_value_1d);
+  if (academie !== "" && !usesScrutinSelector && !row.file_url_2) {
     throw new Error("Une deuxième URL (2nd degré) est requise pour un scraping académique.");
+  }
+  if (academie !== "" && usesScrutinSelector && !row.scrutin_value_2d) {
+    throw new Error("La valeur du menu déroulant pour le 2nd degré est requise pour un scraping académique.");
   }
 
   const { file1, file2 } = await scrapePortalFiles({
@@ -72,6 +81,11 @@ export async function runScrapingAndImport(academie: string, importedBy: number 
     usernameSelector: row.username_selector,
     passwordSelector: row.password_selector,
     submitSelector: row.submit_selector,
+    scrutinPageUrl: row.scrutin_page_url,
+    scrutinSelector: row.scrutin_selector,
+    scrutinValue1D: row.scrutin_value_1d,
+    scrutinValue2D: row.scrutin_value_2d,
+    downloadTriggerSelector: row.download_trigger_selector,
   });
 
   const snapshotDate = defaultSnapshotDate();

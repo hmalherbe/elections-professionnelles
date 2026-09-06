@@ -232,6 +232,11 @@ export function migrate(): void {
   addColumnIfMissing("relance_tracking", "opened_at", "TEXT");
   addColumnIfMissing("spelc_settings", "sms_sender", "TEXT");
   addColumnIfMissing("scraping_config", "schedule_times", "TEXT");
+  addColumnIfMissing("scraping_config", "scrutin_page_url", "TEXT");
+  addColumnIfMissing("scraping_config", "scrutin_selector", "TEXT");
+  addColumnIfMissing("scraping_config", "scrutin_value_1d", "TEXT");
+  addColumnIfMissing("scraping_config", "scrutin_value_2d", "TEXT");
+  addColumnIfMissing("scraping_config", "download_trigger_selector", "TEXT");
 }
 
 /**

@@ -12,6 +12,11 @@ interface ScrapingConfigResponse {
   usernameSelector?: string | null;
   passwordSelector?: string | null;
   submitSelector?: string | null;
+  scrutinPageUrl?: string | null;
+  scrutinSelector?: string | null;
+  scrutinValue1D?: string | null;
+  scrutinValue2D?: string | null;
+  downloadTriggerSelector?: string | null;
   scheduleTimes?: string[];
 }
 
@@ -66,6 +71,16 @@ export function ScrapingPanel({
   const [usernameSelector, setUsernameSelector] = useState("");
   const [passwordSelector, setPasswordSelector] = useState("");
   const [submitSelector, setSubmitSelector] = useState("");
+  const [useScrutinSelector, setUseScrutinSelector] = useState(false);
+  const [scrutinPageUrl, setScrutinPageUrl] = useState(
+    mode === "academique" ? "http://mock-portal:8081/academie/scrutin" : ""
+  );
+  const [scrutinSelector, setScrutinSelector] = useState(mode === "academique" ? "#scrutin-select" : "");
+  const [scrutinValue1D, setScrutinValue1D] = useState(mode === "academique" ? "1D" : "");
+  const [scrutinValue2D, setScrutinValue2D] = useState(mode === "academique" ? "2D" : "");
+  const [downloadTriggerSelector, setDownloadTriggerSelector] = useState(
+    mode === "academique" ? "#scrutin-download" : ""
+  );
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
   const [runMessage, setRunMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -86,6 +101,12 @@ export function ScrapingPanel({
         setUsernameSelector(r.usernameSelector ?? "");
         setPasswordSelector(r.passwordSelector ?? "");
         setSubmitSelector(r.submitSelector ?? "");
+        setUseScrutinSelector(Boolean(r.scrutinSelector));
+        setScrutinPageUrl(r.scrutinPageUrl ?? "");
+        setScrutinSelector(r.scrutinSelector ?? "");
+        setScrutinValue1D(r.scrutinValue1D ?? "");
+        setScrutinValue2D(r.scrutinValue2D ?? "");
+        setDownloadTriggerSelector(r.downloadTriggerSelector ?? "");
       } else {
         // Tant qu'aucune configuration réelle n'a été enregistrée (mode
         // test contre le faux portail mock-portal), on pré-remplit
@@ -106,15 +127,21 @@ export function ScrapingPanel({
   async function saveConfig() {
     setSavedMessage(null);
     try {
+      const useScrutin = mode === "academique" && useScrutinSelector;
       await api.put("/scraping/config", {
         portalUrl,
         username,
         password: password || undefined,
         fileUrl1,
-        fileUrl2: mode === "academique" ? fileUrl2 : undefined,
+        fileUrl2: mode === "academique" && !useScrutin ? fileUrl2 : undefined,
         usernameSelector: usernameSelector || undefined,
         passwordSelector: passwordSelector || undefined,
         submitSelector: submitSelector || undefined,
+        scrutinPageUrl: useScrutin ? scrutinPageUrl || undefined : undefined,
+        scrutinSelector: useScrutin ? scrutinSelector || undefined : undefined,
+        scrutinValue1D: useScrutin ? scrutinValue1D || undefined : undefined,
+        scrutinValue2D: useScrutin ? scrutinValue2D || undefined : undefined,
+        downloadTriggerSelector: useScrutin ? downloadTriggerSelector || undefined : undefined,
       });
       setPassword("");
       setSavedMessage("Configuration enregistrée.");
@@ -221,18 +248,20 @@ export function ScrapingPanel({
             onChange={(e) => setPassword(e.target.value)}
           />
         </div>
-        <div className={mode === "academique" ? "" : "sm:col-span-2"}>
-          <label className="block text-xs font-medium text-slate-500">
-            URL du fichier{mode === "academique" ? " — 1er degré" : ""}
-          </label>
-          <input
-            className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-            placeholder="https://portail-exemple.fr/ccmmep.json"
-            value={fileUrl1}
-            onChange={(e) => setFileUrl1(e.target.value)}
-          />
-        </div>
-        {mode === "academique" && (
+        {!(mode === "academique" && useScrutinSelector) && (
+          <div className={mode === "academique" ? "" : "sm:col-span-2"}>
+            <label className="block text-xs font-medium text-slate-500">
+              URL du fichier{mode === "academique" ? " — 1er degré" : ""}
+            </label>
+            <input
+              className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+              placeholder="https://portail-exemple.fr/ccmmep.json"
+              value={fileUrl1}
+              onChange={(e) => setFileUrl1(e.target.value)}
+            />
+          </div>
+        )}
+        {mode === "academique" && !useScrutinSelector && (
           <div>
             <label className="block text-xs font-medium text-slate-500">URL du fichier — 2nd degré</label>
             <input
@@ -244,6 +273,77 @@ export function ScrapingPanel({
           </div>
         )}
       </div>
+
+      {mode === "academique" && (
+        <div className="mt-3">
+          <label className="flex items-center gap-2 text-xs font-medium text-slate-500">
+            <input
+              type="checkbox"
+              checked={useScrutinSelector}
+              onChange={(e) => setUseScrutinSelector(e.target.checked)}
+            />
+            Le portail n'a qu'une seule page avec un menu déroulant pour choisir le scrutin (CCMI/CCMA), plutôt que
+            deux URL distinctes
+          </label>
+          {useScrutinSelector && (
+            <div className="mt-2 grid grid-cols-1 gap-3 rounded-md bg-slate-50 p-3 sm:grid-cols-2">
+              <p className="text-xs text-slate-500 sm:col-span-2">
+                Après connexion, la page ci-dessous est ouverte une fois par degré : le menu déroulant est réglé sur
+                chaque valeur, puis le fichier est récupéré — qu'il soit livré par téléchargement classique ou par
+                une requête JSON en arrière-plan. Les sélecteurs et valeurs exacts se trouvent en inspectant le vrai
+                portail une fois ouvert (clic droit → Inspecter sur le menu et le bouton).
+              </p>
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-medium text-slate-500">URL de la page du scrutin</label>
+                <input
+                  className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+                  placeholder="https://portail-exemple.fr/academie/scrutin"
+                  value={scrutinPageUrl}
+                  onChange={(e) => setScrutinPageUrl(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500">Sélecteur CSS — menu déroulant</label>
+                <input
+                  className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+                  placeholder='select[name="type"]'
+                  value={scrutinSelector}
+                  onChange={(e) => setScrutinSelector(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500">
+                  Sélecteur CSS — bouton de téléchargement (si nécessaire)
+                </label>
+                <input
+                  className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+                  placeholder="#scrutin-download"
+                  value={downloadTriggerSelector}
+                  onChange={(e) => setDownloadTriggerSelector(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500">Valeur du menu — 1er degré (CCMI)</label>
+                <input
+                  className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+                  placeholder="1D"
+                  value={scrutinValue1D}
+                  onChange={(e) => setScrutinValue1D(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500">Valeur du menu — 2nd degré (CCMA)</label>
+                <input
+                  className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+                  placeholder="2D"
+                  value={scrutinValue2D}
+                  onChange={(e) => setScrutinValue2D(e.target.value)}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       <button
         type="button"

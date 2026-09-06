@@ -57,6 +57,11 @@ router.get("/config", (req, res) => {
     usernameSelector: row.username_selector,
     passwordSelector: row.password_selector,
     submitSelector: row.submit_selector,
+    scrutinPageUrl: row.scrutin_page_url,
+    scrutinSelector: row.scrutin_selector,
+    scrutinValue1D: row.scrutin_value_1d,
+    scrutinValue2D: row.scrutin_value_2d,
+    downloadTriggerSelector: row.download_trigger_selector,
     scheduleTimes: parseScheduleTimes(row.schedule_times),
     updatedAt: row.updated_at,
   });
@@ -77,6 +82,11 @@ router.put("/config", (req, res) => {
     usernameSelector,
     passwordSelector,
     submitSelector,
+    scrutinPageUrl,
+    scrutinSelector,
+    scrutinValue1D,
+    scrutinValue2D,
+    downloadTriggerSelector,
   } = req.body ?? {};
   if (!portalUrl || !username || !fileUrl1) {
     res.status(400).json({ error: "portalUrl, username et fileUrl1 sont requis." });
@@ -94,8 +104,10 @@ router.put("/config", (req, res) => {
   db.prepare(
     `INSERT INTO scraping_config
        (academie, portal_url, username, password_encrypted, file_url_1, file_url_2,
-        username_selector, password_selector, submit_selector, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+        username_selector, password_selector, submit_selector,
+        scrutin_page_url, scrutin_selector, scrutin_value_1d, scrutin_value_2d, download_trigger_selector,
+        updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
      ON CONFLICT(academie) DO UPDATE SET
        portal_url = excluded.portal_url,
        username = excluded.username,
@@ -105,6 +117,11 @@ router.put("/config", (req, res) => {
        username_selector = excluded.username_selector,
        password_selector = excluded.password_selector,
        submit_selector = excluded.submit_selector,
+       scrutin_page_url = excluded.scrutin_page_url,
+       scrutin_selector = excluded.scrutin_selector,
+       scrutin_value_1d = excluded.scrutin_value_1d,
+       scrutin_value_2d = excluded.scrutin_value_2d,
+       download_trigger_selector = excluded.download_trigger_selector,
        updated_at = datetime('now')`
   ).run(
     academie,
@@ -115,7 +132,12 @@ router.put("/config", (req, res) => {
     fileUrl2 ? String(fileUrl2).trim() : null,
     usernameSelector ? String(usernameSelector).trim() : null,
     passwordSelector ? String(passwordSelector).trim() : null,
-    submitSelector ? String(submitSelector).trim() : null
+    submitSelector ? String(submitSelector).trim() : null,
+    scrutinPageUrl ? String(scrutinPageUrl).trim() : null,
+    scrutinSelector ? String(scrutinSelector).trim() : null,
+    scrutinValue1D ? String(scrutinValue1D).trim() : null,
+    scrutinValue2D ? String(scrutinValue2D).trim() : null,
+    downloadTriggerSelector ? String(downloadTriggerSelector).trim() : null
   );
   res.json({ ok: true });
 });

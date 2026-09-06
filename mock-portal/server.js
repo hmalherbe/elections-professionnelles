@@ -90,11 +90,47 @@ app.get("/", requireAuth, (_req, res) => {
         <li><a id="ccmmep-link" href="/ccmmep.json">Fichier CCMMEP national</a></li>
         <li><a id="academie-1d-link" href="/academie/1d.json">Fichier académique — 1er degré</a></li>
         <li><a id="academie-2d-link" href="/academie/2d.json">Fichier académique — 2nd degré</a></li>
+        <li><a id="academie-scrutin-link" href="/academie/scrutin">Scrutin académique (menu déroulant)</a></li>
       </ul>
       <p><a href="/logout">Se déconnecter</a></p>
     </body>
     </html>
   `);
+});
+
+/**
+ * Simule le cas — anticipé, réel portail non encore ouvert — d'un portail
+ * qui n'expose PAS deux URL distinctes par degré mais UNE seule page avec
+ * un menu déroulant pour choisir le scrutin (CCMI/CCMA), le fichier étant
+ * ensuite livré comme un vrai téléchargement (Content-Disposition) suite à
+ * la soumission du formulaire.
+ */
+app.get("/academie/scrutin", requireAuth, (_req, res) => {
+  res.type("html").send(`
+    <!doctype html>
+    <html lang="fr">
+    <head><meta charset="utf-8"><title>Scrutin académique (test)</title></head>
+    <body style="font-family: sans-serif; max-width: 480px; margin: 80px auto;">
+      <h1>Choix du scrutin</h1>
+      <form method="GET" action="/academie/scrutin/download">
+        <label>Scrutin<br>
+          <select name="type" id="scrutin-select">
+            <option value="1D">1er degré (CCMI)</option>
+            <option value="2D">2nd degré (CCMA)</option>
+          </select>
+        </label>
+        <p><button type="submit" id="scrutin-download">Télécharger le fichier JSON</button></p>
+      </form>
+    </body>
+    </html>
+  `);
+});
+
+app.get("/academie/scrutin/download", requireAuth, (req, res) => {
+  const type = req.query.type === "2D" ? "2D" : "1D";
+  const filename = type === "2D" ? "academie-2d.json" : "academie-1d.json";
+  res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+  res.type("application/json").send(fs.readFileSync(path.join(__dirname, "data", filename), "utf-8"));
 });
 
 function serveJson(filename) {
