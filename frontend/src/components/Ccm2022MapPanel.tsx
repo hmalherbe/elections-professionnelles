@@ -34,6 +34,12 @@ function formatVotes(n: number): string {
   return n.toLocaleString("fr-FR");
 }
 
+const TABLE_OS = ["CFDT", "CFTC", "CGT", "SPELC", "Autres"] as const;
+
+function votesFor(entries: CcmOsEntry[], os: string): number {
+  return entries.find((e) => e.os === os)?.votes ?? 0;
+}
+
 export function Ccm2022MapPanel() {
   const [scrutin, setScrutin] = useState<Scrutin>("1D");
   const [selected, setSelected] = useState<string | null>(null);
@@ -50,6 +56,18 @@ export function Ccm2022MapPanel() {
   }, [data, scrutin]);
 
   const selectedEntries = selected ? data.academies[selected]?.[scrutin] ?? [] : [];
+
+  const tableRows = useMemo(() => {
+    const metropole = Object.entries(data.academies).map(([name, info]) => ({ name, entries: info[scrutin] }));
+    const domTom = Object.entries(overseas).map(([name, entries]) => ({ name, entries }));
+    return [...metropole, ...domTom].sort((a, b) => a.name.localeCompare(b.name, "fr"));
+  }, [data, overseas, scrutin]);
+
+  const tableTotals = useMemo(() => {
+    const totals: Record<string, number> = {};
+    for (const os of TABLE_OS) totals[os] = tableRows.reduce((sum, r) => sum + votesFor(r.entries, os), 0);
+    return totals;
+  }, [tableRows]);
 
   return (
     <div className="space-y-4">
@@ -213,6 +231,64 @@ export function Ccm2022MapPanel() {
           </Card>
         </div>
       </div>
+
+      <Card
+        title={`Tableau des résultats — ${scrutin === "1D" ? "1er degré" : "2nd degré"}`}
+        subtitle="Nombre de voix obtenues par chaque organisation syndicale, académie par académie (métropole et outre-mer)."
+      >
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-400">
+                <th className="py-1.5 pr-4 font-medium">Académie</th>
+                {TABLE_OS.map((os) => (
+                  <th key={os} className="px-3 py-1.5 text-right font-medium">
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: OS_COLORS[os] }} />
+                      {OS_LABELS[os]}
+                    </span>
+                  </th>
+                ))}
+                <th className="py-1.5 pl-3 text-right font-medium">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {tableRows.map(({ name, entries }) => {
+                const total = TABLE_OS.reduce((sum, os) => sum + votesFor(entries, os), 0);
+                return (
+                  <tr key={name} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
+                    <td className="py-1.5 pr-4 text-slate-700">{name}</td>
+                    {TABLE_OS.map((os) => {
+                      const v = votesFor(entries, os);
+                      return (
+                        <td key={os} className={`px-3 py-1.5 text-right tabular-nums ${v ? "text-slate-700" : "text-slate-300"}`}>
+                          {v ? formatVotes(v) : "–"}
+                        </td>
+                      );
+                    })}
+                    <td className="py-1.5 pl-3 text-right font-semibold tabular-nums text-slate-800">
+                      {formatVotes(total)}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+            <tfoot>
+              <tr className="border-t border-slate-200 font-semibold text-slate-800">
+                <td className="py-1.5 pr-4">Total</td>
+                {TABLE_OS.map((os) => (
+                  <td key={os} className="px-3 py-1.5 text-right tabular-nums">
+                    {formatVotes(tableTotals[os])}
+                  </td>
+                ))}
+                <td className="py-1.5 pl-3 text-right tabular-nums">
+                  {formatVotes(TABLE_OS.reduce((sum, os) => sum + tableTotals[os], 0))}
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </Card>
 
       <Card title="Outre-mer" subtitle="Académies ultramarines, non représentées sur la carte de métropole ci-dessus.">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
