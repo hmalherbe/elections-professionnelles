@@ -13,11 +13,18 @@
 const EMAIL_COLUMN_WIDTH = 600;
 
 export function wrapEmailHtml(bodyHtml: string): string {
+  // Les retours à la ligne saisis dans le modèle (ex. la ligne vide avant le
+  // lien du site des élections) sont de simples "\n" : en HTML, un saut de
+  // ligne brut est ignoré (les espaces/retours à la ligne sont fusionnés en
+  // un seul espace), donc sans cette conversion explicite en <br>, le texte
+  // qui suit se retrouve collé à la phrase précédente au lieu d'apparaître
+  // sur sa propre ligne.
+  const withLineBreaks = bodyHtml.replace(/\n/g, "<br>");
   return (
     `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;">` +
     `<tr><td align="center" style="padding:0;">` +
     `<table role="presentation" width="${EMAIL_COLUMN_WIDTH}" cellpadding="0" cellspacing="0" border="0" style="width:${EMAIL_COLUMN_WIDTH}px;max-width:${EMAIL_COLUMN_WIDTH}px;">` +
-    `<tr><td style="text-align:left;">${bodyHtml}</td></tr>` +
+    `<tr><td style="text-align:left;">${withLineBreaks}</td></tr>` +
     `</table>` +
     `</td></tr>` +
     `</table>`
