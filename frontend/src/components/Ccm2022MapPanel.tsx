@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import { CCM_2022_ACADEMIE_MAP, type CcmOsEntry } from "../data/ccm2022AcademieMap";
 import { CCM_2022_DEPARTEMENTS, CCM_2022_SPELCS } from "../data/ccm2022Breakdowns";
+import { CCM_2022_DEPARTEMENT_GEO } from "../data/ccm2022DepartementGeo";
+import { CCM_2022_SPELC_GEO } from "../data/ccm2022SpelcGeo";
 import { Card } from "./Card";
 
 type Scrutin = "1D" | "2D";
@@ -48,27 +50,65 @@ function votesFor(entries: CcmOsEntry[], os: string): number {
   return entries.find((e) => e.os === os)?.votes ?? 0;
 }
 
+const DEPT_NAME: Record<string, string> = Object.fromEntries(
+  CCM_2022_DEPARTEMENTS.filter((d) => d.code).map((d) => [d.code as string, d.name])
+);
+
+interface MapShape {
+  key: string;
+  label: string;
+  path: string;
+  cx: number;
+  cy: number;
+  entries: CcmOsEntry[];
+  orphan?: boolean;
+}
+
 export function Ccm2022MapPanel() {
   const [scrutin, setScrutin] = useState<Scrutin>("1D");
   const [vue, setVue] = useState<Vue>("academie");
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState<{ label: string; entries: CcmOsEntry[]; orphan?: boolean } | null>(null);
 
   const data = CCM_2022_ACADEMIE_MAP;
   const overseas = data.overseas[scrutin];
 
-  const shapes = useMemo(() => {
-    return Object.entries(data.academies).map(([name, info]) => {
-      const entries = info[scrutin];
-      const { leaders, tie } = leaderInfo(entries);
-      return { name, info, entries, leaders, tie };
-    });
-  }, [data, scrutin]);
-
-  const selectedEntries = selected ? data.academies[selected]?.[scrutin] ?? [] : [];
-
   function entriesForAcademie(academie: string): CcmOsEntry[] {
     return data.academies[academie]?.[scrutin] ?? overseas[academie] ?? [];
   }
+
+  const geo = vue === "departement" ? CCM_2022_DEPARTEMENT_GEO : vue === "spelc" ? CCM_2022_SPELC_GEO : data;
+
+  const mapShapes: MapShape[] = useMemo(() => {
+    if (vue === "departement") {
+      return Object.entries(CCM_2022_DEPARTEMENT_GEO.departements).map(([code, d]) => ({
+        key: code,
+        label: `${code} – ${DEPT_NAME[code] ?? code}`,
+        path: d.path,
+        cx: d.cx,
+        cy: d.cy,
+        entries: entriesForAcademie(d.academie),
+      }));
+    }
+    if (vue === "spelc") {
+      return CCM_2022_SPELC_GEO.spelcs.map((s) => ({
+        key: s.key,
+        label: s.spelc ? (s.spelc === "Centre-Poitou-Charente" ? `${s.spelc} (${s.academie})` : s.spelc) : `${s.academie} — non couvert`,
+        path: s.path,
+        cx: s.cx,
+        cy: s.cy,
+        entries: entriesForAcademie(s.academie),
+        orphan: s.spelc === null,
+      }));
+    }
+    return Object.entries(data.academies).map(([name, info]) => ({
+      key: name,
+      label: name,
+      path: info.path,
+      cx: info.cx,
+      cy: info.cy,
+      entries: info[scrutin],
+    }));
+  }, [vue, data, overseas, scrutin]);
 
   const tableRows = useMemo(() => {
     if (vue === "academie") {
@@ -101,46 +141,79 @@ export function Ccm2022MapPanel() {
   return (
     <div className="space-y-4">
       <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-        <h3 className="text-sm font-semibold text-slate-800">Résultats CCM 2022 par académie</h3>
+        <h3 className="text-sm font-semibold text-slate-800">Résultats CCM 2022 par {VUE_LABELS[vue].toLowerCase()}</h3>
         <p className="mt-1 text-xs text-slate-500">
-          Ventilation académique des résultats du CCMMEP 2022&nbsp;: organisation syndicale en tête et nombre de
-          sièges obtenus dans chaque académie. Référence historique fixe, sans lien avec le scrutin 2026 en cours de
-          suivi. Survolez ou touchez une académie pour le détail complet.
+          Organisation syndicale en tête et nombre de sièges obtenus, par {VUE_LABELS[vue].toLowerCase()}. Référence
+          historique fixe, sans lien avec le scrutin 2026 en cours de suivi. Survolez ou touchez la carte pour le
+          détail complet.
         </p>
-        <div className="mt-3 inline-flex rounded-md border border-slate-200 bg-slate-50 p-1">
-          {(["1D", "2D"] as Scrutin[]).map((s) => (
-            <button
-              key={s}
-              onClick={() => {
-                setScrutin(s);
-                setSelected(null);
-              }}
-              className={`rounded px-3 py-1 text-sm font-medium ${
-                scrutin === s ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"
-              }`}
-            >
-              {s === "1D" ? "1er degré" : "2nd degré"}
-            </button>
-          ))}
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <div className="inline-flex rounded-md border border-slate-200 bg-slate-50 p-1">
+            {(["1D", "2D"] as Scrutin[]).map((s) => (
+              <button
+                key={s}
+                onClick={() => {
+                  setScrutin(s);
+                  setSelected(null);
+                }}
+                className={`rounded px-3 py-1 text-sm font-medium ${
+                  scrutin === s ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"
+                }`}
+              >
+                {s === "1D" ? "1er degré" : "2nd degré"}
+              </button>
+            ))}
+          </div>
+          <div className="inline-flex rounded-md border border-slate-200 bg-slate-50 p-1">
+            {(["academie", "departement", "spelc"] as Vue[]).map((v) => (
+              <button
+                key={v}
+                onClick={() => {
+                  setVue(v);
+                  setSelected(null);
+                }}
+                className={`rounded px-3 py-1 text-sm font-medium ${
+                  vue === v ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"
+                }`}
+              >
+                {VUE_LABELS[v]}
+              </button>
+            ))}
+          </div>
         </div>
+        {vue !== "academie" && (
+          <p className="mt-3 text-xs text-slate-400">
+            {vue === "departement"
+              ? "Les sièges ne sont attribués que par académie dans ce scrutin : chaque département affiche les contours réels de son département, coloré par les résultats de son académie de rattachement (plusieurs départements d'une même académie affichent donc les mêmes résultats)."
+              : "Chaque zone affiche les contours réunis des départements d'un Spelc (référentiel interne de l'application), colorés par les résultats de l'académie de rattachement. Le Spelc « Centre-Poitou-Charente » chevauche deux académies réelles (Poitiers et Orléans-Tours) et apparaît donc en deux zones distinctes. Les départements grisés (Grenoble, Corse) ne sont rattachés à aucun Spelc dans ce référentiel."}
+          </p>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_320px]">
         <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <div className="mb-2 flex items-center justify-between">
             <h4 className="text-sm font-semibold text-slate-800">
-              Métropole — {scrutin === "1D" ? "1er degré" : "2nd degré"}
+              Métropole — {VUE_LABELS[vue]} — {scrutin === "1D" ? "1er degré" : "2nd degré"}
             </h4>
-            <span className="text-xs text-slate-400">25 académies</span>
+            <span className="text-xs text-slate-400">
+              {mapShapes.length} {vue === "academie" ? "académies" : vue === "departement" ? "départements" : "zones"}
+            </span>
           </div>
-          <svg viewBox={`0 0 ${data.width} ${data.height}`} className="w-full" role="img" aria-label="Carte des académies de France métropolitaine">
+          <svg
+            viewBox={`0 0 ${geo.width} ${geo.height}`}
+            className="w-full"
+            role="img"
+            aria-label={`Carte des ${VUE_LABELS[vue].toLowerCase()}s de France métropolitaine`}
+          >
             <defs>
-              {shapes
+              {mapShapes
+                .map((s) => ({ ...s, ...leaderInfo(s.entries) }))
                 .filter((s) => s.tie)
                 .map((s) => (
                   <pattern
-                    key={s.name}
-                    id={`tie-${s.name.replace(/[^a-zA-Z0-9]/g, "")}`}
+                    key={s.key}
+                    id={`tie-${s.key.replace(/[^a-zA-Z0-9]/g, "")}`}
                     width={8}
                     height={8}
                     patternUnits="userSpaceOnUse"
@@ -151,53 +224,65 @@ export function Ccm2022MapPanel() {
                   </pattern>
                 ))}
             </defs>
-            {shapes.map(({ name, info, entries, leaders, tie }) => (
-              <path
-                key={name}
-                d={info.path}
-                fill={
-                  !entries.length
-                    ? "#eef1ec"
-                    : tie
-                      ? `url(#tie-${name.replace(/[^a-zA-Z0-9]/g, "")})`
-                      : OS_COLORS[leaders[0].os]
-                }
-                stroke={selected === name ? "#0f172a" : "#ffffff"}
-                strokeWidth={selected === name ? 1.6 : 1.1}
-                className="cursor-pointer transition-[filter] hover:brightness-105"
-                onMouseEnter={() => setSelected(name)}
-                onFocus={() => setSelected(name)}
-                tabIndex={0}
-                onClick={() => setSelected(name)}
-              >
-                <title>
-                  {name}
-                  {entries
-                    .filter((e) => e.sieges > 0 || e.votes > 0)
-                    .map((e) => `\n${OS_LABELS[e.os] ?? e.os} : ${e.sieges} siège${e.sieges > 1 ? "s" : ""}`)
-                    .join("")}
-                </title>
-              </path>
-            ))}
-            {shapes.map(({ name, info, leaders, entries }) =>
-              entries.length ? (
-                <text
-                  key={name}
-                  x={info.cx}
-                  y={info.cy}
-                  textAnchor="middle"
-                  fontSize={6.5}
-                  fontWeight={600}
-                  fill="#fcfcfb"
-                  stroke="rgba(0,0,0,0.35)"
-                  strokeWidth={2}
-                  paintOrder="stroke"
-                  pointerEvents="none"
+            {mapShapes.map((s) => {
+              const { leaders, tie } = leaderInfo(s.entries);
+              const idSafe = s.key.replace(/[^a-zA-Z0-9]/g, "");
+              const isSelected = selected?.label === s.label;
+              return (
+                <path
+                  key={s.key}
+                  d={s.path}
+                  fill={
+                    s.orphan
+                      ? "#d7dbd3"
+                      : !s.entries.length
+                        ? "#eef1ec"
+                        : tie
+                          ? `url(#tie-${idSafe})`
+                          : OS_COLORS[leaders[0].os]
+                  }
+                  stroke={isSelected ? "#0f172a" : "#ffffff"}
+                  strokeWidth={isSelected ? 1.6 : vue === "departement" ? 0.6 : 1.1}
+                  className="cursor-pointer transition-[filter] hover:brightness-105"
+                  onMouseEnter={() => setSelected({ label: s.label, entries: s.entries, orphan: s.orphan })}
+                  onFocus={() => setSelected({ label: s.label, entries: s.entries, orphan: s.orphan })}
+                  tabIndex={0}
+                  onClick={() => setSelected({ label: s.label, entries: s.entries, orphan: s.orphan })}
                 >
-                  {leaders[0].sieges}
-                </text>
-              ) : null
-            )}
+                  <title>
+                    {s.label}
+                    {s.orphan
+                      ? "\nNon couvert par le référentiel Spelc"
+                      : s.entries
+                          .filter((e) => e.sieges > 0 || e.votes > 0)
+                          .map((e) => `\n${OS_LABELS[e.os] ?? e.os} : ${e.sieges} siège${e.sieges > 1 ? "s" : ""}`)
+                          .join("")}
+                  </title>
+                </path>
+              );
+            })}
+            {vue !== "departement" &&
+              mapShapes.map((s) => {
+                if (!s.entries.length) return null;
+                const { leaders } = leaderInfo(s.entries);
+                return (
+                  <text
+                    key={s.key}
+                    x={s.cx}
+                    y={s.cy}
+                    textAnchor="middle"
+                    fontSize={6.5}
+                    fontWeight={600}
+                    fill="#fcfcfb"
+                    stroke="rgba(0,0,0,0.35)"
+                    strokeWidth={2}
+                    paintOrder="stroke"
+                    pointerEvents="none"
+                  >
+                    {leaders[0].sieges}
+                  </text>
+                );
+              })}
           </svg>
         </div>
 
@@ -229,64 +314,53 @@ export function Ccm2022MapPanel() {
             </p>
           </Card>
 
-          <Card title={selected ?? "Aucune académie sélectionnée"}>
+          <Card title={selected?.label ?? "Aucune sélection"}>
             {selected ? (
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-400">
-                    <th className="pb-1.5 font-medium">Organisation</th>
-                    <th className="pb-1.5 text-right font-medium">Sièges</th>
-                    <th className="pb-1.5 text-right font-medium">Voix</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {selectedEntries
-                    .filter((e) => e.sieges > 0 || e.votes > 0)
-                    .map((e) => (
-                      <tr key={e.os} className="border-b border-slate-100 last:border-0">
-                        <td className="flex items-center gap-2 py-1.5">
-                          <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: OS_COLORS[e.os] }} />
-                          {OS_LABELS[e.os] ?? e.os}
-                        </td>
-                        <td className="py-1.5 text-right tabular-nums">{e.sieges}</td>
-                        <td className="py-1.5 text-right tabular-nums text-slate-500">{formatVotes(e.votes)}</td>
+              <>
+                {selected.orphan && (
+                  <p className="mb-2 text-xs text-amber-600">
+                    Non couvert par le référentiel Spelc — résultats de l'académie de rattachement ci-dessous.
+                  </p>
+                )}
+                {selected.entries.filter((e) => e.sieges > 0 || e.votes > 0).length ? (
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-400">
+                        <th className="pb-1.5 font-medium">Organisation</th>
+                        <th className="pb-1.5 text-right font-medium">Sièges</th>
+                        <th className="pb-1.5 text-right font-medium">Voix</th>
                       </tr>
-                    ))}
-                </tbody>
-              </table>
+                    </thead>
+                    <tbody>
+                      {selected.entries
+                        .filter((e) => e.sieges > 0 || e.votes > 0)
+                        .map((e) => (
+                          <tr key={e.os} className="border-b border-slate-100 last:border-0">
+                            <td className="flex items-center gap-2 py-1.5">
+                              <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: OS_COLORS[e.os] }} />
+                              {OS_LABELS[e.os] ?? e.os}
+                            </td>
+                            <td className="py-1.5 text-right tabular-nums">{e.sieges}</td>
+                            <td className="py-1.5 text-right tabular-nums text-slate-500">{formatVotes(e.votes)}</td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <p className="text-xs text-slate-400">Aucune donnée.</p>
+                )}
+              </>
             ) : (
-              <p className="text-xs text-slate-400">Survolez la carte pour afficher le détail d'une académie.</p>
+              <p className="text-xs text-slate-400">Survolez la carte pour afficher le détail.</p>
             )}
           </Card>
         </div>
       </div>
 
       <Card title={`Tableau des résultats — ${scrutin === "1D" ? "1er degré" : "2nd degré"}`}>
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-          <p className="text-xs text-slate-500">
-            Nombre de voix obtenues par chaque organisation syndicale, {vue === "spelc" ? "Spelc par Spelc" : vue === "departement" ? "département par département" : "académie par académie"} (métropole et outre-mer).
-          </p>
-          <div className="inline-flex rounded-md border border-slate-200 bg-slate-50 p-1">
-            {(["academie", "departement", "spelc"] as Vue[]).map((v) => (
-              <button
-                key={v}
-                onClick={() => setVue(v)}
-                className={`rounded px-2.5 py-1 text-xs font-medium ${
-                  vue === v ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"
-                }`}
-              >
-                {VUE_LABELS[v]}
-              </button>
-            ))}
-          </div>
-        </div>
-        {vue !== "academie" && (
-          <p className="mb-3 text-xs text-slate-400">
-            {vue === "departement"
-              ? "Les sièges ne sont attribués que par académie dans ce scrutin : chaque département affiche les résultats de son académie de rattachement (les départements d'une même académie affichent donc les mêmes chiffres)."
-              : "Chaque Spelc affiche les résultats de son académie de rattachement. Le Spelc « Centre-Poitou-Charente » chevauche deux académies réelles (Poitiers et Orléans-Tours) : ses deux académies sont affichées séparément plutôt qu'un total qui mélangerait deux élections distinctes."}
-          </p>
-        )}
+        <p className="mb-3 text-xs text-slate-500">
+          Nombre de voix obtenues par chaque organisation syndicale, {vue === "spelc" ? "Spelc par Spelc" : vue === "departement" ? "département par département" : "académie par académie"} (métropole et outre-mer) — vue sélectionnée ci-dessus.
+        </p>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
