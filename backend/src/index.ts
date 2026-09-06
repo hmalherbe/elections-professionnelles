@@ -1,5 +1,7 @@
 import express from "express";
 import cors from "cors";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { migrate } from "./db/index.js";
 import { refreshPendingRelanceTracking } from "./services/relanceTracking.js";
 import authRoutes from "./routes/auth.js";
@@ -19,6 +21,12 @@ app.use(cors());
 app.use(express.json({ limit: "5mb" }));
 
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
+
+// Pictogrammes réseaux sociaux des mails de relance : servis en fichiers
+// réels à une URL publique absolue (voir lib/socialLinks.ts) plutôt qu'en
+// data URI, que de nombreux clients mail (Gmail, Outlook.com...) bloquent.
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+app.use("/api/assets", express.static(path.resolve(__dirname, "../assets")));
 
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);

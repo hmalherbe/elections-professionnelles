@@ -11,6 +11,7 @@ services:
       SCRAPING_SECRET_KEY: ${SCRAPING_SECRET_KEY}
       MOCK_PORTAL_USERNAME: ${MOCK_PORTAL_USERNAME}
       MOCK_PORTAL_PASSWORD: ${MOCK_PORTAL_PASSWORD}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL}
     volumes:
       - backend_data:/app/data
     expose:
