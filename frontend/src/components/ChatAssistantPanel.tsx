@@ -172,7 +172,7 @@ export function ChatAssistantPanel() {
 
   return (
     <Card
-      title="Assistant (IA)"
+      title="Assistant IA"
       subtitle="Posez une question en langage naturel sur vos données de participation — l'assistant interroge la base et ne répond qu'avec ce qu'il y trouve, dans la limite de votre périmètre."
     >
       {isAdminGeneral && (

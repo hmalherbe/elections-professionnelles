@@ -13,7 +13,7 @@ import { api, qs } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import type { CourbePoint, ImportRecord } from "../lib/types";
 
-const TABS = ["Vue académie", "Résultats 2022", "Scrutins", "Participation par établissement", "Imports", "Assistant"] as const;
+const TABS = ["Vue académie", "Résultats 2022", "Scrutins", "Participation par établissement", "Imports", "Assistant IA"] as const;
 type Tab = (typeof TABS)[number];
 
 export function AdminAcademiqueDashboard() {
@@ -46,7 +46,7 @@ export function AdminAcademiqueDashboard() {
       {tab === "Scrutins" && <ScrutinsTab scope={scope} academie={academie} />}
       {tab === "Participation par établissement" && <EtablissementsTab scope={scope} academie={academie} />}
       {tab === "Imports" && <ImportsPanel academie={academie} />}
-      {tab === "Assistant" && <ChatAssistantPanel />}
+      {tab === "Assistant IA" && <ChatAssistantPanel />}
     </div>
   );
 }
