@@ -11,7 +11,10 @@ interface ScrapingConfigResponse {
   usernameSelector?: string | null;
   passwordSelector?: string | null;
   submitSelector?: string | null;
+  scheduleTimes?: string[];
 }
+
+const MAX_SCHEDULE_TIMES = 3;
 
 /**
  * Récupération automatique (scraping Playwright, en arrière-plan) des
@@ -41,10 +44,15 @@ export function ScrapingPanel({ mode }: { mode: "national" | "academique" }) {
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
   const [runMessage, setRunMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [scheduleTimes, setScheduleTimes] = useState<string[]>(["", "", ""]);
+  const [scheduleMessage, setScheduleMessage] = useState<string | null>(null);
+  const [scheduleBusy, setScheduleBusy] = useState(false);
 
   function refresh() {
     api.get<ScrapingConfigResponse>("/scraping/config").then((r) => {
       setConfigured(r.configured);
+      const times = r.scheduleTimes ?? [];
+      setScheduleTimes(Array.from({ length: MAX_SCHEDULE_TIMES }, (_, i) => times[i] ?? ""));
       if (r.configured) {
         setPortalUrl(r.portalUrl ?? "");
         setUsername(r.username ?? "");
@@ -91,13 +99,41 @@ export function ScrapingPanel({ mode }: { mode: "national" | "academique" }) {
     }
   }
 
+  async function saveSchedule() {
+    setScheduleBusy(true);
+    setScheduleMessage(null);
+    try {
+      const times = scheduleTimes.filter(Boolean);
+      await api.put("/scraping/schedule", { times });
+      setScheduleMessage(
+        times.length > 0
+          ? `Scraping automatique programmé à ${times.join(", ")} (heure de Paris).`
+          : "Scraping automatique désactivé."
+      );
+    } catch (err) {
+      setScheduleMessage((err as Error).message);
+    } finally {
+      setScheduleBusy(false);
+    }
+  }
+
   async function runScraping() {
     setBusy(true);
     setRunMessage(null);
     try {
-      const res = await api.post<Record<string, { rowCount: number; votants: number }>>("/scraping/run", {});
-      const parts = Object.entries(res).map(([key, r]) => `${key} : ${r.rowCount} lignes, ${r.votants} votants`);
-      setRunMessage(parts.join(" · "));
+      const res = await api.post<
+        Record<string, { rowCount: number; votants: number } | { nom: string; prenom: string }[] | undefined>
+      >("/scraping/run", {});
+      const { crossDegreDuplicates, ...results } = res;
+      const parts = Object.entries(results).map(
+        ([key, r]) => `${key} : ${(r as { rowCount: number }).rowCount} lignes, ${(r as { votants: number }).votants} votants`
+      );
+      let message = parts.join(" · ");
+      if (Array.isArray(crossDegreDuplicates) && crossDegreDuplicates.length > 0) {
+        const names = crossDegreDuplicates.map((p) => `${p.prenom} ${p.nom}`).join(", ");
+        message += ` — Attention : ${crossDegreDuplicates.length} personne(s) présente(s) dans les deux fichiers (${names}), vérifiez qu'ils ne se chevauchent pas.`;
+      }
+      setRunMessage(message);
     } catch (err) {
       setRunMessage((err as Error).message);
     } finally {
@@ -227,6 +263,40 @@ export function ScrapingPanel({ mode }: { mode: "national" | "academique" }) {
       </div>
       {savedMessage && <p className="mt-2 text-sm text-slate-600">{savedMessage}</p>}
       {runMessage && <p className="mt-2 text-sm text-slate-600">{runMessage}</p>}
+
+      <div className="mt-4 border-t border-slate-200 pt-3">
+        <p className="text-sm font-medium text-slate-700">Horaires automatiques</p>
+        <p className="mt-1 text-xs text-slate-500">
+          Jusqu'à 3 horaires par jour (heure de Paris) pour déclencher automatiquement la récupération
+          {mode === "academique"
+            ? " des fichiers 1er et 2nd degré (mêmes horaires pour les deux scrutins)."
+            : " du fichier national."}{" "}
+          Laisser un champ vide pour ne pas l'utiliser.
+        </p>
+        <div className="mt-2 flex flex-wrap items-center gap-3">
+          {scheduleTimes.map((t, i) => (
+            <input
+              key={i}
+              type="time"
+              className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+              value={t}
+              onChange={(e) => {
+                const next = [...scheduleTimes];
+                next[i] = e.target.value;
+                setScheduleTimes(next);
+              }}
+            />
+          ))}
+          <button
+            disabled={!configured || scheduleBusy}
+            onClick={saveSchedule}
+            className="rounded-md bg-slate-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-900 disabled:opacity-60"
+          >
+            Enregistrer les horaires
+          </button>
+        </div>
+        {scheduleMessage && <p className="mt-2 text-sm text-slate-600">{scheduleMessage}</p>}
+      </div>
     </Card>
   );
 }

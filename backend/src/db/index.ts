@@ -221,6 +221,7 @@ export function migrate(): void {
   addColumnIfMissing("relance_tracking", "opened", "INTEGER NOT NULL DEFAULT 0");
   addColumnIfMissing("relance_tracking", "opened_at", "TEXT");
   addColumnIfMissing("spelc_settings", "sms_sender", "TEXT");
+  addColumnIfMissing("scraping_config", "schedule_times", "TEXT");
 }
 
 /**

@@ -2,7 +2,7 @@ import { Router } from "express";
 import multer from "multer";
 import { db } from "../db/index.js";
 import { requireAuth, requireRole, canAccessAcademie } from "../middleware/auth.js";
-import { runImport, defaultSnapshotDate } from "../services/imports.js";
+import { runImport, defaultSnapshotDate, findCrossDegreDuplicates } from "../services/imports.js";
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 60 * 1024 * 1024 } });
@@ -67,7 +67,8 @@ router.post(
         importedBy: req.user!.id,
         snapshotDate,
       });
-      res.status(201).json(result);
+      const crossDegreDuplicates = findCrossDegreDuplicates(academie);
+      res.status(201).json({ ...result, ...(crossDegreDuplicates.length > 0 ? { crossDegreDuplicates } : {}) });
     } catch (err) {
       res.status(400).json({ error: (err as Error).message });
     }

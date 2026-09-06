@@ -1,25 +1,11 @@
 import { Router } from "express";
 import { db } from "../db/index.js";
 import { requireAuth, canAccessAcademie } from "../middleware/auth.js";
-import { encrypt, decrypt } from "../lib/crypto.js";
-import { scrapePortalFiles } from "../services/scraper.js";
-import { runImport, defaultSnapshotDate } from "../services/imports.js";
+import { encrypt } from "../lib/crypto.js";
+import { getScrapingConfig, isValidScheduleTimes, parseScheduleTimes, runScrapingAndImport } from "../services/scrapingRun.js";
 
 const router = Router();
 router.use(requireAuth);
-
-interface ScrapingConfigRow {
-  academie: string;
-  portal_url: string;
-  username: string;
-  password_encrypted: string;
-  file_url_1: string;
-  file_url_2: string | null;
-  username_selector: string | null;
-  password_selector: string | null;
-  submit_selector: string | null;
-  updated_at: string;
-}
 
 /**
  * Détermine sur quelle "académie" (clé de scraping_config, '' = national)
@@ -57,9 +43,7 @@ router.get("/config", (req, res) => {
     res.status(403).json({ error: "Accès non autorisé." });
     return;
   }
-  const row = db.prepare("SELECT * FROM scraping_config WHERE academie = ?").get(academie) as
-    | ScrapingConfigRow
-    | undefined;
+  const row = getScrapingConfig(academie);
   if (!row) {
     res.json({ configured: false });
     return;
@@ -73,6 +57,7 @@ router.get("/config", (req, res) => {
     usernameSelector: row.username_selector,
     passwordSelector: row.password_selector,
     submitSelector: row.submit_selector,
+    scheduleTimes: parseScheduleTimes(row.schedule_times),
     updatedAt: row.updated_at,
   });
 });
@@ -145,63 +130,53 @@ router.post("/run", async (req, res) => {
     res.status(403).json({ error: "Vous ne pouvez récupérer que les fichiers de votre académie." });
     return;
   }
-  const row = db.prepare("SELECT * FROM scraping_config WHERE academie = ?").get(academie) as
-    | ScrapingConfigRow
-    | undefined;
-  if (!row) {
-    res.status(400).json({ error: "Aucune configuration de scraping enregistrée pour ce périmètre." });
-    return;
-  }
-  if (academie !== "" && !row.file_url_2) {
-    res.status(400).json({ error: "Une deuxième URL (2nd degré) est requise pour un scraping académique." });
-    return;
-  }
 
   try {
-    const { file1, file2 } = await scrapePortalFiles({
-      portalUrl: row.portal_url,
-      username: row.username,
-      password: decrypt(row.password_encrypted),
-      fileUrl1: row.file_url_1,
-      fileUrl2: row.file_url_2,
-      usernameSelector: row.username_selector,
-      passwordSelector: row.password_selector,
-      submitSelector: row.submit_selector,
-    });
-
-    const snapshotDate = defaultSnapshotDate();
-    if (academie === "") {
-      const result = runImport(JSON.parse(file1), {
-        scope: "national",
-        academie: null,
-        degre: null,
-        filename: "scraping-ccmmep.json",
-        importedBy: req.user!.id,
-        snapshotDate,
-      });
-      res.status(201).json({ national: result });
-    } else {
-      const result1D = runImport(JSON.parse(file1), {
-        scope: "academique",
-        academie,
-        degre: "1D",
-        filename: "scraping-1d.json",
-        importedBy: req.user!.id,
-        snapshotDate,
-      });
-      const result2D = runImport(JSON.parse(file2!), {
-        scope: "academique",
-        academie,
-        degre: "2D",
-        filename: "scraping-2d.json",
-        importedBy: req.user!.id,
-        snapshotDate,
-      });
-      res.status(201).json({ degre1D: result1D, degre2D: result2D });
-    }
+    const result = await runScrapingAndImport(academie, req.user!.id);
+    res.status(201).json(result);
   } catch (err) {
     res.status(502).json({ error: `Échec du scraping : ${(err as Error).message}` });
   }
+});
+
+/**
+ * Horaires de déclenchement automatique du scraping (fonctionnalité
+ * optionnelle) : jusqu'à 3 horaires "HH:MM" par jour, appliqués aux 1er et
+ * 2nd degré ensemble pour une académie (comme le déclenchement manuel), ou
+ * au national pour le CCMMEP. Vérifiés côté serveur toutes les minutes (voir
+ * services/scrapingScheduler.ts).
+ */
+router.get("/schedule", (req, res) => {
+  const academie = resolveTargetAcademie(req.user!, req.query.academie);
+  if (academie === null) {
+    res.status(403).json({ error: "Accès non autorisé." });
+    return;
+  }
+  const row = getScrapingConfig(academie);
+  res.json({ times: parseScheduleTimes(row?.schedule_times ?? null) });
+});
+
+router.put("/schedule", (req, res) => {
+  const academie = resolveTargetAcademie(req.user!, req.body?.academie);
+  if (academie === null) {
+    res.status(403).json({ error: "Accès non autorisé." });
+    return;
+  }
+  const { times } = req.body ?? {};
+  if (!isValidScheduleTimes(times)) {
+    res.status(400).json({ error: "Horaires invalides : 3 maximum, au format HH:MM." });
+    return;
+  }
+  const row = getScrapingConfig(academie);
+  if (!row) {
+    res.status(400).json({ error: "Configurez d'abord les identifiants de scraping avant de programmer des horaires." });
+    return;
+  }
+  db.prepare("UPDATE scraping_config SET schedule_times = ?, updated_at = datetime('now') WHERE academie = ?").run(
+    JSON.stringify(times),
+    academie
+  );
+  res.json({ ok: true });
 });
 
 export default router;

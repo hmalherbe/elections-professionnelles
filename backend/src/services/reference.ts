@@ -130,6 +130,30 @@ export function lookupDepartement(departement: string | null): DeptLookup | null
   return row ?? null;
 }
 
+const academieSoleSpelcCache = new Map<string, string | null>();
+
+/**
+ * Le Spelc unique d'une académie, si tous ses départements pointent vers le
+ * même Spelc (cas de la majorité des académies — Nice/Côte d'Azur, Lyon,
+ * Guadeloupe/Antilles isolément, etc.). Sert de repli dans buildEmargementRow
+ * quand le code postal d'un émargement n'a pas pu être extrait/reconnu mais
+ * que l'académie, elle, est connue (import académique : toujours forcée) —
+ * évite de perdre silencieusement la personne de la vue par Spelc (qui
+ * filtre sur `spelc`, pas `academie`) alors que son Spelc n'est pourtant pas
+ * ambigu. Retourne null si l'académie a plusieurs Spelcs (ex. Rennes,
+ * Bordeaux, Toulouse, Strasbourg, Normandie) : dans ce cas, sans département
+ * on ne peut pas deviner lequel, donc on ne tente pas.
+ */
+export function soleSpelcForAcademie(academie: string | null): string | null {
+  if (!academie) return null;
+  if (academieSoleSpelcCache.has(academie)) return academieSoleSpelcCache.get(academie) ?? null;
+  const rows = db.prepare("SELECT DISTINCT spelc FROM ref_departements WHERE academie = ?").all(academie) as { spelc: string }[];
+  const result = rows.length === 1 ? rows[0].spelc : null;
+  academieSoleSpelcCache.set(academie, result);
+  return result;
+}
+
 export function clearDeptCache(): void {
   deptCache.clear();
+  academieSoleSpelcCache.clear();
 }

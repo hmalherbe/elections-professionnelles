@@ -19,7 +19,8 @@ interface ImportContext {
   academie: string | null;
   degre: Degre | null; // pour un import académique
   filename: string;
-  importedBy: number;
+  /** null pour un import déclenché automatiquement (planificateur de scraping), sans utilisateur associé. */
+  importedBy: number | null;
   snapshotDate: string; // YYYY-MM-DD
 }
 
@@ -104,6 +105,39 @@ export function runImport(raw: unknown, ctx: ImportContext): ImportResult {
   const importId = tx(items);
 
   return { importId, rowCount: items.length, votants, degreCounts };
+}
+
+/**
+ * Une même personne ne peut légitimement appartenir qu'à un seul scrutin
+ * local (CCMI ou CCMA/CCMD selon le degré) — le degré (donc le scrutin) est
+ * assigné par fichier importé, pas dérivé de la personne elle-même (voir
+ * buildEmargementRow). Si les fichiers 1er et 2nd degré d'une académie se
+ * chevauchent (mêmes fichiers scrapés/téléversés par erreur pour les deux
+ * degrés, export source mal filtré...), la même personne se retrouve avec
+ * deux lignes contradictoires. Détecté après import pour alerter l'admin
+ * plutôt que de laisser le doublon silencieux dans les tableaux de bord.
+ */
+export function findCrossDegreDuplicates(academie: string): { nom: string; prenom: string }[] {
+  const ids = db
+    .prepare(
+      `SELECT i.id FROM imports i
+       INNER JOIN (
+         SELECT degre, MAX(id) AS max_id FROM imports
+         WHERE scope = 'academique' AND academie = ? GROUP BY degre
+       ) latest ON latest.degre = i.degre AND latest.max_id = i.id
+       WHERE i.scope = 'academique' AND i.academie = ?`
+    )
+    .all(academie, academie) as { id: number }[];
+  if (ids.length < 2) return [];
+  const placeholders = ids.map(() => "?").join(",");
+  return db
+    .prepare(
+      `SELECT nom, prenom FROM emargements
+       WHERE import_id IN (${placeholders})
+       GROUP BY nom_norm, prenom_norm
+       HAVING COUNT(DISTINCT degre) > 1`
+    )
+    .all(...ids.map((r) => r.id)) as { nom: string; prenom: string }[];
 }
 
 export function defaultSnapshotDate(): string {

@@ -2,7 +2,7 @@ import { classifyDegre, type Degre } from "../lib/degre.js";
 import { extractDepartement } from "../lib/departement.js";
 import { parseDateEmargement } from "../lib/dateEmargement.js";
 import { normalizeName } from "../lib/normalize.js";
-import { lookupDepartement } from "../services/reference.js";
+import { lookupDepartement, soleSpelcForAcademie } from "../services/reference.js";
 
 export interface RawEmargementItem {
   nom: string;
@@ -63,6 +63,12 @@ export function buildEmargementRow(item: RawEmargementItem, options: BuildRowOpt
   const lookup = lookupDepartement(departement);
   const degre = options.forcedDegre ?? classifyDegre(item.corps);
   const academie = options.forcedAcademie ?? lookup?.academie ?? null;
+  // Le code postal de "affectation" n'est pas toujours reconnu (format
+  // inattendu, absent...) : lookup.spelc est alors null même quand l'académie,
+  // elle, est connue (forcée pour un import académique). Sans ce repli, la
+  // personne resterait invisible du tableau de bord de son Spelc (filtré sur
+  // `spelc`), alors que son académie n'a qu'un seul Spelc possible.
+  const spelc = lookup?.spelc ?? soleSpelcForAcademie(academie);
 
   let scrutinType: string | null = options.scrutinTypeFixed ?? null;
   if (!scrutinType) {
@@ -84,7 +90,7 @@ export function buildEmargementRow(item: RawEmargementItem, options: BuildRowOpt
     corps: item.corps ?? null,
     affectation: item.affectation ?? null,
     departement,
-    spelc: lookup?.spelc ?? null,
+    spelc,
     referenceBulletin: item.referenceBulletin ?? null,
     votant: dateEmargement ? 1 : 0,
   };

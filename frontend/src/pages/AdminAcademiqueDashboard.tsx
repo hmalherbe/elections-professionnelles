@@ -125,9 +125,19 @@ function ImportsPanel({ academie }: { academie: string }) {
           fd.append("degre", degre);
           fd.append("academie", academie);
           fd.append("snapshotDate", snapshotDate);
-          const res = await api.upload<{ rowCount: number; votants: number }>("/imports/academique", fd);
+          const res = await api.upload<{
+            rowCount: number;
+            votants: number;
+            crossDegreDuplicates?: { nom: string; prenom: string }[];
+          }>("/imports/academique", fd);
           refresh();
-          return `${res.rowCount} lignes importées, ${res.votants} votants.`;
+          const base = `${res.rowCount} lignes importées, ${res.votants} votants.`;
+          if (!res.crossDegreDuplicates?.length) return base;
+          const names = res.crossDegreDuplicates.map((p) => `${p.prenom} ${p.nom}`).join(", ");
+          return (
+            `${base} Attention : ${res.crossDegreDuplicates.length} personne(s) présente(s) à la fois dans les ` +
+            `fichiers 1er et 2nd degré (${names}) — vérifiez que ces deux fichiers ne se chevauchent pas.`
+          );
         }}
       />
       <Card title="Historique des imports académiques">
