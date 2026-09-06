@@ -24,7 +24,7 @@ interface ImportContext {
   snapshotDate: string; // YYYY-MM-DD
 }
 
-function getAcademieScrutins(academie: string | null): { type1d: string | null; type2d: string | null } {
+export function getAcademieScrutins(academie: string | null): { type1d: string | null; type2d: string | null } {
   if (!academie) return { type1d: null, type2d: null };
   const row = db
     .prepare("SELECT type_1d, type_2d FROM ref_academie_scrutins WHERE academie = ?")

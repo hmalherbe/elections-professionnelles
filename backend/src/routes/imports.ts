@@ -3,6 +3,7 @@ import multer from "multer";
 import { db } from "../db/index.js";
 import { requireAuth, requireRole, canAccessAcademie } from "../middleware/auth.js";
 import { runImport, defaultSnapshotDate, findCrossDegreDuplicates } from "../services/imports.js";
+import { buildElecteursAcademiques, deleteElecteursAcademiques } from "../services/electeursAcademiques.js";
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 60 * 1024 * 1024 } });
@@ -74,6 +75,26 @@ router.post(
     }
   }
 );
+
+/**
+ * Solution provisoire en attendant l'ouverture des vrais portails
+ * académiques (décembre) : reconstruit les électeurs académiques (1D/2D,
+ * toutes académies) à partir du fichier national CCMMEP déjà importé.
+ * Remplace entièrement le jeu précédent.
+ */
+router.post("/electeurs-academiques", requireRole("admin_general"), (req, res) => {
+  try {
+    const result = buildElecteursAcademiques(req.user!.id);
+    res.status(201).json(result);
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+router.delete("/electeurs-academiques", requireRole("admin_general"), (_req, res) => {
+  const result = deleteElecteursAcademiques();
+  res.json(result);
+});
 
 interface ImportOwnerRow {
   scope: "national" | "academique";

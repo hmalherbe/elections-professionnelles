@@ -19,6 +19,7 @@ const TABS = [
   "Résultats CCM 2022",
   "Scrutins",
   "Imports",
+  "Electeurs académiques",
   "Utilisateurs",
   "Adhérents",
   "Référentiels",
@@ -50,6 +51,7 @@ export function AdminGeneralDashboard() {
       {tab === "Résultats CCM 2022" && <Ccm2022MapPanel />}
       {tab === "Scrutins" && <ScrutinsTab scope="national" />}
       {tab === "Imports" && <ImportsPanel />}
+      {tab === "Electeurs académiques" && <ElecteursAcademiquesPanel />}
       {tab === "Utilisateurs" && <UsersPanel />}
       {tab === "Adhérents" && <AdherentsAdminPanel />}
       {tab === "Référentiels" && <ReferentielsPanel />}
@@ -166,6 +168,104 @@ function ImportsPanel() {
             ))}
           </tbody>
         </table>
+      </Card>
+    </div>
+  );
+}
+
+interface ElecteursAcademiquesResponse {
+  academies: { academie: string; degre1D: number; degre2D: number }[];
+  skippedSansAcademie: number;
+}
+
+function ElecteursAcademiquesPanel() {
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [result, setResult] = useState<ElecteursAcademiquesResponse | null>(null);
+
+  async function charger() {
+    setBusy(true);
+    setMessage(null);
+    try {
+      const res = await api.post<ElecteursAcademiquesResponse>("/imports/electeurs-academiques", {});
+      setResult(res);
+      const total = res.academies.reduce((sum, a) => sum + a.degre1D + a.degre2D, 0);
+      let summary = `${total} électeur(s) répartis sur ${res.academies.length} académie(s).`;
+      if (res.skippedSansAcademie > 0) {
+        summary += ` ${res.skippedSansAcademie} électeur(s) du fichier national ignoré(s) (académie non identifiable à partir de leur adresse).`;
+      }
+      setMessage(summary);
+    } catch (err) {
+      setMessage((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function supprimer() {
+    if (!confirm("Supprimer les électeurs académiques générés à partir du fichier national ? Cette action est irréversible.")) return;
+    setBusy(true);
+    setMessage(null);
+    try {
+      const res = await api.delete<{ importsDeleted: number; emargementsDeleted: number }>("/imports/electeurs-academiques");
+      setResult(null);
+      setMessage(`${res.emargementsDeleted} électeur(s) supprimé(s) (${res.importsDeleted} import(s)).`);
+    } catch (err) {
+      setMessage((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+        Solution provisoire en attendant l'ouverture des vrais portails académiques (décembre) : répartit les
+        électeurs du fichier national CCMMEP déjà importé dans leur académie (via leur département) et leur
+        attribue un degré (1er ou 2nd) d'après le nom de leur établissement (« COLLEGE »/« LYCEE » → 2nd degré,
+        « ECOLE » → 1er degré, sinon tirage aléatoire faute de règle plus précise). Chaque chargement remplace
+        entièrement le jeu précédent.
+      </div>
+      <Card title="Électeurs académiques">
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            disabled={busy}
+            onClick={charger}
+            className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
+          >
+            {busy ? "Chargement en cours…" : "Charger les électeurs des académies"}
+          </button>
+          <button
+            disabled={busy}
+            onClick={supprimer}
+            className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-60"
+          >
+            Supprimer les électeurs académiques
+          </button>
+        </div>
+        {message && <p className="mt-3 text-sm text-slate-600">{message}</p>}
+        {result && result.academies.length > 0 && (
+          <div className="mt-4 max-h-96 overflow-auto">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-white">
+                <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-500">
+                  <th className="py-2 pr-4">Académie</th>
+                  <th className="px-4 py-2">1er degré</th>
+                  <th className="px-4 py-2">2nd degré</th>
+                </tr>
+              </thead>
+              <tbody>
+                {result.academies.map((a) => (
+                  <tr key={a.academie} className="border-b border-slate-100">
+                    <td className="py-1.5 pr-4">{a.academie}</td>
+                    <td className="px-4 py-1.5 text-slate-500">{a.degre1D}</td>
+                    <td className="px-4 py-1.5 text-slate-500">{a.degre2D}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </Card>
     </div>
   );
