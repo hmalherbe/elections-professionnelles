@@ -3,6 +3,7 @@ import { db } from "../db/index.js";
 import { requireAuth, requireRole } from "../middleware/auth.js";
 import { runPsaSimulation } from "../services/psaSimulation.js";
 import { renderTemplate, type TemplateFields } from "../lib/template.js";
+import { wrapEmailHtml } from "../lib/emailLayout.js";
 import { sendBrevoEmails, sendBrevoSms } from "../services/brevo.js";
 import { getTestContactSettings, getPsaBranding, setPsaLogo, setPsaSocialLinks } from "../services/settings.js";
 import { buildLogoHtml, buildSocialLinksHtml, type SocialLinks } from "../lib/socialLinks.js";
@@ -204,7 +205,7 @@ router.post("/templates/email/test", async (req, res) => {
     apiKey: user.brevo_api_key,
     to: [{ email: testContact.testEmail, name: `${psa.prenom} ${psa.nom}` }],
     subject: renderTemplate(String(subject), fields),
-    htmlContent: renderTemplate(String(body), fields),
+    htmlContent: wrapEmailHtml(renderTemplate(String(body), fields)),
     tag: "psa-test-modele",
   });
   appendRelanceLog({
@@ -375,7 +376,7 @@ router.post("/relance", async (req, res) => {
           apiKey: user.brevo_api_key!,
           to: [{ email, name: `${p.prenom} ${p.nom}` }],
           subject: renderTemplate(template.subject, fields),
-          htmlContent: renderTemplate(template.body, fields),
+          htmlContent: wrapEmailHtml(renderTemplate(template.body, fields)),
           tag: campagneTag,
         });
         mailSent += result.sent;
