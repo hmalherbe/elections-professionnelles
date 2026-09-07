@@ -25,7 +25,8 @@ function formatSize(bytes: number): string {
 /** Dépôt et consultation de documents (tout type de fichier), pour un académique ou un Spelc — exactement l'un des deux props est fourni. */
 export function DocumentsPanel({ academie, spelc }: { academie?: string; spelc?: string }) {
   const [documents, setDocuments] = useState<DocumentRecord[]>([]);
-  const [busyId, setBusyId] = useState<number | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const filesInputRef = useRef<HTMLInputElement>(null);
@@ -42,9 +43,26 @@ export function DocumentsPanel({ academie, spelc }: { academie?: string; spelc?:
   }, []);
 
   function refresh() {
-    api.get<{ documents: DocumentRecord[] }>(`/documents${qs({ academie, spelc })}`).then((r) => setDocuments(r.documents));
+    api.get<{ documents: DocumentRecord[] }>(`/documents${qs({ academie, spelc })}`).then((r) => {
+      setDocuments(r.documents);
+      const stillPresent = new Set(r.documents.map((d) => d.id));
+      setSelectedIds((prev) => new Set([...prev].filter((id) => stillPresent.has(id))));
+    });
   }
   useEffect(refresh, [academie, spelc]);
+
+  function toggleSelected(id: number) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    setSelectedIds((prev) => (prev.size === documents.length ? new Set() : new Set(documents.map((d) => d.id))));
+  }
 
   async function uploadFiles(fileList: FileList | null) {
     if (!fileList || fileList.length === 0) return;
@@ -84,16 +102,27 @@ export function DocumentsPanel({ academie, spelc }: { academie?: string; spelc?:
     }
   }
 
-  async function handleDelete(id: number) {
-    if (!confirm("Supprimer ce document ? Cette action est irréversible.")) return;
-    setBusyId(id);
-    try {
-      await api.delete(`/documents/${id}`);
-      refresh();
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setBusyId(null);
+  async function handleBulkDelete() {
+    const ids = [...selectedIds];
+    if (ids.length === 0) return;
+    const label = ids.length > 1 ? `ces ${ids.length} documents` : "ce document";
+    if (!confirm(`Supprimer ${label} ? Cette action est irréversible.`)) return;
+    setBulkDeleting(true);
+    setError(null);
+    const failures: string[] = [];
+    for (const id of ids) {
+      const doc = documents.find((d) => d.id === id);
+      try {
+        await api.delete(`/documents/${id}`);
+      } catch (err) {
+        failures.push(`${doc?.original_name ?? id} : ${(err as Error).message}`);
+      }
+    }
+    setBulkDeleting(false);
+    setSelectedIds(new Set());
+    refresh();
+    if (failures.length > 0) {
+      setError(`Certains documents n'ont pas pu être supprimés :\n${failures.join("\n")}`);
     }
   }
 
@@ -152,18 +181,47 @@ export function DocumentsPanel({ academie, spelc }: { academie?: string; spelc?:
         )}
       </Card>
       <Card title="Documents" subtitle={`${documents.length} document(s)`}>
+        {selectedIds.size > 0 && (
+          <div className="mb-2 flex items-center gap-2">
+            <button
+              type="button"
+              disabled={bulkDeleting}
+              className="rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-60"
+              onClick={handleBulkDelete}
+            >
+              {bulkDeleting ? "Suppression…" : `Supprimer la sélection (${selectedIds.size})`}
+            </button>
+          </div>
+        )}
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-500">
+              <th className="w-8 py-2 pr-2">
+                <input
+                  type="checkbox"
+                  checked={documents.length > 0 && selectedIds.size === documents.length}
+                  disabled={documents.length === 0 || bulkDeleting}
+                  onChange={toggleSelectAll}
+                  aria-label="Tout sélectionner"
+                />
+              </th>
               <th className="py-2 pr-4">Nom</th>
               <th className="px-4 py-2">Taille</th>
               <th className="px-4 py-2">Ajouté le</th>
-              <th className="px-4 py-2"></th>
             </tr>
           </thead>
           <tbody>
             {documents.map((doc) => (
               <tr key={doc.id} className="border-b border-slate-100">
+                <td className="py-1.5 pr-2">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(doc.id)}
+                    disabled={bulkDeleting}
+                    onChange={() => toggleSelected(doc.id)}
+                    aria-label={`Sélectionner ${doc.original_name}`}
+                  />
+                </td>
                 <td className="py-1.5 pr-4">
                   <button type="button" onClick={() => handleDownload(doc)} className="text-left text-emerald-700 hover:underline">
                     {doc.original_name}
@@ -171,22 +229,12 @@ export function DocumentsPanel({ academie, spelc }: { academie?: string; spelc?:
                 </td>
                 <td className="px-4 py-1.5 text-slate-500">{formatSize(doc.size_bytes)}</td>
                 <td className="px-4 py-1.5 text-slate-500">{new Date(doc.uploaded_at).toLocaleString("fr-FR")}</td>
-                <td className="px-4 py-1.5 text-right">
-                  <button
-                    type="button"
-                    disabled={busyId === doc.id}
-                    className="text-xs text-red-600 hover:underline disabled:opacity-60"
-                    onClick={() => handleDelete(doc.id)}
-                  >
-                    Supprimer
-                  </button>
-                </td>
               </tr>
             ))}
           </tbody>
         </table>
         {documents.length === 0 && <p className="py-4 text-sm text-slate-400">Aucun document pour l'instant.</p>}
-        {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+        {error && <p className="mt-2 whitespace-pre-line text-sm text-red-600">{error}</p>}
       </Card>
     </div>
   );
