@@ -1,5 +1,9 @@
+import fs from "node:fs/promises";
+import path from "node:path";
 import { db } from "../db/index.js";
-import type { AuthUser } from "../middleware/auth.js";
+import { canAccessAcademie, canAccessSpelc, type AuthUser } from "../middleware/auth.js";
+import { DOCUMENTS_DIR } from "../lib/documentStorage.js";
+import { extractDocumentText } from "../lib/documentText.js";
 import {
   camembert,
   courbeCumulative,
@@ -147,6 +151,39 @@ export function buildToolsForRole(role: AuthUser["role"]): ToolDef[] {
     });
   }
 
+  tools.push({
+    type: "function",
+    function: {
+      name: "lister_documents",
+      description:
+        "Liste les documents déposés dans l'onglet « Documents » pour un périmètre donné (titre, type, taille, date de dépôt — pas le contenu).",
+      parameters:
+        role === "admin_general"
+          ? {
+              type: "object",
+              properties: {
+                academie: { type: "string", description: "Académie dont on veut lister les documents (documents de scope académique)." },
+                spelc: { type: "string", description: "Spelc dont on veut lister les documents (documents de scope Spelc)." },
+              },
+            }
+          : { type: "object", properties: {} },
+    },
+  });
+
+  tools.push({
+    type: "function",
+    function: {
+      name: "lire_document",
+      description:
+        "Lit le contenu texte extrait d'un document précis (identifiant obtenu via lister_documents), pour répondre à une question sur son contenu. Indique clairement quand le contenu n'est pas disponible (type de fichier non pris en charge, ex. image, ou document vide).",
+      parameters: {
+        type: "object",
+        properties: { document_id: { type: "number", description: "Identifiant du document, renvoyé par lister_documents." } },
+        required: ["document_id"],
+      },
+    },
+  });
+
   return tools;
 }
 
@@ -171,7 +208,7 @@ function resolveScope(
   return { scope, academie: null, spelc: user.spelc };
 }
 
-export function executeTool(name: string, args: Record<string, unknown>, user: AuthUser): unknown {
+export async function executeTool(name: string, args: Record<string, unknown>, user: AuthUser): Promise<unknown> {
   const requested = {
     scope: typeof args.scope === "string" ? args.scope : undefined,
     academie: typeof args.academie === "string" ? args.academie : undefined,
@@ -240,6 +277,92 @@ export function executeTool(name: string, args: Record<string, unknown>, user: A
         totalNonAdherents,
         votantsNonAdherents,
       };
+    }
+    case "lister_documents": {
+      const columns = "id, original_name, scope, academie, spelc, mime_type, size_bytes, uploaded_at";
+      if (user.role === "admin_academique") {
+        const rows = db
+          .prepare(`SELECT ${columns} FROM documents WHERE scope = 'academique' AND academie = ? ORDER BY uploaded_at DESC`)
+          .all(user.academie);
+        return { documents: rows };
+      }
+      if (user.role === "admin_spelc") {
+        const rows = db
+          .prepare(`SELECT ${columns} FROM documents WHERE scope = 'spelc' AND spelc = ? ORDER BY uploaded_at DESC`)
+          .all(user.spelc);
+        return { documents: rows };
+      }
+      const academie = typeof args.academie === "string" ? args.academie.trim() : "";
+      const spelc = typeof args.spelc === "string" ? args.spelc.trim() : "";
+      if (academie) {
+        const rows = db
+          .prepare(`SELECT ${columns} FROM documents WHERE scope = 'academique' AND academie = ? ORDER BY uploaded_at DESC`)
+          .all(academie);
+        return { documents: rows };
+      }
+      if (spelc) {
+        const rows = db
+          .prepare(`SELECT ${columns} FROM documents WHERE scope = 'spelc' AND spelc = ? ORDER BY uploaded_at DESC`)
+          .all(spelc);
+        return { documents: rows };
+      }
+      throw new Error("Précisez une académie ou un Spelc.");
+    }
+    case "lire_document": {
+      const documentId = Number(args.document_id);
+      if (!Number.isFinite(documentId)) throw new Error("document_id requis.");
+      const row = db
+        .prepare(
+          "SELECT id, scope, academie, spelc, filename, original_name, mime_type, extracted_text, extraction_status FROM documents WHERE id = ?"
+        )
+        .get(documentId) as
+        | {
+            id: number;
+            scope: "academique" | "spelc";
+            academie: string | null;
+            spelc: string | null;
+            filename: string;
+            original_name: string;
+            mime_type: string | null;
+            extracted_text: string | null;
+            extraction_status: string | null;
+          }
+        | undefined;
+      if (!row) throw new Error("Document introuvable.");
+
+      const allowed =
+        row.scope === "academique"
+          ? canAccessAcademie(user, row.academie!)
+          : canAccessSpelc(user, spelcAcademie(row.spelc!), row.spelc!);
+      if (!allowed) throw new Error("Accès non autorisé à ce document.");
+
+      let text = row.extracted_text;
+      let status = row.extraction_status;
+      if (status === null) {
+        // Document déposé avant l'ajout de l'extraction de texte (colonnes absentes
+        // à l'époque) : on l'extrait à la demande, puis on met la base à jour pour
+        // ne pas refaire ce travail à chaque question.
+        try {
+          const buffer = await fs.readFile(path.join(DOCUMENTS_DIR, row.filename));
+          const extracted = await extractDocumentText(buffer, row.original_name, row.mime_type);
+          text = extracted.text;
+          status = extracted.status;
+          db.prepare("UPDATE documents SET extracted_text = ?, extraction_status = ? WHERE id = ?").run(text, status, row.id);
+        } catch {
+          return { id: row.id, original_name: row.original_name, available: false, reason: "Fichier introuvable sur le serveur." };
+        }
+      }
+
+      if (status !== "ok") {
+        const reason =
+          status === "unsupported"
+            ? "Type de fichier non pris en charge pour l'extraction de texte (ex. image)."
+            : status === "empty"
+              ? "Aucun texte détecté dans ce document."
+              : "Échec de l'extraction du texte de ce document.";
+        return { id: row.id, original_name: row.original_name, available: false, reason };
+      }
+      return { id: row.id, original_name: row.original_name, available: true, content: text };
     }
     default:
       throw new Error(`Outil inconnu : ${name}`);

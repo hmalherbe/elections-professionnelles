@@ -255,6 +255,8 @@ export function migrate(): void {
   addColumnIfMissing("scraping_config", "scrutin_value_1d", "TEXT");
   addColumnIfMissing("scraping_config", "scrutin_value_2d", "TEXT");
   addColumnIfMissing("scraping_config", "download_trigger_selector", "TEXT");
+  addColumnIfMissing("documents", "extracted_text", "TEXT");
+  addColumnIfMissing("documents", "extraction_status", "TEXT");
 }
 
 /**

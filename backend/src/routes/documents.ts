@@ -4,6 +4,7 @@ import path from "node:path";
 import { db } from "../db/index.js";
 import { requireAuth, requireRole, canAccessAcademie, canAccessSpelc } from "../middleware/auth.js";
 import { saveDocumentUpload, deleteDocumentFile, DOCUMENTS_DIR } from "../lib/documentStorage.js";
+import { extractDocumentText } from "../lib/documentText.js";
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } });
@@ -13,6 +14,12 @@ function spelcAcademie(spelc: string): string | null {
   const row = db.prepare("SELECT academie FROM ref_spelc WHERE spelc = ?").get(spelc) as { academie: string } | undefined;
   return row?.academie ?? null;
 }
+
+// Colonnes exposées sur la surface HTTP : jamais extracted_text, potentiellement
+// volumineux (jusqu'à 20 000 caractères) et réservé à l'Assistant IA, qui le lit
+// directement en base (voir services/chatTools.ts).
+const LIST_COLUMNS =
+  "id, scope, academie, spelc, filename, original_name, mime_type, size_bytes, uploaded_by, uploaded_at";
 
 interface DocumentRow {
   id: number;
@@ -36,7 +43,7 @@ router.get("/", requireRole("admin_academique", "admin_spelc", "admin_general"),
       return;
     }
     const rows = db
-      .prepare("SELECT * FROM documents WHERE scope = 'academique' AND academie = ? ORDER BY uploaded_at DESC")
+      .prepare(`SELECT ${LIST_COLUMNS} FROM documents WHERE scope = 'academique' AND academie = ? ORDER BY uploaded_at DESC`)
       .all(academie) as DocumentRow[];
     res.json({ documents: rows });
     return;
@@ -47,7 +54,7 @@ router.get("/", requireRole("admin_academique", "admin_spelc", "admin_general"),
       return;
     }
     const rows = db
-      .prepare("SELECT * FROM documents WHERE scope = 'spelc' AND spelc = ? ORDER BY uploaded_at DESC")
+      .prepare(`SELECT ${LIST_COLUMNS} FROM documents WHERE scope = 'spelc' AND spelc = ? ORDER BY uploaded_at DESC`)
       .all(spelc) as DocumentRow[];
     res.json({ documents: rows });
     return;
@@ -55,7 +62,7 @@ router.get("/", requireRole("admin_academique", "admin_spelc", "admin_general"),
   res.status(400).json({ error: "Paramètre academie ou spelc requis." });
 });
 
-router.post("/", requireRole("admin_academique", "admin_spelc", "admin_general"), upload.single("file"), (req, res) => {
+router.post("/", requireRole("admin_academique", "admin_spelc", "admin_general"), upload.single("file"), async (req, res) => {
   if (!req.file) {
     res.status(400).json({ error: "Fichier requis." });
     return;
@@ -69,10 +76,11 @@ router.post("/", requireRole("admin_academique", "admin_spelc", "admin_general")
       return;
     }
     const filename = saveDocumentUpload(req.file.buffer, req.file.originalname);
+    const { text, status } = await extractDocumentText(req.file.buffer, req.file.originalname, req.file.mimetype);
     db.prepare(
-      `INSERT INTO documents (scope, academie, filename, original_name, mime_type, size_bytes, uploaded_by)
-       VALUES ('academique', ?, ?, ?, ?, ?, ?)`
-    ).run(academie, filename, req.file.originalname, req.file.mimetype, req.file.size, req.user!.id);
+      `INSERT INTO documents (scope, academie, filename, original_name, mime_type, size_bytes, uploaded_by, extracted_text, extraction_status)
+       VALUES ('academique', ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(academie, filename, req.file.originalname, req.file.mimetype, req.file.size, req.user!.id, text, status);
     res.status(201).json({ ok: true });
     return;
   }
@@ -82,10 +90,11 @@ router.post("/", requireRole("admin_academique", "admin_spelc", "admin_general")
       return;
     }
     const filename = saveDocumentUpload(req.file.buffer, req.file.originalname);
+    const { text, status } = await extractDocumentText(req.file.buffer, req.file.originalname, req.file.mimetype);
     db.prepare(
-      `INSERT INTO documents (scope, spelc, filename, original_name, mime_type, size_bytes, uploaded_by)
-       VALUES ('spelc', ?, ?, ?, ?, ?, ?)`
-    ).run(spelc, filename, req.file.originalname, req.file.mimetype, req.file.size, req.user!.id);
+      `INSERT INTO documents (scope, spelc, filename, original_name, mime_type, size_bytes, uploaded_by, extracted_text, extraction_status)
+       VALUES ('spelc', ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(spelc, filename, req.file.originalname, req.file.mimetype, req.file.size, req.user!.id, text, status);
     res.status(201).json({ ok: true });
     return;
   }
@@ -93,7 +102,7 @@ router.post("/", requireRole("admin_academique", "admin_spelc", "admin_general")
 });
 
 function getDocumentOr404(id: string, res: Response): DocumentRow | null {
-  const row = db.prepare("SELECT * FROM documents WHERE id = ?").get(id) as DocumentRow | undefined;
+  const row = db.prepare(`SELECT ${LIST_COLUMNS} FROM documents WHERE id = ?`).get(id) as DocumentRow | undefined;
   if (!row) {
     res.status(404).json({ error: "Document introuvable." });
     return null;

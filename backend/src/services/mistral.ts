@@ -81,7 +81,7 @@ async function callMistral(messages: ChatMessage[], tools: ToolDef[]): Promise<M
 export async function chatWithTools(
   messages: ChatMessage[],
   tools: ToolDef[],
-  runTool: (name: string, args: Record<string, unknown>) => unknown
+  runTool: (name: string, args: Record<string, unknown>) => unknown | Promise<unknown>
 ): Promise<string> {
   const history = [...messages];
 
@@ -98,7 +98,7 @@ export async function chatWithTools(
       let resultText: string;
       try {
         const args = call.function.arguments ? JSON.parse(call.function.arguments) : {};
-        const result = runTool(call.function.name, args);
+        const result = await runTool(call.function.name, args);
         resultText = JSON.stringify(result);
       } catch (err) {
         resultText = JSON.stringify({ error: (err as Error).message });
