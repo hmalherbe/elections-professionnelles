@@ -6,6 +6,7 @@ import { Card } from "../components/Card";
 import { Ccm2022ResultsTab } from "../components/Ccm2022ResultsTab";
 import { ChatAssistantPanel } from "../components/ChatAssistantPanel";
 import { CourbeCard } from "../components/CourbeCard";
+import { DocumentsPanel } from "../components/DocumentsPanel";
 import { EtablissementsTab } from "../components/EtablissementsTab";
 import { FileUploadCard } from "../components/FileUploadCard";
 import { LogoUploadCard } from "../components/LogoUploadCard";
@@ -17,7 +18,7 @@ import { useAuth } from "../lib/auth";
 import type { CourbePoint } from "../lib/types";
 import type { SocialLinks } from "../lib/socialLinks";
 
-const TABS = ["Vue Spelc", "Résultats 2022", "Scrutins", "Participation par établissement", "Adhérents", "Relances adhérents", "Assistant IA"] as const;
+const TABS = ["Vue Spelc", "Résultats 2022", "Scrutins", "Participation par établissement", "Adhérents", "Relances adhérents", "Documents", "Assistant IA"] as const;
 type Tab = (typeof TABS)[number];
 
 export function AdminSpelcDashboard() {
@@ -53,6 +54,7 @@ export function AdminSpelcDashboard() {
       {tab === "Participation par établissement" && <EtablissementsTab scope={scope} spelc={spelc} />}
       {tab === "Adhérents" && <AdherentsPanel spelc={spelc} />}
       {tab === "Relances adhérents" && <BrevoPanel spelc={spelc} />}
+      {tab === "Documents" && <DocumentsPanel spelc={spelc} />}
       {tab === "Assistant IA" && <ChatAssistantPanel />}
     </div>
   );

@@ -222,6 +222,24 @@ export function migrate(): void {
     );
     CREATE INDEX IF NOT EXISTS idx_relance_tracking_scope ON relance_tracking(scope, created_at);
     CREATE INDEX IF NOT EXISTS idx_relance_tracking_pending ON relance_tracking(owner_user_id, message_id);
+
+    -- Documents libres (tout type de fichier) déposés par un admin académique
+    -- ou un admin Spelc pour son propre périmètre, listés puis téléchargeables
+    -- en un clic. Le fichier lui-même vit sur disque (volume persistant, voir
+    -- lib/documentStorage.ts) ; ici seulement les métadonnées et le rattachement.
+    CREATE TABLE IF NOT EXISTS documents (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      scope TEXT NOT NULL CHECK (scope IN ('academique','spelc')),
+      academie TEXT,
+      spelc TEXT,
+      filename TEXT NOT NULL,
+      original_name TEXT NOT NULL,
+      mime_type TEXT,
+      size_bytes INTEGER NOT NULL,
+      uploaded_by INTEGER REFERENCES users(id),
+      uploaded_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_documents_scope ON documents(scope, academie, spelc);
   `);
 
   addColumnIfMissing("users", "nom", "TEXT");

@@ -14,6 +14,7 @@ import brevoRoutes from "./routes/brevo.js";
 import psaRoutes from "./routes/psa.js";
 import scrapingRoutes from "./routes/scraping.js";
 import chatRoutes from "./routes/chat.js";
+import documentsRoutes from "./routes/documents.js";
 import { UPLOADS_DIR } from "./lib/uploads.js";
 
 migrate();
@@ -44,6 +45,7 @@ app.use("/api/brevo", brevoRoutes);
 app.use("/api/psa", psaRoutes);
 app.use("/api/scraping", scrapingRoutes);
 app.use("/api/chat", chatRoutes);
+app.use("/api/documents", documentsRoutes);
 
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error(err);
