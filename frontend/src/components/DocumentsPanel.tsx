@@ -1,6 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Card } from "./Card";
-import { FileUploadCard } from "./FileUploadCard";
 import { api, qs } from "../lib/api";
 
 interface DocumentRecord {
@@ -9,6 +8,12 @@ interface DocumentRecord {
   mime_type: string | null;
   size_bytes: number;
   uploaded_at: string;
+}
+
+interface UploadOutcome {
+  name: string;
+  ok: boolean;
+  message: string;
 }
 
 function formatSize(bytes: number): string {
@@ -23,10 +28,52 @@ export function DocumentsPanel({ academie, spelc }: { academie?: string; spelc?:
   const [busyId, setBusyId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const filesInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  const [outcomes, setOutcomes] = useState<UploadOutcome[] | null>(null);
+
+  useEffect(() => {
+    // webkitdirectory n'est pas un attribut HTML standard (donc pas typé par React) :
+    // on le pose à la main sur l'input dédié à la sélection d'un dossier entier.
+    folderInputRef.current?.setAttribute("webkitdirectory", "");
+    folderInputRef.current?.setAttribute("directory", "");
+  }, []);
+
   function refresh() {
     api.get<{ documents: DocumentRecord[] }>(`/documents${qs({ academie, spelc })}`).then((r) => setDocuments(r.documents));
   }
   useEffect(refresh, [academie, spelc]);
+
+  async function uploadFiles(fileList: FileList | null) {
+    if (!fileList || fileList.length === 0) return;
+    const files = Array.from(fileList);
+    setUploading(true);
+    setOutcomes(null);
+    setError(null);
+    const results: UploadOutcome[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      setProgress({ done: i, total: files.length });
+      try {
+        const fd = new FormData();
+        fd.append("file", file);
+        if (academie) fd.append("academie", academie);
+        if (spelc) fd.append("spelc", spelc);
+        await api.upload("/documents", fd);
+        results.push({ name: file.name, ok: true, message: "ajouté." });
+      } catch (err) {
+        results.push({ name: file.name, ok: false, message: (err as Error).message });
+      }
+    }
+    setProgress(null);
+    setUploading(false);
+    setOutcomes(results);
+    refresh();
+    if (filesInputRef.current) filesInputRef.current.value = "";
+    if (folderInputRef.current) folderInputRef.current.value = "";
+  }
 
   async function handleDownload(doc: DocumentRecord) {
     setError(null);
@@ -52,20 +99,58 @@ export function DocumentsPanel({ academie, spelc }: { academie?: string; spelc?:
 
   return (
     <div className="space-y-4">
-      <FileUploadCard
-        title="Ajouter un document"
-        subtitle="Tout type de fichier (PDF, Word, Excel, image...), visible et téléchargeable par les administrateurs ayant accès à ce périmètre."
-        accept=""
-        onUpload={async (file) => {
-          const fd = new FormData();
-          fd.append("file", file);
-          if (academie) fd.append("academie", academie);
-          if (spelc) fd.append("spelc", spelc);
-          await api.upload("/documents", fd);
-          refresh();
-          return `« ${file.name} » ajouté.`;
-        }}
-      />
+      <Card
+        title="Ajouter des documents"
+        subtitle="Tout type de fichier (PDF, Word, Excel, image...), visible et téléchargeable par les administrateurs ayant accès à ce périmètre. Sélectionnez un ou plusieurs fichiers, ou un dossier entier — tout son contenu sera importé."
+      >
+        <div className="flex flex-wrap gap-2">
+          <label
+            className={`cursor-pointer rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700 ${uploading ? "pointer-events-none opacity-60" : ""}`}
+          >
+            Choisir des fichiers
+            <input
+              ref={filesInputRef}
+              type="file"
+              multiple
+              disabled={uploading}
+              className="hidden"
+              onChange={(e) => uploadFiles(e.target.files)}
+            />
+          </label>
+          <label
+            className={`cursor-pointer rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100 ${uploading ? "pointer-events-none opacity-60" : ""}`}
+          >
+            Choisir un dossier
+            <input
+              ref={folderInputRef}
+              type="file"
+              multiple
+              disabled={uploading}
+              className="hidden"
+              onChange={(e) => uploadFiles(e.target.files)}
+            />
+          </label>
+        </div>
+        {progress && (
+          <p className="mt-2 text-xs text-slate-400">
+            Import en cours… {progress.done}/{progress.total}
+          </p>
+        )}
+        {outcomes && (
+          <div className="mt-2 space-y-0.5 text-xs">
+            <p className={outcomes.every((o) => o.ok) ? "text-emerald-600" : "text-amber-700"}>
+              {outcomes.filter((o) => o.ok).length}/{outcomes.length} document(s) ajouté(s).
+            </p>
+            {outcomes
+              .filter((o) => !o.ok)
+              .map((o, i) => (
+                <p key={`${o.name}-${i}`} className="text-red-600">
+                  {o.name} : {o.message}
+                </p>
+              ))}
+          </div>
+        )}
+      </Card>
       <Card title="Documents" subtitle={`${documents.length} document(s)`}>
         <table className="w-full text-sm">
           <thead>
