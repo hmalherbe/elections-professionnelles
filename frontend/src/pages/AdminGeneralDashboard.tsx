@@ -294,6 +294,7 @@ function ElecteursAcademiquesPanel() {
                   <th className="py-2 pr-4">Académie</th>
                   <th className="px-4 py-2">1er degré</th>
                   <th className="px-4 py-2">2nd degré</th>
+                  <th className="px-4 py-2">Total</th>
                 </tr>
               </thead>
               <tbody>
@@ -302,6 +303,7 @@ function ElecteursAcademiquesPanel() {
                     <td className="py-1.5 pr-4">{a.academie}</td>
                     <td className="px-4 py-1.5 text-slate-500">{a.degre1D}</td>
                     <td className="px-4 py-1.5 text-slate-500">{a.degre2D}</td>
+                    <td className="px-4 py-1.5 font-medium text-slate-700">{a.degre1D + a.degre2D}</td>
                   </tr>
                 ))}
               </tbody>
