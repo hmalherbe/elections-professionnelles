@@ -75,7 +75,10 @@ router.get("/", requireRole("admin_academique", "admin_spelc", "admin_general"),
   res.status(400).json({ error: "Paramètre academie ou spelc requis." });
 });
 
-router.post("/", requireRole("admin_academique", "admin_spelc", "admin_general"), upload.single("file"), async (req, res) => {
+// Seul l'admin général dépose ou supprime des documents/dossiers : les vues
+// académique et Spelc sont un instantané en lecture seule de la même arborescence
+// (mêmes lignes en base, pas de copie), donc toujours à jour sans synchronisation.
+router.post("/", requireRole("admin_general"), upload.single("file"), async (req, res) => {
   if (!req.file) {
     res.status(400).json({ error: "Fichier requis." });
     return;
@@ -86,7 +89,7 @@ router.post("/", requireRole("admin_academique", "admin_spelc", "admin_general")
 
   if (academie) {
     if (!canAccessAcademie(req.user!, academie)) {
-      res.status(403).json({ error: "Vous ne pouvez déposer des documents que pour votre académie." });
+      res.status(403).json({ error: "Accès non autorisé à cette académie." });
       return;
     }
     const filename = saveDocumentUpload(req.file.buffer, req.file.originalname);
@@ -100,7 +103,7 @@ router.post("/", requireRole("admin_academique", "admin_spelc", "admin_general")
   }
   if (spelc) {
     if (!canAccessSpelc(req.user!, spelcAcademie(spelc), spelc)) {
-      res.status(403).json({ error: "Vous ne pouvez déposer des documents que pour votre Spelc." });
+      res.status(403).json({ error: "Accès non autorisé à ce Spelc." });
       return;
     }
     const filename = saveDocumentUpload(req.file.buffer, req.file.originalname);
@@ -140,7 +143,7 @@ router.get("/:id/download", (req, res) => {
   res.download(path.join(DOCUMENTS_DIR, row.filename), row.original_name);
 });
 
-router.delete("/:id", (req, res) => {
+router.delete("/:id", requireRole("admin_general"), (req, res) => {
   const row = getDocumentOr404(req.params.id, res);
   if (!row) return;
   if (!assertDocumentAccess(req, res, row)) return;

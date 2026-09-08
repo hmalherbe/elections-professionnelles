@@ -54,7 +54,7 @@ export function AdminSpelcDashboard() {
       {tab === "Participation par établissement" && <EtablissementsTab scope={scope} spelc={spelc} />}
       {tab === "Adhérents" && <AdherentsPanel spelc={spelc} />}
       {tab === "Relances adhérents" && <BrevoPanel spelc={spelc} />}
-      {tab === "Documents" && <DocumentsPanel spelc={spelc} />}
+      {tab === "Documents" && <DocumentsPanel spelc={spelc} readOnly />}
       {tab === "Assistant IA" && <ChatAssistantPanel />}
     </div>
   );

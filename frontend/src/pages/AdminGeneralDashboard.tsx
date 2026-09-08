@@ -5,6 +5,7 @@ import { Card } from "../components/Card";
 import { Ccm2022MapPanel } from "../components/Ccm2022MapPanel";
 import { ChatAssistantPanel } from "../components/ChatAssistantPanel";
 import { CourbeCard } from "../components/CourbeCard";
+import { DocumentsPanel } from "../components/DocumentsPanel";
 import { FileUploadCard } from "../components/FileUploadCard";
 import { LogoUploadCard } from "../components/LogoUploadCard";
 import { PivotTree } from "../components/PivotTree";
@@ -25,6 +26,7 @@ const TABS = [
   "Utilisateurs",
   "Adhérents",
   "Référentiels",
+  "Documents",
   "Assistant IA",
   "Journée des PSA le 16 septembre 2026",
 ] as const;
@@ -57,8 +59,62 @@ export function AdminGeneralDashboard() {
       {tab === "Utilisateurs" && <UsersPanel />}
       {tab === "Adhérents" && <AdherentsAdminPanel />}
       {tab === "Référentiels" && <ReferentielsPanel />}
+      {tab === "Documents" && <DocumentsAdminPanel />}
       {tab === "Assistant IA" && <ChatAssistantPanel />}
       {tab === "Journée des PSA le 16 septembre 2026" && <PsaPanel />}
+    </div>
+  );
+}
+
+/** Dépôt des documents pour une académie ou un Spelc, choisi ci-dessous : c'est
+ * l'unique point de dépôt — les vues académique/Spelc affichent ensuite la même
+ * arborescence en lecture seule (voir DocumentsPanel). */
+function DocumentsAdminPanel() {
+  const [academies, setAcademies] = useState<string[]>([]);
+  const [spelcs, setSpelcs] = useState<string[]>([]);
+  const [scopeKind, setScopeKind] = useState<"academique" | "spelc">("academique");
+  const [selected, setSelected] = useState("");
+
+  useEffect(() => {
+    api.get<{ academies: string[] }>("/admin/reference/academies").then((r) => setAcademies(r.academies));
+    api.get<{ spelcs: { spelc: string }[] }>("/admin/reference/spelcs").then((r) => setSpelcs(r.spelcs.map((s) => s.spelc)));
+  }, []);
+
+  const options = scopeKind === "academique" ? academies : spelcs;
+
+  return (
+    <div className="space-y-4">
+      <Card
+        title="Choisir le périmètre"
+        subtitle="Les documents déposés ici seront visibles en lecture seule par l'administrateur académique ou Spelc correspondant."
+      >
+        <div className="flex flex-wrap items-center gap-3">
+          <select
+            className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+            value={scopeKind}
+            onChange={(e) => {
+              setScopeKind(e.target.value as "academique" | "spelc");
+              setSelected("");
+            }}
+          >
+            <option value="academique">Académie</option>
+            <option value="spelc">Spelc</option>
+          </select>
+          <select
+            className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+            value={selected}
+            onChange={(e) => setSelected(e.target.value)}
+          >
+            <option value="">— Sélectionner —</option>
+            {options.map((o) => (
+              <option key={o} value={o}>
+                {o}
+              </option>
+            ))}
+          </select>
+        </div>
+      </Card>
+      {selected && (scopeKind === "academique" ? <DocumentsPanel academie={selected} /> : <DocumentsPanel spelc={selected} />)}
     </div>
   );
 }

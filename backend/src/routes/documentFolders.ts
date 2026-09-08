@@ -92,7 +92,7 @@ router.get("/folders", requireRole("admin_academique", "admin_spelc", "admin_gen
   res.json({ folders });
 });
 
-router.post("/folders", requireRole("admin_academique", "admin_spelc", "admin_general"), (req, res) => {
+router.post("/folders", requireRole("admin_general"), (req, res) => {
   const academie = req.body?.academie as string | undefined;
   const spelc = req.body?.spelc as string | undefined;
   if (!assertScopeAccess(req.user!, academie, spelc, res)) return;
@@ -133,7 +133,7 @@ router.post("/folders", requireRole("admin_academique", "admin_spelc", "admin_ge
   res.status(201).json({ id: info.lastInsertRowid, name, parent_id: parentId });
 });
 
-router.delete("/folders/:id", requireRole("admin_academique", "admin_spelc", "admin_general"), (req, res) => {
+router.delete("/folders/:id", requireRole("admin_general"), (req, res) => {
   const folder = db.prepare("SELECT id, scope, academie, spelc, parent_id, name, created_at FROM document_folders WHERE id = ?").get(req.params.id) as
     | FolderRow
     | undefined;
@@ -202,7 +202,7 @@ router.get("/zip", requireRole("admin_academique", "admin_spelc", "admin_general
 
 router.post(
   "/zip-import",
-  requireRole("admin_academique", "admin_spelc", "admin_general"),
+  requireRole("admin_general"),
   uploadZip.single("file"),
   async (req, res) => {
     if (!req.file) {

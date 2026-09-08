@@ -47,7 +47,7 @@ export function AdminAcademiqueDashboard() {
       {tab === "Scrutins" && <ScrutinsTab scope={scope} academie={academie} />}
       {tab === "Participation par établissement" && <EtablissementsTab scope={scope} academie={academie} />}
       {tab === "Imports" && <ImportsPanel academie={academie} />}
-      {tab === "Documents" && <DocumentsPanel academie={academie} />}
+      {tab === "Documents" && <DocumentsPanel academie={academie} readOnly />}
       {tab === "Assistant IA" && <ChatAssistantPanel />}
     </div>
   );
