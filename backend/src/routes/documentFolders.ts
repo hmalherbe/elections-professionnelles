@@ -45,6 +45,17 @@ interface FolderRow {
   created_at: string;
 }
 
+/** Liste d'académies destinataires, envoyée par le client en JSON (ex. '["Lyon","Paris"]'). */
+function parseAcademiesParam(raw: unknown): string[] {
+  if (typeof raw !== "string" || !raw.trim()) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((a): a is string => typeof a === "string" && a.trim() !== "") : [];
+  } catch {
+    return [];
+  }
+}
+
 function assertScopeAccess(user: AuthUser, academie: string | undefined, spelc: string | undefined, res: Response): boolean {
   if (academie) {
     if (!canAccessAcademie(user, academie)) {
@@ -227,17 +238,35 @@ router.post(
       res.status(400).json({ error: "Fichier zip requis." });
       return;
     }
-    const academie = req.body?.academie as string | undefined;
+
+    const academiesRaw = parseAcademiesParam(req.body?.academies);
+    const singleAcademie = typeof req.body?.academie === "string" ? req.body.academie : undefined;
+    const academies = academiesRaw.length > 0 ? academiesRaw : singleAcademie ? [singleAcademie] : [];
     const spelc = req.body?.spelc as string | undefined;
-    if (!assertScopeAccess(req.user!, academie, spelc, res)) {
+
+    if (academies.length === 0 && !spelc) {
       fs.unlink(req.file.path, () => {});
+      res.status(400).json({ error: "Paramètre academie(s) ou spelc requis." });
+      return;
+    }
+    for (const a of academies) {
+      if (!canAccessAcademie(req.user!, a)) {
+        fs.unlink(req.file.path, () => {});
+        res.status(403).json({ error: `Accès non autorisé à l'académie ${a}.` });
+        return;
+      }
+    }
+    if (academies.length === 0 && spelc && !canAccessSpelc(req.user!, spelcAcademie(spelc), spelc)) {
+      fs.unlink(req.file.path, () => {});
+      res.status(403).json({ error: "Accès non autorisé à ce Spelc." });
       return;
     }
 
-    const scope: "academique" | "spelc" = academie ? "academique" : "spelc";
+    const scope: "academique" | "spelc" = academies.length > 0 ? "academique" : "spelc";
+    const targets = academies.length > 0 ? academies : [spelc!];
 
     try {
-      await processZipImport(req, res, scope, academie, spelc);
+      await processZipImport(req, res, scope, targets);
     } finally {
       fs.unlink(req.file.path, () => {});
     }
@@ -246,13 +275,16 @@ router.post(
 
 /** Traite l'archive déjà écrite sur disque par uploadZip (voir plus haut) —
  * séparé de la route pour garantir le nettoyage du fichier temporaire via un
- * try/finally quel que soit le chemin de sortie (succès, zip invalide, erreur). */
+ * try/finally quel que soit le chemin de sortie (succès, zip invalide, erreur).
+ * Chaque cible (académie ou Spelc) a sa propre arborescence indépendante :
+ * chaque entrée du zip n'est décompressée qu'une fois (entry.buffer()), puis
+ * réécrite sur disque une fois par cible, pour ne pas multiplier le temps de
+ * décompression par le nombre de cibles. */
 async function processZipImport(
   req: Request,
   res: Response,
   scope: "academique" | "spelc",
-  academie: string | undefined,
-  spelc: string | undefined
+  targets: string[]
 ): Promise<void> {
     let directory: unzipper.CentralDirectory;
     try {
@@ -262,12 +294,16 @@ async function processZipImport(
       return;
     }
 
-    // Mémorise, pour la durée de cet import, l'id du dossier déjà créé pour
-    // chaque chemin rencontré — toujours à la racine de l'arborescence, comme
-    // demandé, jamais dans le dossier actuellement affiché côté client.
-    const folderIdByPath = new Map<string, number | null>([["", null]]);
+    // Mémorise, par cible et pour la durée de cet import, l'id du dossier déjà
+    // créé pour chaque chemin rencontré — toujours à la racine de l'arborescence
+    // de chaque cible, comme demandé, jamais dans le dossier actuellement
+    // affiché côté client.
+    const folderIdByPathPerTarget = new Map<string, Map<string, number | null>>(
+      targets.map((t) => [t, new Map<string, number | null>([["", null]])])
+    );
 
-    function ensureFolderPath(segments: string[]): number | null {
+    function ensureFolderPath(target: string, segments: string[]): number | null {
+      const folderIdByPath = folderIdByPathPerTarget.get(target)!;
       let currentPath = "";
       let parentId: number | null = null;
       for (const segment of segments) {
@@ -279,7 +315,7 @@ async function processZipImport(
         }
         const info = db
           .prepare(`INSERT INTO document_folders (scope, academie, spelc, parent_id, name, created_by) VALUES (?, ?, ?, ?, ?, ?)`)
-          .run(scope, academie ?? null, spelc ?? null, parentId, segment, req.user!.id);
+          .run(scope, scope === "academique" ? target : null, scope === "spelc" ? target : null, parentId, segment, req.user!.id);
         const newId = Number(info.lastInsertRowid);
         folderIdByPath.set(currentPath, newId);
         parentId = newId;
@@ -297,36 +333,61 @@ async function processZipImport(
       const segments = cleanPath.split("/").filter(Boolean);
 
       if (entry.type === "Directory") {
-        const before = folderIdByPath.size;
-        ensureFolderPath(segments);
-        foldersCreated += folderIdByPath.size - before;
+        for (const target of targets) {
+          const before = folderIdByPathPerTarget.get(target)!.size;
+          ensureFolderPath(target, segments);
+          foldersCreated += folderIdByPathPerTarget.get(target)!.size - before;
+        }
         continue;
       }
 
-      const fileName = segments.pop();
+      const folderSegments = segments.slice(0, -1);
+      const fileName = segments[segments.length - 1];
       if (!fileName) continue;
-      const before = folderIdByPath.size;
-      const folderId = ensureFolderPath(segments);
-      foldersCreated += folderIdByPath.size - before;
 
+      let buffer: Buffer;
       try {
-        const buffer = await entry.buffer();
-        const storedFilename = saveDocumentUpload(buffer, fileName);
-        // Extraction de texte volontairement différée (extraction_status NULL) plutôt que
-        // faite ici pour chaque fichier : sur un zip de plusieurs centaines/milliers de
-        // documents, l'extraction PDF/DOCX synchrone de chacun peut prendre plusieurs
-        // minutes et n'a d'intérêt que pour les documents effectivement consultés par
-        // l'Assistant IA — lire_document l'exécute alors à la demande et met la base à
-        // jour (voir services/chatTools.ts), exactement comme pour un document déposé
-        // avant l'ajout de cette colonne.
-        db.prepare(
-          `INSERT INTO documents (scope, academie, spelc, folder_id, filename, original_name, mime_type, size_bytes, uploaded_by, extracted_text, extraction_status)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL)`
-        ).run(scope, academie ?? null, spelc ?? null, folderId, storedFilename, fileName, null, buffer.length, req.user!.id);
-        filesImported++;
+        buffer = await entry.buffer();
       } catch (err) {
         console.error(`Import zip : échec sur "${cleanPath}" :`, err);
         skipped.push(`${cleanPath} : ${(err as Error).message}`);
+        continue;
+      }
+
+      for (const target of targets) {
+        const before = folderIdByPathPerTarget.get(target)!.size;
+        const folderId = ensureFolderPath(target, folderSegments);
+        foldersCreated += folderIdByPathPerTarget.get(target)!.size - before;
+
+        try {
+          const storedFilename = saveDocumentUpload(buffer, fileName);
+          // Extraction de texte volontairement différée (extraction_status NULL) plutôt que
+          // faite ici pour chaque fichier : sur un zip de plusieurs centaines/milliers de
+          // documents, l'extraction PDF/DOCX synchrone de chacun peut prendre plusieurs
+          // minutes et n'a d'intérêt que pour les documents effectivement consultés par
+          // l'Assistant IA — lire_document l'exécute alors à la demande et met la base à
+          // jour (voir services/chatTools.ts), exactement comme pour un document déposé
+          // avant l'ajout de cette colonne.
+          db.prepare(
+            `INSERT INTO documents (scope, academie, spelc, folder_id, filename, original_name, mime_type, size_bytes, uploaded_by, extracted_text, extraction_status)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL)`
+          ).run(
+            scope,
+            scope === "academique" ? target : null,
+            scope === "spelc" ? target : null,
+            folderId,
+            storedFilename,
+            fileName,
+            null,
+            buffer.length,
+            req.user!.id
+          );
+          filesImported++;
+        } catch (err) {
+          const label = targets.length > 1 ? `${cleanPath} (${target})` : cleanPath;
+          console.error(`Import zip : échec sur "${label}" :`, err);
+          skipped.push(`${label} : ${(err as Error).message}`);
+        }
       }
     }
 

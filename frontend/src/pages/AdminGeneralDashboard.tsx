@@ -66,39 +66,61 @@ export function AdminGeneralDashboard() {
   );
 }
 
-/** Dépôt des documents pour une académie, choisie ci-dessous pour organiser son
- * arborescence — chaque dépôt peut aussi être diffusé vers d'autres académies
- * (ou toutes), voir le sélecteur de destinataires dans DocumentsPanel. La vue
+/** Cases à cocher des académies destinataires, toujours visibles — pas de
+ * sélection préalable dans une liste déroulante : les dépôts (fichiers ou
+ * archive zip) s'appliquent à toutes les académies cochées ci-dessous, et
+ * l'arborescence affichée dans DocumentsPanel est celle de la première
+ * académie cochée (une seule arborescence peut s'afficher à la fois). La vue
  * académique affiche ensuite la même arborescence en lecture seule. Pas de
  * Spelc ici : la partie Spelc n'a plus d'onglet Documents. */
 function DocumentsAdminPanel() {
   const [academies, setAcademies] = useState<string[]>([]);
-  const [selected, setSelected] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     api.get<{ academies: string[] }>("/admin/reference/academies").then((r) => setAcademies(r.academies));
   }, []);
 
+  function toggle(a: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(a)) next.delete(a);
+      else next.add(a);
+      return next;
+    });
+  }
+
+  function toggleAll() {
+    setSelected((prev) => (academies.length > 0 && academies.every((a) => prev.has(a)) ? new Set() : new Set(academies)));
+  }
+
+  const targetList = academies.filter((a) => selected.has(a));
+  const browsedAcademie = targetList[0] ?? null;
+
   return (
     <div className="space-y-4">
       <Card
-        title="Choisir l'académie"
-        subtitle="Arborescence de dossiers à organiser. Lors du dépôt d'un document, vous pourrez choisir de le diffuser aussi vers d'autres académies, ou toutes."
+        title="Académies destinataires"
+        subtitle="Cochez une ou plusieurs académies : elles recevront les prochains dépôts (fichiers ou archive zip). L'arborescence ci-dessous affiche celle de la première académie cochée."
       >
-        <select
-          className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-          value={selected}
-          onChange={(e) => setSelected(e.target.value)}
-        >
-          <option value="">— Sélectionner —</option>
+        <label className="mb-2 flex items-center gap-2 text-sm text-slate-700">
+          <input type="checkbox" checked={academies.length > 0 && academies.every((a) => selected.has(a))} onChange={toggleAll} />
+          Toutes les académies
+        </label>
+        <div className="grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-3 md:grid-cols-4">
           {academies.map((a) => (
-            <option key={a} value={a}>
+            <label key={a} className="flex items-center gap-2 text-sm text-slate-700">
+              <input type="checkbox" checked={selected.has(a)} onChange={() => toggle(a)} />
               {a}
-            </option>
+            </label>
           ))}
-        </select>
+        </div>
       </Card>
-      {selected && <DocumentsPanel key={selected} academie={selected} allAcademies={academies} />}
+      {browsedAcademie ? (
+        <DocumentsPanel key={browsedAcademie} academie={browsedAcademie} targetAcademies={targetList} />
+      ) : (
+        <p className="text-sm text-slate-400">Cochez au moins une académie pour déposer des documents.</p>
+      )}
     </div>
   );
 }
