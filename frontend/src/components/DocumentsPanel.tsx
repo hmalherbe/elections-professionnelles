@@ -122,20 +122,24 @@ function FolderTree({
 }
 
 /** Dépôt, arborescence de dossiers et consultation de documents (tout type de fichier),
- * pour un académique ou un Spelc — exactement l'un des deux props est fourni.
- * readOnly (vues académique/Spelc) affiche la même arborescence que l'admin général
- * (mêmes lignes en base, pas de copie) sans les actions de dépôt/création/suppression.
- * targetAcademies (admin général uniquement, résolu par le parent à partir des cases à
- * cocher académies) : académies destinataires du prochain dépôt (fichiers ou zip) — peut
- * différer de `academie`, qui ne fait que déterminer l'arborescence affichée ci-dessous. */
+ * pour un académique, un Spelc, ou l'arborescence commune ("general") — exactement l'un
+ * des trois est fourni. readOnly (vues académique/Spelc) affiche la même arborescence que
+ * l'admin général (mêmes lignes en base, pas de copie) sans les actions de dépôt/création/
+ * suppression. targetAcademies (admin général uniquement, résolu par le parent à partir des
+ * cases à cocher académies) : académies destinataires du prochain dépôt (fichiers ou zip),
+ * copié physiquement une fois par académie — peut différer de `academie`, qui ne fait que
+ * déterminer l'arborescence affichée ci-dessous. Sans objet quand general est vrai : une
+ * arborescence commune n'a par définition qu'une seule copie, jamais dupliquée. */
 export function DocumentsPanel({
   academie,
   spelc,
+  general = false,
   readOnly = false,
   targetAcademies,
 }: {
   academie?: string;
   spelc?: string;
+  general?: boolean;
   readOnly?: boolean;
   targetAcademies?: string[];
 }) {
@@ -166,12 +170,16 @@ export function DocumentsPanel({
   }, []);
 
   function refreshFolders() {
-    api.get<{ folders: FolderRecord[] }>(`/documents/folders${qs({ academie, spelc })}`).then((r) => setFolders(r.folders));
+    api
+      .get<{ folders: FolderRecord[] }>(`/documents/folders${qs({ academie, spelc, general: general ? "true" : undefined })}`)
+      .then((r) => setFolders(r.folders));
   }
 
   function refreshDocuments() {
     api
-      .get<{ documents: DocumentRecord[] }>(`/documents${qs({ academie, spelc, folder_id: currentFolderId?.toString() })}`)
+      .get<{ documents: DocumentRecord[] }>(
+        `/documents${qs({ academie, spelc, general: general ? "true" : undefined, folder_id: currentFolderId?.toString() })}`
+      )
       .then((r) => {
         setDocuments(r.documents);
         const stillPresent = new Set(r.documents.map((d) => d.id));
@@ -179,8 +187,8 @@ export function DocumentsPanel({
       });
   }
 
-  useEffect(refreshFolders, [academie, spelc]);
-  useEffect(refreshDocuments, [academie, spelc, currentFolderId]);
+  useEffect(refreshFolders, [academie, spelc, general]);
+  useEffect(refreshDocuments, [academie, spelc, general, currentFolderId]);
 
   function expandPathTo(folderId: number | null) {
     if (folderId === null) return;
@@ -232,7 +240,7 @@ export function DocumentsPanel({
     setCreatingFolder(true);
     setError(null);
     try {
-      await api.post("/documents/folders", { academie, spelc, parent_id: currentFolderId, name: name.trim() });
+      await api.post("/documents/folders", { academie, spelc, general, parent_id: currentFolderId, name: name.trim() });
       if (currentFolderId !== null) setExpandedIds((prev) => new Set(prev).add(currentFolderId));
       refreshFolders();
     } catch (err) {
@@ -276,8 +284,11 @@ export function DocumentsPanel({
       try {
         const fd = new FormData();
         fd.append("file", file);
-        if (spelc) fd.append("spelc", spelc);
-        if (targetAcademies) {
+        if (general) {
+          fd.append("general", "true");
+        } else if (spelc) {
+          fd.append("spelc", spelc);
+        } else if (targetAcademies) {
           fd.append("academies", JSON.stringify(targetAcademies));
         } else if (academie) {
           fd.append("academie", academie);
@@ -334,7 +345,10 @@ export function DocumentsPanel({
     setExportingZip(true);
     setError(null);
     try {
-      await api.download(`/documents/zip${qs({ academie, spelc })}`, `documents-${academie ?? spelc}.zip`);
+      await api.download(
+        `/documents/zip${qs({ academie, spelc, general: general ? "true" : undefined })}`,
+        `documents-${academie ?? spelc ?? "generaux"}.zip`
+      );
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -354,8 +368,11 @@ export function DocumentsPanel({
     try {
       const fd = new FormData();
       fd.append("file", file);
-      if (spelc) fd.append("spelc", spelc);
-      if (targetAcademies) {
+      if (general) {
+        fd.append("general", "true");
+      } else if (spelc) {
+        fd.append("spelc", spelc);
+      } else if (targetAcademies) {
         fd.append("academies", JSON.stringify(targetAcademies));
       } else if (academie) {
         fd.append("academie", academie);

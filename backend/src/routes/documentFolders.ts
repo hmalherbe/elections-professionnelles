@@ -37,7 +37,7 @@ function spelcAcademie(spelc: string): string | null {
 
 interface FolderRow {
   id: number;
-  scope: "academique" | "spelc";
+  scope: "academique" | "spelc" | "general";
   academie: string | null;
   spelc: string | null;
   parent_id: number | null;
@@ -62,7 +62,17 @@ function parseAcademiesParam(raw: unknown): string[] {
   }
 }
 
-function assertScopeAccess(user: AuthUser, academie: string | undefined, spelc: string | undefined, res: Response): boolean {
+function assertScopeAccess(
+  user: AuthUser,
+  academie: string | undefined,
+  spelc: string | undefined,
+  general: boolean,
+  res: Response
+): boolean {
+  // Arborescence commune : lecture ouverte à tout rôle authentifié (déjà filtré par
+  // requireRole sur chaque route), écriture déjà restreinte à admin_general par les
+  // routes elles-mêmes — aucune notion de périmètre à vérifier ici pour ce cas.
+  if (general) return true;
   if (academie) {
     if (!canAccessAcademie(user, academie)) {
       res.status(403).json({ error: "Accès non autorisé à cette académie." });
@@ -77,13 +87,18 @@ function assertScopeAccess(user: AuthUser, academie: string | undefined, spelc: 
     }
     return true;
   }
-  res.status(400).json({ error: "Paramètre academie ou spelc requis." });
+  res.status(400).json({ error: "Paramètre academie, spelc ou general requis." });
   return false;
 }
 
 /** Résout tout l'arbre de dossiers d'un périmètre en un coup, réutilisé par le
  * listing, l'export zip et l'import zip (qui doit vérifier/compléter l'arbre). */
-function loadFolderTree(scope: "academique" | "spelc", scopeValue: string): FolderRow[] {
+function loadFolderTree(scope: "academique" | "spelc" | "general", scopeValue: string | null): FolderRow[] {
+  if (scope === "general") {
+    return db
+      .prepare(`SELECT id, scope, academie, spelc, parent_id, name, created_at FROM document_folders WHERE scope = 'general' ORDER BY name COLLATE NOCASE`)
+      .all() as FolderRow[];
+  }
   const column = scope === "academique" ? "academie" : "spelc";
   return db
     .prepare(`SELECT id, scope, academie, spelc, parent_id, name, created_at FROM document_folders WHERE scope = ? AND ${column} = ? ORDER BY name COLLATE NOCASE`)
@@ -122,15 +137,21 @@ function collectSubtree(rootId: number): number[] {
 router.get("/folders", requireRole("admin_academique", "admin_spelc", "admin_general"), (req, res) => {
   const academie = req.query.academie as string | undefined;
   const spelc = req.query.spelc as string | undefined;
-  if (!assertScopeAccess(req.user!, academie, spelc, res)) return;
-  const folders = academie ? loadFolderTree("academique", academie) : loadFolderTree("spelc", spelc!);
+  const general = req.query.general === "true";
+  if (!assertScopeAccess(req.user!, academie, spelc, general, res)) return;
+  const folders = general
+    ? loadFolderTree("general", null)
+    : academie
+      ? loadFolderTree("academique", academie)
+      : loadFolderTree("spelc", spelc!);
   res.json({ folders });
 });
 
 router.post("/folders", requireRole("admin_general"), (req, res) => {
   const academie = req.body?.academie as string | undefined;
   const spelc = req.body?.spelc as string | undefined;
-  if (!assertScopeAccess(req.user!, academie, spelc, res)) return;
+  const general = req.body?.general === true || req.body?.general === "true";
+  if (!assertScopeAccess(req.user!, academie, spelc, general, res)) return;
 
   const name = String(req.body?.name ?? "").trim();
   if (!name) {
@@ -148,12 +169,13 @@ router.post("/folders", requireRole("admin_general"), (req, res) => {
     return;
   }
 
-  const scope: "academique" | "spelc" = academie ? "academique" : "spelc";
+  const scope: "academique" | "spelc" | "general" = general ? "general" : academie ? "academique" : "spelc";
   if (parentId !== null) {
     const parent = db.prepare("SELECT id, scope, academie, spelc FROM document_folders WHERE id = ?").get(parentId) as
       | FolderRow
       | undefined;
-    const sameScope = parent && parent.scope === scope && (academie ? parent.academie === academie : parent.spelc === spelc);
+    const sameScope =
+      parent && parent.scope === scope && (general ? true : academie ? parent.academie === academie : parent.spelc === spelc);
     if (!sameScope) {
       res.status(400).json({ error: "Dossier parent invalide pour ce périmètre." });
       return;
@@ -164,7 +186,7 @@ router.post("/folders", requireRole("admin_general"), (req, res) => {
     .prepare(
       `INSERT INTO document_folders (scope, academie, spelc, parent_id, name, created_by) VALUES (?, ?, ?, ?, ?, ?)`
     )
-    .run(scope, academie ?? null, spelc ?? null, parentId, name, req.user!.id);
+    .run(scope, general ? null : (academie ?? null), general ? null : (spelc ?? null), parentId, name, req.user!.id);
   res.status(201).json({ id: info.lastInsertRowid, name, parent_id: parentId });
 });
 
@@ -177,9 +199,11 @@ router.delete("/folders/:id", requireRole("admin_general"), (req, res) => {
     return;
   }
   const allowed =
-    folder.scope === "academique"
-      ? canAccessAcademie(req.user!, folder.academie!)
-      : canAccessSpelc(req.user!, spelcAcademie(folder.spelc!), folder.spelc!);
+    folder.scope === "general"
+      ? true // déjà restreint à admin_general par requireRole sur cette route
+      : folder.scope === "academique"
+        ? canAccessAcademie(req.user!, folder.academie!)
+        : canAccessSpelc(req.user!, spelcAcademie(folder.spelc!), folder.spelc!);
   if (!allowed) {
     res.status(403).json({ error: "Accès non autorisé à ce dossier." });
     return;
@@ -202,17 +226,25 @@ router.delete("/folders/:id", requireRole("admin_general"), (req, res) => {
 router.get("/zip", requireRole("admin_academique", "admin_spelc", "admin_general"), async (req, res) => {
   const academie = req.query.academie as string | undefined;
   const spelc = req.query.spelc as string | undefined;
-  if (!assertScopeAccess(req.user!, academie, spelc, res)) return;
+  const general = req.query.general === "true";
+  if (!assertScopeAccess(req.user!, academie, spelc, general, res)) return;
 
-  const scope: "academique" | "spelc" = academie ? "academique" : "spelc";
-  const scopeValue = (academie ?? spelc)!;
-  const folders = loadFolderTree(scope, scopeValue);
+  const scope: "academique" | "spelc" | "general" = general ? "general" : academie ? "academique" : "spelc";
+  const scopeValue = general ? "generaux" : (academie ?? spelc)!;
+  const folders = loadFolderTree(scope, general ? null : scopeValue);
   const byId = new Map(folders.map((f) => [f.id, f]));
 
-  const column = scope === "academique" ? "academie" : "spelc";
-  const documents = db
-    .prepare(`SELECT filename, original_name, folder_id FROM documents WHERE scope = ? AND ${column} = ?`)
-    .all(scope, scopeValue) as { filename: string; original_name: string; folder_id: number | null }[];
+  const documents = general
+    ? (db.prepare(`SELECT filename, original_name, folder_id FROM documents WHERE scope = 'general'`).all() as {
+        filename: string;
+        original_name: string;
+        folder_id: number | null;
+      }[])
+    : (db
+        .prepare(
+          `SELECT filename, original_name, folder_id FROM documents WHERE scope = ? AND ${scope === "academique" ? "academie" : "spelc"} = ?`
+        )
+        .all(scope, scopeValue) as { filename: string; original_name: string; folder_id: number | null }[]);
 
   res.setHeader("Content-Type", "application/zip");
   res.setHeader("Content-Disposition", `attachment; filename="documents-${scopeValue}.zip"`);
@@ -245,31 +277,38 @@ router.post(
       return;
     }
 
+    const general = req.body?.general === true || req.body?.general === "true";
     const academiesRaw = parseAcademiesParam(req.body?.academies);
     const singleAcademie = typeof req.body?.academie === "string" ? req.body.academie : undefined;
     const academies = academiesRaw.length > 0 ? academiesRaw : singleAcademie ? [singleAcademie] : [];
     const spelc = req.body?.spelc as string | undefined;
 
-    if (academies.length === 0 && !spelc) {
+    if (!general && academies.length === 0 && !spelc) {
       fs.unlink(req.file.path, () => {});
-      res.status(400).json({ error: "Paramètre academie(s) ou spelc requis." });
+      res.status(400).json({ error: "Paramètre academie(s), spelc ou general requis." });
       return;
     }
-    for (const a of academies) {
-      if (!canAccessAcademie(req.user!, a)) {
+    if (!general) {
+      for (const a of academies) {
+        if (!canAccessAcademie(req.user!, a)) {
+          fs.unlink(req.file.path, () => {});
+          res.status(403).json({ error: `Accès non autorisé à l'académie ${a}.` });
+          return;
+        }
+      }
+      if (academies.length === 0 && spelc && !canAccessSpelc(req.user!, spelcAcademie(spelc), spelc)) {
         fs.unlink(req.file.path, () => {});
-        res.status(403).json({ error: `Accès non autorisé à l'académie ${a}.` });
+        res.status(403).json({ error: "Accès non autorisé à ce Spelc." });
         return;
       }
     }
-    if (academies.length === 0 && spelc && !canAccessSpelc(req.user!, spelcAcademie(spelc), spelc)) {
-      fs.unlink(req.file.path, () => {});
-      res.status(403).json({ error: "Accès non autorisé à ce Spelc." });
-      return;
-    }
 
-    const scope: "academique" | "spelc" = academies.length > 0 ? "academique" : "spelc";
-    const targets = academies.length > 0 ? academies : [spelc!];
+    // "general" : une seule cible fictive → processZipImport n'écrit alors
+    // qu'une copie physique unique (scope='general', ni académie ni Spelc),
+    // jamais dupliquée — c'est tout l'intérêt par rapport à academies (une
+    // copie complète par académie ciblée).
+    const scope: "academique" | "spelc" | "general" = general ? "general" : academies.length > 0 ? "academique" : "spelc";
+    const targets = general ? ["general"] : academies.length > 0 ? academies : [spelc!];
 
     let directory: unzipper.CentralDirectory;
     try {
@@ -303,12 +342,16 @@ router.post(
       const SAFETY_MARGIN = 1.1;
       if (estimatedNeeded * SAFETY_MARGIN > freeBytes) {
         fs.unlink(req.file.path, () => {});
+        const destination = general ? "vers l'arborescence commune" : `vers ${targets.length} académie(s)`;
         res.status(400).json({
           error:
-            `Espace disque insuffisant : cette archive (${formatSize(totalUncompressedBytes)}) vers ${targets.length} académie(s) nécessite environ ${formatSize(estimatedNeeded)}` +
+            `Espace disque insuffisant : cette archive (${formatSize(totalUncompressedBytes)}) ${destination} nécessite environ ${formatSize(estimatedNeeded)}` +
             (targets.length > 1 ? " (une copie complète par académie)" : "") +
             ", mais seulement " +
-            `${formatSize(freeBytes)} sont disponibles sur le serveur. Ciblez moins d'académies ou libérez de l'espace disque avant de réessayer.`,
+            `${formatSize(freeBytes)} sont disponibles sur le serveur.` +
+            (general
+              ? " Libérez de l'espace disque avant de réessayer."
+              : " Ciblez moins d'académies ou libérez de l'espace disque avant de réessayer."),
         });
         return;
       }
@@ -336,7 +379,7 @@ async function processZipImport(
   req: Request,
   res: Response,
   directory: unzipper.CentralDirectory,
-  scope: "academique" | "spelc",
+  scope: "academique" | "spelc" | "general",
   targets: string[]
 ): Promise<void> {
     // Mémorise, par cible et pour la durée de cet import, l'id du dossier déjà

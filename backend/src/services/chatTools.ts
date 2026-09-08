@@ -152,7 +152,7 @@ export function buildToolsForRole(role: AuthUser["role"]): ToolDef[] {
     function: {
       name: "lister_documents",
       description:
-        "Liste les documents déposés dans l'onglet « Documents » pour un périmètre donné (titre, type, taille, date de dépôt — pas le contenu).",
+        "Liste les documents déposés dans l'onglet « Documents » pour un périmètre donné (titre, type, taille, date de dépôt — pas le contenu). Inclut toujours les documents de l'arborescence commune (visible par tous, déposée par l'admin général).",
       parameters:
         role === "admin_general"
           ? {
@@ -279,17 +279,21 @@ export async function executeTool(name: string, args: Record<string, unknown>, u
     }
     case "lister_documents": {
       const columns = "id, original_name, scope, academie, spelc, mime_type, size_bytes, uploaded_at";
+      // Arborescence commune (scope='general', déposée par l'admin général) :
+      // toujours incluse, quel que soit le rôle — c'est le principe même de ce
+      // scope, visible par tous (voir routes/documentFolders.ts et documents.ts).
+      const generalRows = db.prepare(`SELECT ${columns} FROM documents WHERE scope = 'general' ORDER BY uploaded_at DESC`).all();
       if (user.role === "admin_academique") {
         const rows = db
           .prepare(`SELECT ${columns} FROM documents WHERE scope = 'academique' AND academie = ? ORDER BY uploaded_at DESC`)
           .all(user.academie);
-        return { documents: rows };
+        return { documents: [...rows, ...generalRows] };
       }
       if (user.role === "admin_spelc") {
         const rows = db
           .prepare(`SELECT ${columns} FROM documents WHERE scope = 'spelc' AND spelc = ? ORDER BY uploaded_at DESC`)
           .all(user.spelc);
-        return { documents: rows };
+        return { documents: [...rows, ...generalRows] };
       }
       const academie = typeof args.academie === "string" ? args.academie.trim() : "";
       const spelc = typeof args.spelc === "string" ? args.spelc.trim() : "";
@@ -297,15 +301,16 @@ export async function executeTool(name: string, args: Record<string, unknown>, u
         const rows = db
           .prepare(`SELECT ${columns} FROM documents WHERE scope = 'academique' AND academie = ? ORDER BY uploaded_at DESC`)
           .all(academie);
-        return { documents: rows };
+        return { documents: [...rows, ...generalRows] };
       }
       if (spelc) {
         const rows = db
           .prepare(`SELECT ${columns} FROM documents WHERE scope = 'spelc' AND spelc = ? ORDER BY uploaded_at DESC`)
           .all(spelc);
-        return { documents: rows };
+        return { documents: [...rows, ...generalRows] };
       }
-      throw new Error("Précisez une académie ou un Spelc.");
+      // admin_general sans académie/Spelc précisé : au moins les documents communs.
+      return { documents: generalRows };
     }
     case "lire_document": {
       const documentId = Number(args.document_id);
@@ -317,7 +322,7 @@ export async function executeTool(name: string, args: Record<string, unknown>, u
         .get(documentId) as
         | {
             id: number;
-            scope: "academique" | "spelc";
+            scope: "academique" | "spelc" | "general";
             academie: string | null;
             spelc: string | null;
             filename: string;
@@ -332,10 +337,13 @@ export async function executeTool(name: string, args: Record<string, unknown>, u
       // admin_academique n'a jamais accès à un document de scope Spelc, même
       // celui d'un Spelc de sa propre académie : les données Spelc sont hors de
       // son périmètre d'assistant IA (canAccessSpelc l'autoriserait sinon).
+      // scope='general' : arborescence commune, lisible par tout rôle.
       const allowed =
-        row.scope === "academique"
-          ? canAccessAcademie(user, row.academie!)
-          : user.role !== "admin_academique" && canAccessSpelc(user, spelcAcademie(row.spelc!), row.spelc!);
+        row.scope === "general"
+          ? true
+          : row.scope === "academique"
+            ? canAccessAcademie(user, row.academie!)
+            : user.role !== "admin_academique" && canAccessSpelc(user, spelcAcademie(row.spelc!), row.spelc!);
       if (!allowed) throw new Error("Accès non autorisé à ce document.");
 
       let text = row.extracted_text;

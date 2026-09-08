@@ -47,8 +47,26 @@ export function AdminAcademiqueDashboard() {
       {tab === "Scrutins" && <ScrutinsTab scope={scope} academie={academie} />}
       {tab === "Participation par établissement" && <EtablissementsTab scope={scope} academie={academie} />}
       {tab === "Imports" && <ImportsPanel academie={academie} />}
-      {tab === "Documents" && <DocumentsPanel academie={academie} readOnly />}
+      {tab === "Documents" && <DocumentsTab academie={academie} />}
       {tab === "Assistant IA" && <ChatAssistantPanel />}
+    </div>
+  );
+}
+
+/** Deux arborescences en lecture seule, gérées par l'admin général : celle
+ * propre à cette académie, et l'arborescence commune (une seule copie,
+ * partagée par toutes les académies — voir DocumentsPanel). */
+function DocumentsTab({ academie }: { academie: string }) {
+  return (
+    <div className="space-y-6">
+      <div className="space-y-4">
+        <h3 className="text-sm font-semibold text-slate-700">Documents communs à toutes les académies</h3>
+        <DocumentsPanel general readOnly />
+      </div>
+      <div className="space-y-4 border-t border-slate-200 pt-6">
+        <h3 className="text-sm font-semibold text-slate-700">Documents de l'académie</h3>
+        <DocumentsPanel academie={academie} readOnly />
+      </div>
     </div>
   );
 }

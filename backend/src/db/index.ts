@@ -277,6 +277,80 @@ export function migrate(): void {
   addColumnIfMissing("documents", "extracted_text", "TEXT");
   addColumnIfMissing("documents", "extraction_status", "TEXT");
   addColumnIfMissing("documents", "folder_id", "INTEGER REFERENCES document_folders(id)");
+
+  migrateScopeIncludesGeneral();
+}
+
+/**
+ * Ajoute 'general' aux valeurs autorisées de la colonne scope de documents et
+ * document_folders — l'arborescence commune, déposée une seule fois par
+ * l'admin général et visible en lecture seule par toutes les académies, sans
+ * copie physique par académie (voir routes/documentFolders.ts et
+ * documents.ts). SQLite ne permet pas de modifier une contrainte CHECK via
+ * ALTER TABLE : il faut reconstruire la table (procédure recommandée par
+ * SQLite — https://www.sqlite.org/lang_altertable.html#otheralter), en
+ * conservant exactement les mêmes lignes et identifiants. Idempotent : ne
+ * fait rien si la contrainte autorise déjà 'general'.
+ */
+function migrateScopeIncludesGeneral(): void {
+  const documentsSql = (
+    db.prepare(`SELECT sql FROM sqlite_master WHERE type='table' AND name='documents'`).get() as
+      | { sql: string }
+      | undefined
+  )?.sql;
+  if (!documentsSql || documentsSql.includes("'general'")) return; // table absente (impossible ici) ou déjà migrée
+
+  db.pragma("foreign_keys = OFF");
+  try {
+    const tx = db.transaction(() => {
+      db.exec(`
+        CREATE TABLE documents_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          scope TEXT NOT NULL CHECK (scope IN ('academique','spelc','general')),
+          academie TEXT,
+          spelc TEXT,
+          filename TEXT NOT NULL,
+          original_name TEXT NOT NULL,
+          mime_type TEXT,
+          size_bytes INTEGER NOT NULL,
+          uploaded_by INTEGER REFERENCES users(id),
+          uploaded_at TEXT NOT NULL DEFAULT (datetime('now')),
+          extracted_text TEXT,
+          extraction_status TEXT,
+          folder_id INTEGER REFERENCES document_folders(id)
+        );
+        INSERT INTO documents_new (id, scope, academie, spelc, filename, original_name, mime_type, size_bytes, uploaded_by, uploaded_at, extracted_text, extraction_status, folder_id)
+          SELECT id, scope, academie, spelc, filename, original_name, mime_type, size_bytes, uploaded_by, uploaded_at, extracted_text, extraction_status, folder_id FROM documents;
+        DROP TABLE documents;
+        ALTER TABLE documents_new RENAME TO documents;
+        CREATE INDEX IF NOT EXISTS idx_documents_scope ON documents(scope, academie, spelc);
+
+        CREATE TABLE document_folders_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          scope TEXT NOT NULL CHECK (scope IN ('academique','spelc','general')),
+          academie TEXT,
+          spelc TEXT,
+          parent_id INTEGER REFERENCES document_folders(id),
+          name TEXT NOT NULL,
+          created_by INTEGER REFERENCES users(id),
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        INSERT INTO document_folders_new (id, scope, academie, spelc, parent_id, name, created_by, created_at)
+          SELECT id, scope, academie, spelc, parent_id, name, created_by, created_at FROM document_folders;
+        DROP TABLE document_folders;
+        ALTER TABLE document_folders_new RENAME TO document_folders;
+        CREATE INDEX IF NOT EXISTS idx_document_folders_parent ON document_folders(parent_id);
+        CREATE INDEX IF NOT EXISTS idx_document_folders_scope ON document_folders(scope, academie, spelc);
+      `);
+    });
+    tx();
+    const fkErrors = db.prepare("PRAGMA foreign_key_check").all();
+    if (fkErrors.length > 0) {
+      throw new Error(`Incohérences de clés étrangères après migration scope='general' : ${JSON.stringify(fkErrors)}`);
+    }
+  } finally {
+    db.pragma("foreign_keys = ON");
+  }
 }
 
 /**

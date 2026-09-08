@@ -23,7 +23,7 @@ const LIST_COLUMNS =
 
 interface DocumentRow {
   id: number;
-  scope: "academique" | "spelc";
+  scope: "academique" | "spelc" | "general";
   academie: string | null;
   spelc: string | null;
   folder_id: number | null;
@@ -56,7 +56,18 @@ function parseAcademiesParam(raw: unknown): string[] {
 router.get("/", requireRole("admin_academique", "admin_spelc", "admin_general"), (req, res) => {
   const academie = req.query.academie as string | undefined;
   const spelc = req.query.spelc as string | undefined;
+  const general = req.query.general === "true";
   const folderId = parseFolderIdParam(req.query.folder_id);
+  if (general) {
+    // Arborescence commune, gérée par l'admin général : visible en lecture par
+    // tous les rôles authentifiés (voir requireRole ci-dessus), sans notion de
+    // périmètre à vérifier — c'est le principe même de "general".
+    const rows = db
+      .prepare(`SELECT ${LIST_COLUMNS} FROM documents WHERE scope = 'general' AND folder_id IS ? ORDER BY uploaded_at DESC`)
+      .all(folderId) as DocumentRow[];
+    res.json({ documents: rows });
+    return;
+  }
   if (academie) {
     if (!canAccessAcademie(req.user!, academie)) {
       res.status(403).json({ error: "Accès non autorisé à cette académie." });
@@ -83,7 +94,7 @@ router.get("/", requireRole("admin_academique", "admin_spelc", "admin_general"),
     res.json({ documents: rows });
     return;
   }
-  res.status(400).json({ error: "Paramètre academie ou spelc requis." });
+  res.status(400).json({ error: "Paramètre academie, spelc ou general requis." });
 });
 
 // Seul l'admin général dépose ou supprime des documents/dossiers : les vues
@@ -94,12 +105,25 @@ router.post("/", requireRole("admin_general"), upload.single("file"), async (req
     res.status(400).json({ error: "Fichier requis." });
     return;
   }
+  const general = req.body?.general === "true" || req.body?.general === true;
   const academies = parseAcademiesParam(req.body?.academies);
   const singleAcademie = typeof req.body?.academie === "string" ? req.body.academie : undefined;
   const targetAcademies = academies.length > 0 ? academies : singleAcademie ? [singleAcademie] : [];
   const spelc = req.body?.spelc as string | undefined;
   const folderId = parseFolderIdParam(req.body?.folder_id);
 
+  if (general) {
+    // Copie physique unique, jamais dupliquée par académie : c'est tout
+    // l'intérêt du scope "general" par rapport à un dépôt multi-académies.
+    const filename = saveDocumentUpload(req.file.buffer, req.file.originalname);
+    const { text, status } = await extractDocumentText(req.file.buffer, req.file.originalname, req.file.mimetype);
+    db.prepare(
+      `INSERT INTO documents (scope, folder_id, filename, original_name, mime_type, size_bytes, uploaded_by, extracted_text, extraction_status)
+       VALUES ('general', ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(folderId, filename, req.file.originalname, req.file.mimetype, req.file.size, req.user!.id, text, status);
+    res.status(201).json({ ok: true });
+    return;
+  }
   if (targetAcademies.length > 0) {
     for (const a of targetAcademies) {
       if (!canAccessAcademie(req.user!, a)) {
@@ -157,9 +181,11 @@ function getDocumentOr404(id: string, res: Response): DocumentRow | null {
 
 function assertDocumentAccess(req: Request, res: Response, row: DocumentRow): boolean {
   const ok =
-    row.scope === "academique"
-      ? canAccessAcademie(req.user!, row.academie!)
-      : canAccessSpelc(req.user!, spelcAcademie(row.spelc!), row.spelc!);
+    row.scope === "general"
+      ? true // arborescence commune : lecture ouverte à tout rôle authentifié
+      : row.scope === "academique"
+        ? canAccessAcademie(req.user!, row.academie!)
+        : canAccessSpelc(req.user!, spelcAcademie(row.spelc!), row.spelc!);
   if (!ok) res.status(403).json({ error: "Accès non autorisé à ce document." });
   return ok;
 }
