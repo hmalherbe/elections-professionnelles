@@ -45,6 +45,12 @@ interface FolderRow {
   created_at: string;
 }
 
+function formatSize(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} Ko`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} Go`;
+}
+
 /** Liste d'académies destinataires, envoyée par le client en JSON (ex. '["Lyon","Paris"]'). */
 function parseAcademiesParam(raw: unknown): string[] {
   if (typeof raw !== "string" || !raw.trim()) return [];
@@ -265,8 +271,54 @@ router.post(
     const scope: "academique" | "spelc" = academies.length > 0 ? "academique" : "spelc";
     const targets = academies.length > 0 ? academies : [spelc!];
 
+    let directory: unzipper.CentralDirectory;
     try {
-      await processZipImport(req, res, scope, targets);
+      directory = await unzipper.Open.file(req.file.path);
+    } catch {
+      fs.unlink(req.file.path, () => {});
+      res.status(400).json({ error: "Fichier zip invalide ou corrompu." });
+      return;
+    }
+
+    // Estimation de l'espace disque nécessaire AVANT d'écrire quoi que ce soit :
+    // une copie physique indépendante par cible (arborescences non partagées,
+    // voir processZipImport), donc la taille décompressée de l'archive
+    // multipliée par le nombre de cibles. Vérifiée contre l'espace libre du
+    // volume où sont stockés les documents, avec une marge de sécurité — un
+    // refus clair et immédiat vaut mieux qu'un import qui échoue fichier par
+    // fichier après avoir rempli le disque (ENOSPC rencontré en pratique).
+    const totalUncompressedBytes = directory.files
+      .filter((f) => f.type !== "Directory")
+      .reduce((sum, f) => sum + f.uncompressedSize, 0);
+    const estimatedNeeded = totalUncompressedBytes * targets.length;
+    try {
+      // TMP_ZIP_DIR plutôt que DOCUMENTS_DIR : multer vient de le créer (voir
+      // uploadZip.destination plus haut), donc toujours présent à cet instant —
+      // contrairement à DOCUMENTS_DIR, qui n'existe pas tant qu'aucun document
+      // n'a jamais été déposé (créé à la demande par saveDocumentUpload), ce qui
+      // ferait échouer statfsSync (ENOENT) sur une installation neuve. Les deux
+      // dossiers sont sur le même volume (TMP_ZIP_DIR est un frère de DOCUMENTS_DIR).
+      const stats = fs.statfsSync(TMP_ZIP_DIR);
+      const freeBytes = stats.bavail * stats.bsize;
+      const SAFETY_MARGIN = 1.1;
+      if (estimatedNeeded * SAFETY_MARGIN > freeBytes) {
+        fs.unlink(req.file.path, () => {});
+        res.status(400).json({
+          error:
+            `Espace disque insuffisant : cette archive (${formatSize(totalUncompressedBytes)}) vers ${targets.length} académie(s) nécessite environ ${formatSize(estimatedNeeded)}` +
+            (targets.length > 1 ? " (une copie complète par académie)" : "") +
+            ", mais seulement " +
+            `${formatSize(freeBytes)} sont disponibles sur le serveur. Ciblez moins d'académies ou libérez de l'espace disque avant de réessayer.`,
+        });
+        return;
+      }
+    } catch (err) {
+      // Ne bloque pas l'import si la vérification elle-même échoue (ex. plateforme sans statfs).
+      console.error("Impossible de vérifier l'espace disque disponible avant l'import zip :", err);
+    }
+
+    try {
+      await processZipImport(req, res, directory, scope, targets);
     } finally {
       fs.unlink(req.file.path, () => {});
     }
@@ -283,17 +335,10 @@ router.post(
 async function processZipImport(
   req: Request,
   res: Response,
+  directory: unzipper.CentralDirectory,
   scope: "academique" | "spelc",
   targets: string[]
 ): Promise<void> {
-    let directory: unzipper.CentralDirectory;
-    try {
-      directory = await unzipper.Open.file(req.file!.path);
-    } catch {
-      res.status(400).json({ error: "Fichier zip invalide ou corrompu." });
-      return;
-    }
-
     // Mémorise, par cible et pour la durée de cet import, l'id du dossier déjà
     // créé pour chaque chemin rencontré — toujours à la racine de l'arborescence
     // de chaque cible, comme demandé, jamais dans le dossier actuellement
