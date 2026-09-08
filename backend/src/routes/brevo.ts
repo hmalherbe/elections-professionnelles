@@ -95,7 +95,7 @@ router.get("/account", requireRole("admin_spelc", "admin_general"), async (req, 
   res.json(info);
 });
 
-router.get("/templates/email", (req, res) => {
+router.get("/templates/email", requireRole("admin_spelc", "admin_general"), (req, res) => {
   const spelc = req.query.spelc as string;
   if (!spelc || !assertSpelcAccess(req, res, spelc)) return;
   const row = db.prepare("SELECT subject, body FROM email_templates WHERE spelc = ?").get(spelc) as
@@ -115,7 +115,7 @@ router.put("/templates/email", requireRole("admin_spelc", "admin_general"), (req
   res.json({ ok: true });
 });
 
-router.get("/templates/sms", (req, res) => {
+router.get("/templates/sms", requireRole("admin_spelc", "admin_general"), (req, res) => {
   const spelc = req.query.spelc as string;
   if (!spelc || !assertSpelcAccess(req, res, spelc)) return;
   const row = db.prepare("SELECT body FROM sms_templates WHERE spelc = ?").get(spelc) as
@@ -141,7 +141,7 @@ router.put("/templates/sms", requireRole("admin_spelc", "admin_general"), (req, 
  * Spelc (utilisés en priorité sur le mail/mobile de test global de l'admin
  * général, réservé lui aux relances PSA).
  */
-router.get("/spelc-settings", (req, res) => {
+router.get("/spelc-settings", requireRole("admin_spelc", "admin_general"), (req, res) => {
   const spelc = req.query.spelc as string;
   if (!spelc || !assertSpelcAccess(req, res, spelc)) return;
   res.json(getSpelcSettings(spelc));
@@ -528,14 +528,14 @@ router.post("/campaigns/sms", requireRole("admin_spelc"), async (req, res) => {
 });
 
 /** Série quotidienne pour la courbe de suivi des mails, calculée à partir du suivi par personne. */
-router.get("/tracking/mail", (req, res) => {
+router.get("/tracking/mail", requireRole("admin_spelc", "admin_general"), (req, res) => {
   const spelc = req.query.spelc as string;
   if (!spelc || !assertSpelcAccess(req, res, spelc)) return;
   res.json({ rows: getMailSeriesByScope(spelc) });
 });
 
 /** Série quotidienne pour la courbe de suivi des SMS, même principe. */
-router.get("/tracking/sms", (req, res) => {
+router.get("/tracking/sms", requireRole("admin_spelc", "admin_general"), (req, res) => {
   const spelc = req.query.spelc as string;
   if (!spelc || !assertSpelcAccess(req, res, spelc)) return;
   res.json({ rows: getSmsSeriesByScope(spelc) });
@@ -547,7 +547,7 @@ router.get("/tracking/sms", (req, res) => {
  * services/relanceTracking.ts) — le statut final et les clics n'arrivent
  * jamais au moment de l'envoi lui-même.
  */
-router.get("/relance-tracking", (req, res) => {
+router.get("/relance-tracking", requireRole("admin_spelc", "admin_general"), (req, res) => {
   const spelc = req.query.spelc as string;
   if (!spelc || !assertSpelcAccess(req, res, spelc)) return;
   const limit = Math.min(Number(req.query.limit) || 500, 2000);
