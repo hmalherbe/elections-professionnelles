@@ -29,12 +29,101 @@ function formatSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`;
 }
 
+/** Arbre de dossiers expansible (bouton +/− par dossier ayant des enfants),
+ * plutôt qu'une navigation "on entre dans un dossier" : tous les dossiers
+ * déjà développés restent visibles pendant qu'on parcourt l'arborescence. */
+function FolderTree({
+  folders,
+  currentFolderId,
+  expandedIds,
+  onToggle,
+  onSelect,
+  onDelete,
+}: {
+  folders: FolderRecord[];
+  currentFolderId: number | null;
+  expandedIds: Set<number>;
+  onToggle: (id: number) => void;
+  onSelect: (id: number | null) => void;
+  onDelete: (folder: FolderRecord) => void;
+}) {
+  const childrenByParent = useMemo(() => {
+    const map = new Map<number | null, FolderRecord[]>();
+    for (const f of folders) {
+      const list = map.get(f.parent_id) ?? [];
+      list.push(f);
+      map.set(f.parent_id, list);
+    }
+    for (const list of map.values()) list.sort((a, b) => a.name.localeCompare(b.name, "fr"));
+    return map;
+  }, [folders]);
+
+  function renderNode(folder: FolderRecord, depth: number) {
+    const children = childrenByParent.get(folder.id) ?? [];
+    const isExpanded = expandedIds.has(folder.id);
+    const isCurrent = currentFolderId === folder.id;
+    return (
+      <div key={folder.id}>
+        <div
+          className={`flex items-center justify-between gap-2 rounded py-1 pr-1 ${isCurrent ? "bg-emerald-50" : "hover:bg-slate-50"}`}
+          style={{ paddingLeft: `${depth * 18 + 4}px` }}
+        >
+          <div className="flex min-w-0 items-center gap-1.5">
+            {children.length > 0 ? (
+              <button
+                type="button"
+                onClick={() => onToggle(folder.id)}
+                className="flex h-4 w-4 flex-none items-center justify-center rounded border border-slate-300 text-xs font-bold leading-none text-slate-500 hover:bg-slate-100"
+                aria-label={isExpanded ? `Réduire ${folder.name}` : `Développer ${folder.name}`}
+              >
+                {isExpanded ? "−" : "+"}
+              </button>
+            ) : (
+              <span className="w-4 flex-none" />
+            )}
+            <button
+              type="button"
+              onClick={() => onSelect(folder.id)}
+              className={`truncate text-left text-sm ${isCurrent ? "font-semibold text-emerald-800" : "text-slate-700"} hover:underline`}
+            >
+              📁 {folder.name}
+            </button>
+          </div>
+          <button type="button" onClick={() => onDelete(folder)} className="flex-none text-xs text-red-600 hover:underline">
+            Supprimer
+          </button>
+        </div>
+        {isExpanded && children.map((child) => renderNode(child, depth + 1))}
+      </div>
+    );
+  }
+
+  const rootFolders = childrenByParent.get(null) ?? [];
+
+  return (
+    <div className="rounded-md border border-slate-200 py-0.5">
+      <div className={`flex items-center gap-2 py-1 pl-1 ${currentFolderId === null ? "bg-emerald-50" : "hover:bg-slate-50"}`}>
+        <span className="w-4 flex-none" />
+        <button
+          type="button"
+          onClick={() => onSelect(null)}
+          className={`text-left text-sm ${currentFolderId === null ? "font-semibold text-emerald-800" : "text-slate-700"} hover:underline`}
+        >
+          🗂️ Racine
+        </button>
+      </div>
+      {rootFolders.map((f) => renderNode(f, 1))}
+    </div>
+  );
+}
+
 /** Dépôt, arborescence de dossiers et consultation de documents (tout type de fichier),
  * pour un académique ou un Spelc — exactement l'un des deux props est fourni. */
 export function DocumentsPanel({ academie, spelc }: { academie?: string; spelc?: string }) {
   const [documents, setDocuments] = useState<DocumentRecord[]>([]);
   const [folders, setFolders] = useState<FolderRecord[]>([]);
   const [currentFolderId, setCurrentFolderId] = useState<number | null>(null);
+  const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -74,15 +163,36 @@ export function DocumentsPanel({ academie, spelc }: { academie?: string; spelc?:
   useEffect(refreshFolders, [academie, spelc]);
   useEffect(refreshDocuments, [academie, spelc, currentFolderId]);
 
+  function expandPathTo(folderId: number | null) {
+    if (folderId === null) return;
+    const byId = new Map(folders.map((f) => [f.id, f]));
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      let current: number | null = folderId;
+      while (current !== null) {
+        next.add(current);
+        current = byId.get(current)?.parent_id ?? null;
+      }
+      return next;
+    });
+  }
+
   function navigateTo(folderId: number | null) {
     setCurrentFolderId(folderId);
     setSelectedIds(new Set());
+    expandPathTo(folderId);
   }
 
-  const childFolders = useMemo(
-    () => folders.filter((f) => f.parent_id === currentFolderId).sort((a, b) => a.name.localeCompare(b.name, "fr")),
-    [folders, currentFolderId]
-  );
+  function toggleExpanded(folderId: number) {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(folderId)) next.delete(folderId);
+      else next.add(folderId);
+      return next;
+    });
+  }
+
+  const currentFolderName = currentFolderId === null ? "Racine" : (folders.find((f) => f.id === currentFolderId)?.name ?? "…");
 
   const breadcrumb = useMemo(() => {
     const byId = new Map(folders.map((f) => [f.id, f]));
@@ -104,6 +214,7 @@ export function DocumentsPanel({ academie, spelc }: { academie?: string; spelc?:
     setError(null);
     try {
       await api.post("/documents/folders", { academie, spelc, parent_id: currentFolderId, name: name.trim() });
+      if (currentFolderId !== null) setExpandedIds((prev) => new Set(prev).add(currentFolderId));
       refreshFolders();
     } catch (err) {
       setError((err as Error).message);
@@ -318,61 +429,31 @@ export function DocumentsPanel({ academie, spelc }: { academie?: string; spelc?:
         {importMessage && <p className="mt-2 text-xs text-emerald-600">{importMessage}</p>}
       </Card>
 
-      <Card title="Documents" subtitle={`${documents.length} document(s) dans ce dossier`}>
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <nav className="flex flex-wrap items-center gap-1 text-sm">
-            <button type="button" onClick={() => navigateTo(null)} className="text-emerald-700 hover:underline">
-              Racine
-            </button>
-            {breadcrumb.map((folder) => (
-              <span key={folder.id} className="flex items-center gap-1">
-                <span className="text-slate-300">/</span>
-                <button type="button" onClick={() => navigateTo(folder.id)} className="text-emerald-700 hover:underline">
-                  {folder.name}
-                </button>
-              </span>
-            ))}
-          </nav>
+      <Card title="Dossiers" subtitle="Cliquez sur + / − pour développer ou réduire un dossier ; cliquez sur son nom pour l'ouvrir ci-dessous.">
+        <div className="mb-2 flex justify-end">
           <button
             type="button"
             disabled={creatingFolder}
             onClick={handleCreateFolder}
             className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-60"
           >
-            + Nouveau dossier
+            + Nouveau dossier (dans « {currentFolderName} »)
           </button>
         </div>
+        <FolderTree
+          folders={folders}
+          currentFolderId={currentFolderId}
+          expandedIds={expandedIds}
+          onToggle={toggleExpanded}
+          onSelect={navigateTo}
+          onDelete={handleDeleteFolder}
+        />
+      </Card>
 
-        {childFolders.length > 0 && (
-          <table className="mb-2 w-full text-sm">
-            <tbody>
-              {childFolders.map((folder) => (
-                <tr key={folder.id} className="border-b border-slate-100">
-                  <td className="py-1.5 pr-4">
-                    <button
-                      type="button"
-                      onClick={() => navigateTo(folder.id)}
-                      className="flex items-center gap-2 text-left font-medium text-slate-700 hover:underline"
-                    >
-                      <span aria-hidden="true">📁</span>
-                      {folder.name}
-                    </button>
-                  </td>
-                  <td className="px-4 py-1.5 text-right">
-                    <button
-                      type="button"
-                      className="text-xs text-red-600 hover:underline"
-                      onClick={() => handleDeleteFolder(folder)}
-                    >
-                      Supprimer
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-
+      <Card
+        title="Documents"
+        subtitle={`${documents.length} document(s) — dossier ouvert : ${breadcrumb.length === 0 ? "Racine" : `Racine / ${breadcrumb.map((f) => f.name).join(" / ")}`}`}
+      >
         {selectedIds.size > 0 && (
           <div className="mb-2 flex items-center gap-2">
             <button
@@ -434,9 +515,7 @@ export function DocumentsPanel({ academie, spelc }: { academie?: string; spelc?:
             ))}
           </tbody>
         </table>
-        {documents.length === 0 && childFolders.length === 0 && (
-          <p className="py-4 text-sm text-slate-400">Ce dossier est vide.</p>
-        )}
+        {documents.length === 0 && <p className="py-4 text-sm text-slate-400">Aucun document dans ce dossier.</p>}
         {error && <p className="mt-2 whitespace-pre-line text-sm text-red-600">{error}</p>}
       </Card>
     </div>
