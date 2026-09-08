@@ -372,6 +372,29 @@ router.post("/templates/sms/test", requireRole("admin_spelc", "admin_general"), 
   res.json({ sent: result.sent, errors: result.errors, errorMessage: result.errorMessage });
 });
 
+/**
+ * Nombre de destinataires que toucherait réellement une campagne avec les
+ * réglages actuels (mode test + limites incluses) — calculé avec exactement
+ * la même logique de ciblage que les envois réels ci-dessous, pour que
+ * l'admin Spelc puisse comparer ce nombre à ses crédits Brevo restants avant
+ * de lancer l'envoi plutôt que de le découvrir après coup.
+ */
+router.get("/campaigns/preview", requireRole("admin_spelc"), (req, res) => {
+  const spelc = req.user!.spelc!;
+  const testMode = req.query.testMode === "true";
+  const testLimit = clampTestLimit(req.query.testLimit);
+  const smsLimit = clampSmsLimit(req.query.smsLimit);
+
+  const adherents = matchedAdherents(spelc);
+  let mailRecipients = (testMode ? adherents : adherents.filter((r) => r.mail)).filter(needsRelance);
+  if (testMode) mailRecipients = mailRecipients.slice(0, testLimit);
+
+  let smsRecipients = (testMode ? adherents : adherents.filter((r) => r.mobile)).filter(needsRelance);
+  smsRecipients = smsRecipients.slice(0, smsLimit);
+
+  res.json({ mailRecipients: mailRecipients.length, smsRecipients: smsRecipients.length });
+});
+
 router.post("/campaigns/email", requireRole("admin_spelc"), async (req, res) => {
   const spelc = req.user!.spelc!;
   const { tag, onlyNonVotants = true, testMode, testLimit } = req.body ?? {};

@@ -207,6 +207,10 @@ function findSmsCredits(plan: BrevoPlanEntry[] | null): number | null {
   return plan?.find((p) => p.type.toLowerCase().includes("sms"))?.credits ?? null;
 }
 
+function findMailCredits(plan: BrevoPlanEntry[] | null): number | null {
+  return plan?.find((p) => !p.type.toLowerCase().includes("sms"))?.credits ?? null;
+}
+
 /** Miroir de lib/smsSender.ts côté backend : "Spelc" + le nom du Spelc (sans
  * accents ni espaces, non autorisés dans un expéditeur SMS alphanumérique),
  * tronqué à 11 caractères — la limite Brevo. */
@@ -255,6 +259,7 @@ function BrevoPanel({ spelc }: { spelc: string }) {
   const [trackingRows, setTrackingRows] = useState<RelanceTrackingRow[]>([]);
   const [trackingLoadedAt, setTrackingLoadedAt] = useState<Date | null>(null);
   const [trackingChecking, setTrackingChecking] = useState(false);
+  const [preview, setPreview] = useState<{ mailRecipients: number; smsRecipients: number } | null>(null);
 
   function reloadTracking() {
     api
@@ -285,7 +290,7 @@ function BrevoPanel({ spelc }: { spelc: string }) {
     }
   }
 
-  function refreshAll() {
+  function refreshCredits() {
     api.get<{ configured: boolean; maskedKey: string | null }>("/brevo/settings").then((r) => {
       setConfigured(r.configured);
       setMaskedKey(r.maskedKey);
@@ -302,6 +307,10 @@ function BrevoPanel({ spelc }: { spelc: string }) {
           });
       }
     });
+  }
+
+  function refreshAll() {
+    refreshCredits();
     api.get<{ subject: string; body: string }>(`/brevo/templates/email${qs({ spelc })}`).then(setEmailTemplate);
     api.get<{ body: string }>(`/brevo/templates/sms${qs({ spelc })}`).then(setSmsTemplate);
     api
@@ -321,6 +330,17 @@ function BrevoPanel({ spelc }: { spelc: string }) {
   }
   useEffect(refreshAll, [spelc]);
 
+  // Nombre de destinataires réellement ciblés par les réglages actuels — comparé
+  // aux crédits Brevo restants pour avertir avant l'envoi plutôt qu'après.
+  useEffect(() => {
+    api
+      .get<{ mailRecipients: number; smsRecipients: number }>(
+        `/brevo/campaigns/preview${qs({ testMode: testMode ? "true" : undefined, testLimit: String(testMailLimit), smsLimit: String(smsLimit) })}`
+      )
+      .then(setPreview)
+      .catch(() => setPreview(null));
+  }, [spelc, testMode, testMailLimit, smsLimit]);
+
   async function sendTestMail() {
     setTestMailBusy(true);
     setTestMailMsg(null);
@@ -335,6 +355,7 @@ function BrevoPanel({ spelc }: { spelc: string }) {
     } finally {
       setTestMailBusy(false);
       reloadTracking();
+      refreshCredits();
     }
   }
 
@@ -352,6 +373,7 @@ function BrevoPanel({ spelc }: { spelc: string }) {
     } finally {
       setTestSmsBusy(false);
       reloadTracking();
+      refreshCredits();
     }
   }
 
@@ -492,6 +514,12 @@ function BrevoPanel({ spelc }: { spelc: string }) {
         {ownTestSaved && <span className="ml-2 text-sm text-emerald-600">{ownTestSaved}</span>}
       </Card>
 
+      <p className="text-sm text-slate-600">
+        Pour vos mails comme pour vos SMS de relance, vous pouvez : choisir un logo personnalisé en entête (ci-dessus),
+        charger un modèle prêt à l'emploi (bouton « Charger le modèle prégarni »), et personnaliser le contenu avec
+        des champs dynamiques ({"{{nom}}"}, {"{{prenom}}"}, statut de vote…) comme dans un publipostage.
+      </p>
+
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Card
           title="Modèle de mail de relance"
@@ -587,6 +615,34 @@ function BrevoPanel({ spelc }: { spelc: string }) {
           crédits que prévu.
         </p>
 
+        {(() => {
+          if (!preview || !plan) return null;
+          const mailCredits = findMailCredits(plan);
+          const smsCredits = findSmsCredits(plan);
+          const warnings: string[] = [];
+          if (mailCredits !== null && preview.mailRecipients > mailCredits) {
+            warnings.push(
+              `Mail : ${preview.mailRecipients} destinataire(s) ciblé(s) avec les réglages actuels, mais seulement ${mailCredits.toLocaleString("fr-FR")} crédit(s) mail restant(s).`
+            );
+          }
+          if (smsCredits !== null && preview.smsRecipients > smsCredits) {
+            warnings.push(
+              `SMS : ${preview.smsRecipients} destinataire(s) ciblé(s) avec les réglages actuels, mais seulement ${smsCredits.toLocaleString("fr-FR")} crédit(s) SMS restant(s).`
+            );
+          }
+          if (warnings.length === 0) return null;
+          return (
+            <div className="mt-2 space-y-1 rounded-md border border-red-200 bg-red-50 px-3 py-2">
+              {warnings.map((w) => (
+                <p key={w} className="text-sm text-red-700">
+                  Crédit insuffisant — {w} Rachetez des crédits avant l'envoi ou réduisez le nombre de destinataires
+                  ciblés.
+                </p>
+              ))}
+            </div>
+          );
+        })()}
+
         {testMode && (
           <div className="mt-3 grid grid-cols-1 gap-3 rounded-md border border-amber-200 bg-amber-50 p-3">
             <p className="text-xs text-amber-800">
@@ -620,6 +676,7 @@ function BrevoPanel({ spelc }: { spelc: string }) {
                 });
                 setMessage(`Mails : ${res.sent}/${res.total} envoyés, ${res.errors} erreurs.`);
                 reloadTracking();
+                refreshCredits();
               } catch (err) {
                 setMessage((err as Error).message);
               }
@@ -645,6 +702,7 @@ function BrevoPanel({ spelc }: { spelc: string }) {
                 });
                 setMessage(`SMS : ${res.sent}/${res.total} envoyés, ${res.errors} erreurs.`);
                 reloadTracking();
+                refreshCredits();
               } catch (err) {
                 setMessage((err as Error).message);
               }
