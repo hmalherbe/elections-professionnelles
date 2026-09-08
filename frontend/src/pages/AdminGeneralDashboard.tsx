@@ -66,82 +66,24 @@ export function AdminGeneralDashboard() {
   );
 }
 
-/** Deux sections distinctes :
- * 1. Documents communs (scope="general") : une seule copie physique, jamais
- *    dupliquée par académie, visible en lecture seule par toutes — à
- *    privilégier pour les gros fichiers (photos, archives) où dupliquer vers
- *    chaque académie saturerait vite le disque du serveur.
- * 2. Documents ciblés (cases à cocher, toujours visibles, pas de sélection
- *    préalable dans une liste déroulante) : pour un dépôt réservé à une ou
- *    plusieurs académies précises — copié physiquement une fois par académie
- *    cochée. L'arborescence affichée est celle de la première académie
- *    cochée (une seule arborescence peut s'afficher à la fois). Pas de Spelc
- *    ici : la partie Spelc n'a plus d'onglet Documents. */
+/** Une seule arborescence (scope="general") : une seule copie physique, jamais
+ * dupliquée par académie, diffusée en lecture seule à toutes les académies —
+ * ancienne UI de ciblage par académie (cases à cocher, copie physique par
+ * académie cochée) supprimée : tous les documents déposés ici sont désormais
+ * automatiquement diffusés à toutes les académies, ce qui évitait surtout de
+ * saturer le disque du serveur avec des copies multiples de gros fichiers
+ * (photos, archives). Pas de Spelc ici : la partie Spelc n'a plus d'onglet
+ * Documents. */
 function DocumentsAdminPanel() {
-  const [academies, setAcademies] = useState<string[]>([]);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-
-  useEffect(() => {
-    api.get<{ academies: string[] }>("/admin/reference/academies").then((r) => setAcademies(r.academies));
-  }, []);
-
-  function toggle(a: string) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(a)) next.delete(a);
-      else next.add(a);
-      return next;
-    });
-  }
-
-  function toggleAll() {
-    setSelected((prev) => (academies.length > 0 && academies.every((a) => prev.has(a)) ? new Set() : new Set(academies)));
-  }
-
-  const targetList = academies.filter((a) => selected.has(a));
-  const browsedAcademie = targetList[0] ?? null;
-
   return (
-    <div className="space-y-6">
-      <div className="space-y-4">
-        <div>
-          <h3 className="text-sm font-semibold text-slate-700">Documents communs à toutes les académies</h3>
-          <p className="text-xs text-slate-500">
-            Une seule copie, jamais dupliquée par académie — à privilégier pour les gros fichiers (photos, archives),
-            où une copie par académie saturerait vite le disque du serveur.
-          </p>
-        </div>
-        <DocumentsPanel general />
+    <div className="space-y-4">
+      <div>
+        <h3 className="text-sm font-semibold text-slate-700">Documents</h3>
+        <p className="text-xs text-slate-500">
+          Une seule copie, jamais dupliquée — ces documents sont diffusés en lecture seule à toutes les académies.
+        </p>
       </div>
-
-      <div className="space-y-4 border-t border-slate-200 pt-6">
-        <div>
-          <h3 className="text-sm font-semibold text-slate-700">Documents ciblés vers des académies spécifiques</h3>
-          <p className="text-xs text-slate-500">Copié physiquement une fois par académie cochée ci-dessous.</p>
-        </div>
-        <Card
-          title="Académies destinataires"
-          subtitle="Cochez une ou plusieurs académies : elles recevront les prochains dépôts (fichiers ou archive zip). L'arborescence ci-dessous affiche celle de la première académie cochée."
-        >
-          <label className="mb-2 flex items-center gap-2 text-sm text-slate-700">
-            <input type="checkbox" checked={academies.length > 0 && academies.every((a) => selected.has(a))} onChange={toggleAll} />
-            Toutes les académies
-          </label>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-3 md:grid-cols-4">
-            {academies.map((a) => (
-              <label key={a} className="flex items-center gap-2 text-sm text-slate-700">
-                <input type="checkbox" checked={selected.has(a)} onChange={() => toggle(a)} />
-                {a}
-              </label>
-            ))}
-          </div>
-        </Card>
-        {browsedAcademie ? (
-          <DocumentsPanel key={browsedAcademie} academie={browsedAcademie} targetAcademies={targetList} />
-        ) : (
-          <p className="text-sm text-slate-400">Cochez au moins une académie pour déposer des documents.</p>
-        )}
-      </div>
+      <DocumentsPanel general />
     </div>
   );
 }

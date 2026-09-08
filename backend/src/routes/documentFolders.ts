@@ -51,17 +51,6 @@ function formatSize(bytes: number): string {
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} Go`;
 }
 
-/** Liste d'académies destinataires, envoyée par le client en JSON (ex. '["Lyon","Paris"]'). */
-function parseAcademiesParam(raw: unknown): string[] {
-  if (typeof raw !== "string" || !raw.trim()) return [];
-  try {
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed.filter((a): a is string => typeof a === "string" && a.trim() !== "") : [];
-  } catch {
-    return [];
-  }
-}
-
 function assertScopeAccess(
   user: AuthUser,
   academie: string | undefined,
@@ -190,6 +179,24 @@ router.post("/folders", requireRole("admin_general"), (req, res) => {
   res.status(201).json({ id: info.lastInsertRowid, name, parent_id: parentId });
 });
 
+/** Supprime un dossier, ses sous-dossiers et tous les documents qu'ils
+ * contiennent (fichiers physiques compris). Réutilisé par la route de
+ * suppression manuelle et par l'import zip, qui l'utilise pour remplacer un
+ * dossier racine déjà présent portant le même nom qu'un dossier de l'archive. */
+function deleteFolderAndContents(folderId: number): void {
+  const subtreeIds = collectSubtree(folderId);
+  const placeholders = subtreeIds.map(() => "?").join(",");
+  const files = db.prepare(`SELECT filename FROM documents WHERE folder_id IN (${placeholders})`).all(...subtreeIds) as {
+    filename: string;
+  }[];
+  for (const file of files) deleteDocumentFile(file.filename);
+  db.prepare(`DELETE FROM documents WHERE folder_id IN (${placeholders})`).run(...subtreeIds);
+  // Suppression enfants → parents pour respecter la contrainte parent_id (NO ACTION).
+  for (const id of [...subtreeIds].reverse()) {
+    db.prepare("DELETE FROM document_folders WHERE id = ?").run(id);
+  }
+}
+
 router.delete("/folders/:id", requireRole("admin_general"), (req, res) => {
   const folder = db.prepare("SELECT id, scope, academie, spelc, parent_id, name, created_at FROM document_folders WHERE id = ?").get(req.params.id) as
     | FolderRow
@@ -209,17 +216,7 @@ router.delete("/folders/:id", requireRole("admin_general"), (req, res) => {
     return;
   }
 
-  const subtreeIds = collectSubtree(folder.id);
-  const placeholders = subtreeIds.map(() => "?").join(",");
-  const files = db.prepare(`SELECT filename FROM documents WHERE folder_id IN (${placeholders})`).all(...subtreeIds) as {
-    filename: string;
-  }[];
-  for (const file of files) deleteDocumentFile(file.filename);
-  db.prepare(`DELETE FROM documents WHERE folder_id IN (${placeholders})`).run(...subtreeIds);
-  // Suppression enfants → parents pour respecter la contrainte parent_id (NO ACTION).
-  for (const id of [...subtreeIds].reverse()) {
-    db.prepare("DELETE FROM document_folders WHERE id = ?").run(id);
-  }
+  deleteFolderAndContents(folder.id);
   res.status(204).end();
 });
 
@@ -278,37 +275,29 @@ router.post(
     }
 
     const general = req.body?.general === true || req.body?.general === "true";
-    const academiesRaw = parseAcademiesParam(req.body?.academies);
-    const singleAcademie = typeof req.body?.academie === "string" ? req.body.academie : undefined;
-    const academies = academiesRaw.length > 0 ? academiesRaw : singleAcademie ? [singleAcademie] : [];
+    const academie = typeof req.body?.academie === "string" ? req.body.academie : undefined;
     const spelc = req.body?.spelc as string | undefined;
 
-    if (!general && academies.length === 0 && !spelc) {
+    if (!general && !academie && !spelc) {
       fs.unlink(req.file.path, () => {});
-      res.status(400).json({ error: "Paramètre academie(s), spelc ou general requis." });
+      res.status(400).json({ error: "Paramètre academie, spelc ou general requis." });
       return;
     }
     if (!general) {
-      for (const a of academies) {
-        if (!canAccessAcademie(req.user!, a)) {
-          fs.unlink(req.file.path, () => {});
-          res.status(403).json({ error: `Accès non autorisé à l'académie ${a}.` });
-          return;
-        }
+      if (academie && !canAccessAcademie(req.user!, academie)) {
+        fs.unlink(req.file.path, () => {});
+        res.status(403).json({ error: `Accès non autorisé à l'académie ${academie}.` });
+        return;
       }
-      if (academies.length === 0 && spelc && !canAccessSpelc(req.user!, spelcAcademie(spelc), spelc)) {
+      if (!academie && spelc && !canAccessSpelc(req.user!, spelcAcademie(spelc), spelc)) {
         fs.unlink(req.file.path, () => {});
         res.status(403).json({ error: "Accès non autorisé à ce Spelc." });
         return;
       }
     }
 
-    // "general" : une seule cible fictive → processZipImport n'écrit alors
-    // qu'une copie physique unique (scope='general', ni académie ni Spelc),
-    // jamais dupliquée — c'est tout l'intérêt par rapport à academies (une
-    // copie complète par académie ciblée).
-    const scope: "academique" | "spelc" | "general" = general ? "general" : academies.length > 0 ? "academique" : "spelc";
-    const targets = general ? ["general"] : academies.length > 0 ? academies : [spelc!];
+    const scope: "academique" | "spelc" | "general" = general ? "general" : academie ? "academique" : "spelc";
+    const scopeValue = general ? null : (academie ?? spelc!);
 
     let directory: unzipper.CentralDirectory;
     try {
@@ -319,17 +308,41 @@ router.post(
       return;
     }
 
-    // Estimation de l'espace disque nécessaire AVANT d'écrire quoi que ce soit :
-    // une copie physique indépendante par cible (arborescences non partagées,
-    // voir processZipImport), donc la taille décompressée de l'archive
-    // multipliée par le nombre de cibles. Vérifiée contre l'espace libre du
-    // volume où sont stockés les documents, avec une marge de sécurité — un
-    // refus clair et immédiat vaut mieux qu'un import qui échoue fichier par
-    // fichier après avoir rempli le disque (ENOSPC rencontré en pratique).
+    // Un ré-import du même zip ne doit pas accumuler de doublons : tout dossier
+    // racine du périmètre ciblé qui porte le même nom qu'un dossier de premier
+    // niveau de l'archive est remplacé (supprimé avec tout son contenu avant
+    // l'import). Fait AVANT le contrôle d'espace disque pour que celui-ci
+    // tienne compte de l'espace ainsi libéré.
+    const topLevelNames = new Set<string>();
+    for (const entry of directory.files) {
+      const cleanPath = entry.path.replace(/\/+$/, "");
+      if (!cleanPath) continue;
+      const firstSegment = cleanPath.split("/")[0];
+      if (firstSegment) topLevelNames.add(firstSegment);
+    }
+    if (topLevelNames.size > 0) {
+      const column = scope === "general" ? null : scope === "academique" ? "academie" : "spelc";
+      const existingRoots = (
+        column
+          ? (db
+              .prepare(`SELECT id, name FROM document_folders WHERE scope = ? AND ${column} = ? AND parent_id IS NULL`)
+              .all(scope, scopeValue) as { id: number; name: string }[])
+          : (db.prepare(`SELECT id, name FROM document_folders WHERE scope = 'general' AND parent_id IS NULL`).all() as {
+              id: number;
+              name: string;
+            }[])
+      ).filter((f) => topLevelNames.has(f.name));
+      for (const folder of existingRoots) deleteFolderAndContents(folder.id);
+    }
+
+    // Estimation de l'espace disque nécessaire AVANT d'écrire quoi que ce soit,
+    // comparée à l'espace libre du volume où sont stockés les documents, avec
+    // une marge de sécurité — un refus clair et immédiat vaut mieux qu'un
+    // import qui échoue fichier par fichier après avoir rempli le disque
+    // (ENOSPC rencontré en pratique).
     const totalUncompressedBytes = directory.files
       .filter((f) => f.type !== "Directory")
       .reduce((sum, f) => sum + f.uncompressedSize, 0);
-    const estimatedNeeded = totalUncompressedBytes * targets.length;
     try {
       // TMP_ZIP_DIR plutôt que DOCUMENTS_DIR : multer vient de le créer (voir
       // uploadZip.destination plus haut), donc toujours présent à cet instant —
@@ -340,18 +353,12 @@ router.post(
       const stats = fs.statfsSync(TMP_ZIP_DIR);
       const freeBytes = stats.bavail * stats.bsize;
       const SAFETY_MARGIN = 1.1;
-      if (estimatedNeeded * SAFETY_MARGIN > freeBytes) {
+      if (totalUncompressedBytes * SAFETY_MARGIN > freeBytes) {
         fs.unlink(req.file.path, () => {});
-        const destination = general ? "vers l'arborescence commune" : `vers ${targets.length} académie(s)`;
         res.status(400).json({
           error:
-            `Espace disque insuffisant : cette archive (${formatSize(totalUncompressedBytes)}) ${destination} nécessite environ ${formatSize(estimatedNeeded)}` +
-            (targets.length > 1 ? " (une copie complète par académie)" : "") +
-            ", mais seulement " +
-            `${formatSize(freeBytes)} sont disponibles sur le serveur.` +
-            (general
-              ? " Libérez de l'espace disque avant de réessayer."
-              : " Ciblez moins d'académies ou libérez de l'espace disque avant de réessayer."),
+            `Espace disque insuffisant : cette archive nécessite environ ${formatSize(totalUncompressedBytes)}, mais seulement ` +
+            `${formatSize(freeBytes)} sont disponibles sur le serveur. Libérez de l'espace disque avant de réessayer.`,
         });
         return;
       }
@@ -361,7 +368,7 @@ router.post(
     }
 
     try {
-      await processZipImport(req, res, directory, scope, targets);
+      await processZipImport(req, res, directory, scope, general ? null : (academie ?? null), general ? null : (spelc ?? null));
     } finally {
       fs.unlink(req.file.path, () => {});
     }
@@ -370,116 +377,95 @@ router.post(
 
 /** Traite l'archive déjà écrite sur disque par uploadZip (voir plus haut) —
  * séparé de la route pour garantir le nettoyage du fichier temporaire via un
- * try/finally quel que soit le chemin de sortie (succès, zip invalide, erreur).
- * Chaque cible (académie ou Spelc) a sa propre arborescence indépendante :
- * chaque entrée du zip n'est décompressée qu'une fois (entry.buffer()), puis
- * réécrite sur disque une fois par cible, pour ne pas multiplier le temps de
- * décompression par le nombre de cibles. */
+ * try/finally quel que soit le chemin de sortie (succès, zip invalide, erreur). */
 async function processZipImport(
   req: Request,
   res: Response,
   directory: unzipper.CentralDirectory,
   scope: "academique" | "spelc" | "general",
-  targets: string[]
+  academie: string | null,
+  spelc: string | null
 ): Promise<void> {
-    // Mémorise, par cible et pour la durée de cet import, l'id du dossier déjà
-    // créé pour chaque chemin rencontré — toujours à la racine de l'arborescence
-    // de chaque cible, comme demandé, jamais dans le dossier actuellement
-    // affiché côté client.
-    const folderIdByPathPerTarget = new Map<string, Map<string, number | null>>(
-      targets.map((t) => [t, new Map<string, number | null>([["", null]])])
-    );
+  // Mémorise, pour la durée de cet import, l'id du dossier déjà créé pour
+  // chaque chemin rencontré — toujours à la racine de l'arborescence du
+  // périmètre ciblé, comme demandé, jamais dans le dossier actuellement
+  // affiché côté client.
+  const folderIdByPath = new Map<string, number | null>([["", null]]);
 
-    function ensureFolderPath(target: string, segments: string[]): number | null {
-      const folderIdByPath = folderIdByPathPerTarget.get(target)!;
-      let currentPath = "";
-      let parentId: number | null = null;
-      for (const segment of segments) {
-        currentPath = currentPath ? `${currentPath}/${segment}` : segment;
-        const cached = folderIdByPath.get(currentPath);
-        if (cached !== undefined) {
-          parentId = cached;
-          continue;
-        }
-        const info = db
-          .prepare(`INSERT INTO document_folders (scope, academie, spelc, parent_id, name, created_by) VALUES (?, ?, ?, ?, ?, ?)`)
-          .run(scope, scope === "academique" ? target : null, scope === "spelc" ? target : null, parentId, segment, req.user!.id);
-        const newId = Number(info.lastInsertRowid);
-        folderIdByPath.set(currentPath, newId);
-        parentId = newId;
-      }
-      return parentId;
-    }
-
-    let foldersCreated = 0;
-    let filesImported = 0;
-    const skipped: string[] = [];
-
-    for (const entry of directory.files) {
-      const cleanPath = entry.path.replace(/\/+$/, "");
-      if (!cleanPath) continue;
-      const segments = cleanPath.split("/").filter(Boolean);
-
-      if (entry.type === "Directory") {
-        for (const target of targets) {
-          const before = folderIdByPathPerTarget.get(target)!.size;
-          ensureFolderPath(target, segments);
-          foldersCreated += folderIdByPathPerTarget.get(target)!.size - before;
-        }
+  function ensureFolderPath(segments: string[]): number | null {
+    let currentPath = "";
+    let parentId: number | null = null;
+    for (const segment of segments) {
+      currentPath = currentPath ? `${currentPath}/${segment}` : segment;
+      const cached = folderIdByPath.get(currentPath);
+      if (cached !== undefined) {
+        parentId = cached;
         continue;
       }
+      const info = db
+        .prepare(`INSERT INTO document_folders (scope, academie, spelc, parent_id, name, created_by) VALUES (?, ?, ?, ?, ?, ?)`)
+        .run(scope, academie, spelc, parentId, segment, req.user!.id);
+      const newId = Number(info.lastInsertRowid);
+      folderIdByPath.set(currentPath, newId);
+      parentId = newId;
+    }
+    return parentId;
+  }
 
-      const folderSegments = segments.slice(0, -1);
-      const fileName = segments[segments.length - 1];
-      if (!fileName) continue;
+  let foldersCreated = 0;
+  let filesImported = 0;
+  const skipped: string[] = [];
 
-      let buffer: Buffer;
-      try {
-        buffer = await entry.buffer();
-      } catch (err) {
-        console.error(`Import zip : échec sur "${cleanPath}" :`, err);
-        skipped.push(`${cleanPath} : ${(err as Error).message}`);
-        continue;
-      }
+  for (const entry of directory.files) {
+    const cleanPath = entry.path.replace(/\/+$/, "");
+    if (!cleanPath) continue;
+    const segments = cleanPath.split("/").filter(Boolean);
 
-      for (const target of targets) {
-        const before = folderIdByPathPerTarget.get(target)!.size;
-        const folderId = ensureFolderPath(target, folderSegments);
-        foldersCreated += folderIdByPathPerTarget.get(target)!.size - before;
-
-        try {
-          const storedFilename = saveDocumentUpload(buffer, fileName);
-          // Extraction de texte volontairement différée (extraction_status NULL) plutôt que
-          // faite ici pour chaque fichier : sur un zip de plusieurs centaines/milliers de
-          // documents, l'extraction PDF/DOCX synchrone de chacun peut prendre plusieurs
-          // minutes et n'a d'intérêt que pour les documents effectivement consultés par
-          // l'Assistant IA — lire_document l'exécute alors à la demande et met la base à
-          // jour (voir services/chatTools.ts), exactement comme pour un document déposé
-          // avant l'ajout de cette colonne.
-          db.prepare(
-            `INSERT INTO documents (scope, academie, spelc, folder_id, filename, original_name, mime_type, size_bytes, uploaded_by, extracted_text, extraction_status)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL)`
-          ).run(
-            scope,
-            scope === "academique" ? target : null,
-            scope === "spelc" ? target : null,
-            folderId,
-            storedFilename,
-            fileName,
-            null,
-            buffer.length,
-            req.user!.id
-          );
-          filesImported++;
-        } catch (err) {
-          const label = targets.length > 1 ? `${cleanPath} (${target})` : cleanPath;
-          console.error(`Import zip : échec sur "${label}" :`, err);
-          skipped.push(`${label} : ${(err as Error).message}`);
-        }
-      }
+    if (entry.type === "Directory") {
+      const before = folderIdByPath.size;
+      ensureFolderPath(segments);
+      foldersCreated += folderIdByPath.size - before;
+      continue;
     }
 
-    res.status(201).json({ foldersCreated, filesImported, skipped });
+    const folderSegments = segments.slice(0, -1);
+    const fileName = segments[segments.length - 1];
+    if (!fileName) continue;
+
+    let buffer: Buffer;
+    try {
+      buffer = await entry.buffer();
+    } catch (err) {
+      console.error(`Import zip : échec sur "${cleanPath}" :`, err);
+      skipped.push(`${cleanPath} : ${(err as Error).message}`);
+      continue;
+    }
+
+    const before = folderIdByPath.size;
+    const folderId = ensureFolderPath(folderSegments);
+    foldersCreated += folderIdByPath.size - before;
+
+    try {
+      const storedFilename = saveDocumentUpload(buffer, fileName);
+      // Extraction de texte volontairement différée (extraction_status NULL) plutôt que
+      // faite ici pour chaque fichier : sur un zip de plusieurs centaines/milliers de
+      // documents, l'extraction PDF/DOCX synchrone de chacun peut prendre plusieurs
+      // minutes et n'a d'intérêt que pour les documents effectivement consultés par
+      // l'Assistant IA — lire_document l'exécute alors à la demande et met la base à
+      // jour (voir services/chatTools.ts), exactement comme pour un document déposé
+      // avant l'ajout de cette colonne.
+      db.prepare(
+        `INSERT INTO documents (scope, academie, spelc, folder_id, filename, original_name, mime_type, size_bytes, uploaded_by, extracted_text, extraction_status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL)`
+      ).run(scope, academie, spelc, folderId, storedFilename, fileName, null, buffer.length, req.user!.id);
+      filesImported++;
+    } catch (err) {
+      console.error(`Import zip : échec sur "${cleanPath}" :`, err);
+      skipped.push(`${cleanPath} : ${(err as Error).message}`);
+    }
+  }
+
+  res.status(201).json({ foldersCreated, filesImported, skipped });
 }
 
 export default router;

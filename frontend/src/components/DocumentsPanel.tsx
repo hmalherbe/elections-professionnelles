@@ -125,23 +125,17 @@ function FolderTree({
  * pour un académique, un Spelc, ou l'arborescence commune ("general") — exactement l'un
  * des trois est fourni. readOnly (vues académique/Spelc) affiche la même arborescence que
  * l'admin général (mêmes lignes en base, pas de copie) sans les actions de dépôt/création/
- * suppression. targetAcademies (admin général uniquement, résolu par le parent à partir des
- * cases à cocher académies) : académies destinataires du prochain dépôt (fichiers ou zip),
- * copié physiquement une fois par académie — peut différer de `academie`, qui ne fait que
- * déterminer l'arborescence affichée ci-dessous. Sans objet quand general est vrai : une
- * arborescence commune n'a par définition qu'une seule copie, jamais dupliquée. */
+ * suppression. */
 export function DocumentsPanel({
   academie,
   spelc,
   general = false,
   readOnly = false,
-  targetAcademies,
 }: {
   academie?: string;
   spelc?: string;
   general?: boolean;
   readOnly?: boolean;
-  targetAcademies?: string[];
 }) {
   const [documents, setDocuments] = useState<DocumentRecord[]>([]);
   const [folders, setFolders] = useState<FolderRecord[]>([]);
@@ -269,10 +263,6 @@ export function DocumentsPanel({
 
   async function uploadFiles(fileList: FileList | null) {
     if (!fileList || fileList.length === 0) return;
-    if (targetAcademies && targetAcademies.length === 0) {
-      setError("Sélectionnez au moins une académie destinataire.");
-      return;
-    }
     const files = Array.from(fileList);
     setUploading(true);
     setOutcomes(null);
@@ -288,8 +278,6 @@ export function DocumentsPanel({
           fd.append("general", "true");
         } else if (spelc) {
           fd.append("spelc", spelc);
-        } else if (targetAcademies) {
-          fd.append("academies", JSON.stringify(targetAcademies));
         } else if (academie) {
           fd.append("academie", academie);
         }
@@ -358,10 +346,6 @@ export function DocumentsPanel({
 
   async function handleImportZip(file: File | null) {
     if (!file) return;
-    if (targetAcademies && targetAcademies.length === 0) {
-      setError("Sélectionnez au moins une académie destinataire.");
-      return;
-    }
     setImportingZip(true);
     setImportResult(null);
     setError(null);
@@ -372,8 +356,6 @@ export function DocumentsPanel({
         fd.append("general", "true");
       } else if (spelc) {
         fd.append("spelc", spelc);
-      } else if (targetAcademies) {
-        fd.append("academies", JSON.stringify(targetAcademies));
       } else if (academie) {
         fd.append("academie", academie);
       }
@@ -412,12 +394,6 @@ export function DocumentsPanel({
           title="Ajouter des documents"
           subtitle="Tout type de fichier (PDF, Word, Excel, image...), visible et téléchargeable par les administrateurs ayant accès à ce périmètre. Sélectionnez un ou plusieurs fichiers, ou un dossier entier — tout son contenu sera importé dans le dossier actuellement ouvert."
         >
-          {targetAcademies && targetAcademies.length > 1 && (
-            <p className="mb-3 text-xs text-amber-700">
-              {targetAcademies.length} académies destinataires sélectionnées ci-dessus : le dépôt sera placé à la
-              racine de chacune (le dossier actuellement ouvert n'est utilisé que si une seule académie est ciblée).
-            </p>
-          )}
           <div className="flex flex-wrap gap-2">
             <label
               className={`cursor-pointer rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700 ${uploading ? "pointer-events-none opacity-60" : ""}`}
@@ -476,12 +452,6 @@ export function DocumentsPanel({
             : "Exporte tous les dossiers et documents en une archive, ou importe une archive : sa structure de dossiers et de fichiers est reproduite à la racine de l'arborescence ci-dessous."
         }
       >
-        {!readOnly && targetAcademies && targetAcademies.length > 1 && (
-          <p className="mb-2 text-xs text-amber-700">
-            L'archive importée sera reproduite à la racine de chacune des {targetAcademies.length} académies
-            sélectionnées ci-dessus.
-          </p>
-        )}
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"

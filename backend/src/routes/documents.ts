@@ -42,17 +42,6 @@ function parseFolderIdParam(raw: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-/** Liste d'académies destinataires, envoyée par le client en JSON (ex. '["Lyon","Paris"]'). */
-function parseAcademiesParam(raw: unknown): string[] {
-  if (typeof raw !== "string" || !raw.trim()) return [];
-  try {
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed.filter((a): a is string => typeof a === "string" && a.trim() !== "") : [];
-  } catch {
-    return [];
-  }
-}
-
 router.get("/", requireRole("admin_academique", "admin_spelc", "admin_general"), (req, res) => {
   const academie = req.query.academie as string | undefined;
   const spelc = req.query.spelc as string | undefined;
@@ -106,15 +95,13 @@ router.post("/", requireRole("admin_general"), upload.single("file"), async (req
     return;
   }
   const general = req.body?.general === "true" || req.body?.general === true;
-  const academies = parseAcademiesParam(req.body?.academies);
-  const singleAcademie = typeof req.body?.academie === "string" ? req.body.academie : undefined;
-  const targetAcademies = academies.length > 0 ? academies : singleAcademie ? [singleAcademie] : [];
+  const academie = typeof req.body?.academie === "string" ? req.body.academie : undefined;
   const spelc = req.body?.spelc as string | undefined;
   const folderId = parseFolderIdParam(req.body?.folder_id);
 
   if (general) {
     // Copie physique unique, jamais dupliquée par académie : c'est tout
-    // l'intérêt du scope "general" par rapport à un dépôt multi-académies.
+    // l'intérêt du scope "general" par rapport à un dépôt par académie.
     const filename = saveDocumentUpload(req.file.buffer, req.file.originalname);
     const { text, status } = await extractDocumentText(req.file.buffer, req.file.originalname, req.file.mimetype);
     db.prepare(
@@ -124,33 +111,18 @@ router.post("/", requireRole("admin_general"), upload.single("file"), async (req
     res.status(201).json({ ok: true });
     return;
   }
-  if (targetAcademies.length > 0) {
-    for (const a of targetAcademies) {
-      if (!canAccessAcademie(req.user!, a)) {
-        res.status(403).json({ error: `Accès non autorisé à l'académie ${a}.` });
-        return;
-      }
+  if (academie) {
+    if (!canAccessAcademie(req.user!, academie)) {
+      res.status(403).json({ error: `Accès non autorisé à l'académie ${academie}.` });
+      return;
     }
+    const filename = saveDocumentUpload(req.file.buffer, req.file.originalname);
     const { text, status } = await extractDocumentText(req.file.buffer, req.file.originalname, req.file.mimetype);
-    // Une seule académie ciblée : dépose dans le dossier actuellement ouvert.
-    // Plusieurs : chaque arborescence est indépendante, donc dépôt à la racine
-    // de chacune plutôt que de tenter de faire correspondre un dossier commun.
-    const targetFolderId = targetAcademies.length === 1 ? folderId : null;
-    const insert = db.prepare(
+    db.prepare(
       `INSERT INTO documents (scope, academie, folder_id, filename, original_name, mime_type, size_bytes, uploaded_by, extracted_text, extraction_status)
        VALUES ('academique', ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    );
-    // Une copie physique distincte par académie : évite tout partage de fichier
-    // entre lignes documents, pour que la suppression de l'une n'affecte jamais
-    // les autres (voir deleteDocumentFile, appelé un document à la fois).
-    const insertAll = db.transaction((file: Express.Multer.File) => {
-      for (const a of targetAcademies) {
-        const filename = saveDocumentUpload(file.buffer, file.originalname);
-        insert.run(a, targetFolderId, filename, file.originalname, file.mimetype, file.size, req.user!.id, text, status);
-      }
-    });
-    insertAll(req.file);
-    res.status(201).json({ ok: true, academies: targetAcademies });
+    ).run(academie, folderId, filename, req.file.originalname, req.file.mimetype, req.file.size, req.user!.id, text, status);
+    res.status(201).json({ ok: true });
     return;
   }
   if (spelc) {
