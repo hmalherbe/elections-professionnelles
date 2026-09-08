@@ -1,4 +1,6 @@
 import { Router, type Request, type Response } from "express";
+import crypto from "node:crypto";
+import fs from "node:fs";
 import multer from "multer";
 import path from "node:path";
 import { ZipArchive } from "archiver";
@@ -9,7 +11,24 @@ import { saveDocumentUpload, deleteDocumentFile, DOCUMENTS_DIR } from "../lib/do
 import { extractDocumentText } from "../lib/documentText.js";
 
 const router = Router();
-const uploadZip = multer({ storage: multer.memoryStorage(), limits: { fileSize: 100 * 1024 * 1024 } });
+
+// Les zips déposés peuvent atteindre plusieurs Go (ex. beaucoup de documents
+// scannés) : on les écrit directement sur disque au fil de la réception
+// (diskStorage), jamais en mémoire (memoryStorage aurait tenté de charger tout
+// le fichier dans le tas Node — risque réel d'OOM sur les 2 Go de RAM de
+// l'instance Scaleway DEV1-S en production). Répertoire temporaire dans le
+// même volume que les documents (backend_data), nettoyé après chaque import.
+const TMP_ZIP_DIR = path.resolve(DOCUMENTS_DIR, "../tmp-zip");
+const uploadZip = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => {
+      fs.mkdirSync(TMP_ZIP_DIR, { recursive: true });
+      cb(null, TMP_ZIP_DIR);
+    },
+    filename: (_req, _file, cb) => cb(null, `${crypto.randomUUID()}.zip`),
+  }),
+  limits: { fileSize: 4 * 1024 * 1024 * 1024 }, // 4 Go
+});
 router.use(requireAuth);
 
 function spelcAcademie(spelc: string): string | null {
@@ -211,14 +230,34 @@ router.post(
     }
     const academie = req.body?.academie as string | undefined;
     const spelc = req.body?.spelc as string | undefined;
-    if (!assertScopeAccess(req.user!, academie, spelc, res)) return;
+    if (!assertScopeAccess(req.user!, academie, spelc, res)) {
+      fs.unlink(req.file.path, () => {});
+      return;
+    }
 
     const scope: "academique" | "spelc" = academie ? "academique" : "spelc";
-    const scopeValue = (academie ?? spelc)!;
 
+    try {
+      await processZipImport(req, res, scope, academie, spelc);
+    } finally {
+      fs.unlink(req.file.path, () => {});
+    }
+  }
+);
+
+/** Traite l'archive déjà écrite sur disque par uploadZip (voir plus haut) —
+ * séparé de la route pour garantir le nettoyage du fichier temporaire via un
+ * try/finally quel que soit le chemin de sortie (succès, zip invalide, erreur). */
+async function processZipImport(
+  req: Request,
+  res: Response,
+  scope: "academique" | "spelc",
+  academie: string | undefined,
+  spelc: string | undefined
+): Promise<void> {
     let directory: unzipper.CentralDirectory;
     try {
-      directory = await unzipper.Open.buffer(req.file.buffer);
+      directory = await unzipper.Open.file(req.file!.path);
     } catch {
       res.status(400).json({ error: "Fichier zip invalide ou corrompu." });
       return;
@@ -286,7 +325,6 @@ router.post(
     }
 
     res.status(201).json({ foldersCreated, filesImported, skipped });
-  }
-);
+}
 
 export default router;
