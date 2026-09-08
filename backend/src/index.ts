@@ -15,6 +15,7 @@ import psaRoutes from "./routes/psa.js";
 import scrapingRoutes from "./routes/scraping.js";
 import chatRoutes from "./routes/chat.js";
 import documentsRoutes from "./routes/documents.js";
+import documentFoldersRoutes from "./routes/documentFolders.js";
 import { UPLOADS_DIR } from "./lib/uploads.js";
 
 migrate();
@@ -45,6 +46,10 @@ app.use("/api/brevo", brevoRoutes);
 app.use("/api/psa", psaRoutes);
 app.use("/api/scraping", scrapingRoutes);
 app.use("/api/chat", chatRoutes);
+// Monté avant documentsRoutes : /folders, /zip et /zip-import sont des chemins
+// littéraux plus spécifiques que /:id de documentsRoutes, mais on garde cet
+// ordre pour lever toute ambiguïté de résolution de route.
+app.use("/api/documents", documentFoldersRoutes);
 app.use("/api/documents", documentsRoutes);
 
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

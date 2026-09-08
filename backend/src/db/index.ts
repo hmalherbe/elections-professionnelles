@@ -240,6 +240,25 @@ export function migrate(): void {
       uploaded_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
     CREATE INDEX IF NOT EXISTS idx_documents_scope ON documents(scope, academie, spelc);
+
+    -- Dossiers de l'onglet Documents, organisés en arborescence (parent_id) au
+    -- sein d'un même périmètre (académie ou Spelc). Un document rattaché à
+    -- folder_id = NULL est à la racine. La suppression d'un dossier (et le
+    -- nettoyage des fichiers sur disque qu'elle implique) est gérée par
+    -- l'application, pas par un ON DELETE CASCADE SQL, pour pouvoir supprimer
+    -- les fichiers physiques dans le bon ordre (voir routes/documentFolders.ts).
+    CREATE TABLE IF NOT EXISTS document_folders (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      scope TEXT NOT NULL CHECK (scope IN ('academique','spelc')),
+      academie TEXT,
+      spelc TEXT,
+      parent_id INTEGER REFERENCES document_folders(id),
+      name TEXT NOT NULL,
+      created_by INTEGER REFERENCES users(id),
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_document_folders_parent ON document_folders(parent_id);
+    CREATE INDEX IF NOT EXISTS idx_document_folders_scope ON document_folders(scope, academie, spelc);
   `);
 
   addColumnIfMissing("users", "nom", "TEXT");
@@ -257,6 +276,7 @@ export function migrate(): void {
   addColumnIfMissing("scraping_config", "download_trigger_selector", "TEXT");
   addColumnIfMissing("documents", "extracted_text", "TEXT");
   addColumnIfMissing("documents", "extraction_status", "TEXT");
+  addColumnIfMissing("documents", "folder_id", "INTEGER REFERENCES document_folders(id)");
 }
 
 /**

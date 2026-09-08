@@ -19,13 +19,14 @@ function spelcAcademie(spelc: string): string | null {
 // volumineux (jusqu'à 20 000 caractères) et réservé à l'Assistant IA, qui le lit
 // directement en base (voir services/chatTools.ts).
 const LIST_COLUMNS =
-  "id, scope, academie, spelc, filename, original_name, mime_type, size_bytes, uploaded_by, uploaded_at";
+  "id, scope, academie, spelc, folder_id, filename, original_name, mime_type, size_bytes, uploaded_by, uploaded_at";
 
 interface DocumentRow {
   id: number;
   scope: "academique" | "spelc";
   academie: string | null;
   spelc: string | null;
+  folder_id: number | null;
   filename: string;
   original_name: string;
   mime_type: string | null;
@@ -34,17 +35,27 @@ interface DocumentRow {
   uploaded_at: string;
 }
 
+/** "" (absent) → racine (folder_id IS NULL) ; sinon l'id du dossier ciblé. */
+function parseFolderIdParam(raw: unknown): number | null {
+  if (raw === undefined || raw === null || raw === "") return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
+}
+
 router.get("/", requireRole("admin_academique", "admin_spelc", "admin_general"), (req, res) => {
   const academie = req.query.academie as string | undefined;
   const spelc = req.query.spelc as string | undefined;
+  const folderId = parseFolderIdParam(req.query.folder_id);
   if (academie) {
     if (!canAccessAcademie(req.user!, academie)) {
       res.status(403).json({ error: "Accès non autorisé à cette académie." });
       return;
     }
     const rows = db
-      .prepare(`SELECT ${LIST_COLUMNS} FROM documents WHERE scope = 'academique' AND academie = ? ORDER BY uploaded_at DESC`)
-      .all(academie) as DocumentRow[];
+      .prepare(
+        `SELECT ${LIST_COLUMNS} FROM documents WHERE scope = 'academique' AND academie = ? AND folder_id IS ? ORDER BY uploaded_at DESC`
+      )
+      .all(academie, folderId) as DocumentRow[];
     res.json({ documents: rows });
     return;
   }
@@ -54,8 +65,10 @@ router.get("/", requireRole("admin_academique", "admin_spelc", "admin_general"),
       return;
     }
     const rows = db
-      .prepare(`SELECT ${LIST_COLUMNS} FROM documents WHERE scope = 'spelc' AND spelc = ? ORDER BY uploaded_at DESC`)
-      .all(spelc) as DocumentRow[];
+      .prepare(
+        `SELECT ${LIST_COLUMNS} FROM documents WHERE scope = 'spelc' AND spelc = ? AND folder_id IS ? ORDER BY uploaded_at DESC`
+      )
+      .all(spelc, folderId) as DocumentRow[];
     res.json({ documents: rows });
     return;
   }
@@ -69,6 +82,7 @@ router.post("/", requireRole("admin_academique", "admin_spelc", "admin_general")
   }
   const academie = req.body?.academie as string | undefined;
   const spelc = req.body?.spelc as string | undefined;
+  const folderId = parseFolderIdParam(req.body?.folder_id);
 
   if (academie) {
     if (!canAccessAcademie(req.user!, academie)) {
@@ -78,9 +92,9 @@ router.post("/", requireRole("admin_academique", "admin_spelc", "admin_general")
     const filename = saveDocumentUpload(req.file.buffer, req.file.originalname);
     const { text, status } = await extractDocumentText(req.file.buffer, req.file.originalname, req.file.mimetype);
     db.prepare(
-      `INSERT INTO documents (scope, academie, filename, original_name, mime_type, size_bytes, uploaded_by, extracted_text, extraction_status)
-       VALUES ('academique', ?, ?, ?, ?, ?, ?, ?, ?)`
-    ).run(academie, filename, req.file.originalname, req.file.mimetype, req.file.size, req.user!.id, text, status);
+      `INSERT INTO documents (scope, academie, folder_id, filename, original_name, mime_type, size_bytes, uploaded_by, extracted_text, extraction_status)
+       VALUES ('academique', ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(academie, folderId, filename, req.file.originalname, req.file.mimetype, req.file.size, req.user!.id, text, status);
     res.status(201).json({ ok: true });
     return;
   }
@@ -92,9 +106,9 @@ router.post("/", requireRole("admin_academique", "admin_spelc", "admin_general")
     const filename = saveDocumentUpload(req.file.buffer, req.file.originalname);
     const { text, status } = await extractDocumentText(req.file.buffer, req.file.originalname, req.file.mimetype);
     db.prepare(
-      `INSERT INTO documents (scope, spelc, filename, original_name, mime_type, size_bytes, uploaded_by, extracted_text, extraction_status)
-       VALUES ('spelc', ?, ?, ?, ?, ?, ?, ?, ?)`
-    ).run(spelc, filename, req.file.originalname, req.file.mimetype, req.file.size, req.user!.id, text, status);
+      `INSERT INTO documents (scope, spelc, folder_id, filename, original_name, mime_type, size_bytes, uploaded_by, extracted_text, extraction_status)
+       VALUES ('spelc', ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(spelc, folderId, filename, req.file.originalname, req.file.mimetype, req.file.size, req.user!.id, text, status);
     res.status(201).json({ ok: true });
     return;
   }
