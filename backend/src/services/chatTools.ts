@@ -97,11 +97,8 @@ export function buildToolsForRole(role: AuthUser["role"]): ToolDef[] {
           academie: scopedParams.academie,
           spelc: scopedParams.spelc,
           votant: { type: "string", enum: ["votant", "non_votant"], description: "Filtrer sur les votants ou les non-votants uniquement." },
-          adherent: {
-            type: "string",
-            enum: ["oui", "non"],
-            description: "Filtrer sur les adhérents ou les non-adhérents (uniquement significatif si un Spelc est précisé).",
-          },
+          // Pas de filtre "adherent" pour l'admin général : les données d'adhérents
+          // sont propres au niveau Spelc, hors de son périmètre d'assistant IA.
         }
       : role === "admin_spelc"
         ? {
@@ -136,17 +133,16 @@ export function buildToolsForRole(role: AuthUser["role"]): ToolDef[] {
     });
   }
 
-  if (role === "admin_general" || role === "admin_spelc") {
+  // Réservé à admin_spelc : les données d'adhérents sont propres au niveau Spelc,
+  // ni l'admin général ni l'admin académique n'y ont accès via l'assistant.
+  if (role === "admin_spelc") {
     tools.push({
       type: "function",
       function: {
         name: "adherents_spelc",
         description:
-          "Adhérents d'un Spelc : combien sont déclarés, combien ont voté au scrutin national CCMMEP, et la même chose pour les non-adhérents (total d'inscrits au scrutin moins les adhérents). Si le nombre de non-adhérents est nul ou très faible, c'est que la liste d'adhérents couvre déjà la quasi-totalité des inscrits — un taux à 0% chez les non-adhérents n'est alors pas une anomalie.",
-        parameters:
-          role === "admin_general"
-            ? { type: "object", properties: { spelc: { type: "string", description: "Nom du Spelc." } }, required: ["spelc"] }
-            : { type: "object", properties: {} },
+          "Adhérents du Spelc : combien sont déclarés, combien ont voté au scrutin national CCMMEP, et la même chose pour les non-adhérents (total d'inscrits au scrutin moins les adhérents). Si le nombre de non-adhérents est nul ou très faible, c'est que la liste d'adhérents couvre déjà la quasi-totalité des inscrits — un taux à 0% chez les non-adhérents n'est alors pas une anomalie.",
+        parameters: { type: "object", properties: {} },
       },
     });
   }
@@ -237,7 +233,9 @@ export async function executeTool(name: string, args: Record<string, unknown>, u
     case "repartition_scrutins": {
       const filter = resolveScope(user, requested);
       const votant = args.votant === "votant" || args.votant === "non_votant" ? args.votant : null;
-      const adherent = args.adherent === "oui" || args.adherent === "non" ? args.adherent : null;
+      // Filtre adhérent réservé à admin_spelc : donnée propre au niveau Spelc,
+      // ignorée côté serveur même si le modèle la fournit pour un autre rôle.
+      const adherent = user.role === "admin_spelc" && (args.adherent === "oui" || args.adherent === "non") ? args.adherent : null;
       const result = scrutinsTab({ ...filter, votant, adherent }, 1, 0);
       return { ...filter, votant, adherent, groups: result.groups, totalRows: result.totalRows };
     }
@@ -246,11 +244,12 @@ export async function executeTool(name: string, args: Record<string, unknown>, u
       return { tree: participationTreeNational() };
     }
     case "adherents_spelc": {
-      if (user.role !== "admin_general" && user.role !== "admin_spelc") {
+      // Réservé à admin_spelc : donnée propre au niveau Spelc, jamais accessible
+      // depuis l'assistant admin général ou admin académique.
+      if (user.role !== "admin_spelc") {
         throw new Error("Accès non autorisé.");
       }
-      const spelc = user.role === "admin_spelc" ? user.spelc! : String(args.spelc ?? "").trim();
-      if (!spelc) throw new Error("Spelc requis.");
+      const spelc = user.spelc!;
       const academie = spelcAcademie(spelc);
       const totalAdherents = (
         db.prepare("SELECT COUNT(*) AS c FROM adherents WHERE spelc = ?").get(spelc) as { c: number }
@@ -330,10 +329,13 @@ export async function executeTool(name: string, args: Record<string, unknown>, u
         | undefined;
       if (!row) throw new Error("Document introuvable.");
 
+      // admin_academique n'a jamais accès à un document de scope Spelc, même
+      // celui d'un Spelc de sa propre académie : les données Spelc sont hors de
+      // son périmètre d'assistant IA (canAccessSpelc l'autoriserait sinon).
       const allowed =
         row.scope === "academique"
           ? canAccessAcademie(user, row.academie!)
-          : canAccessSpelc(user, spelcAcademie(row.spelc!), row.spelc!);
+          : user.role !== "admin_academique" && canAccessSpelc(user, spelcAcademie(row.spelc!), row.spelc!);
       if (!allowed) throw new Error("Accès non autorisé à ce document.");
 
       let text = row.extracted_text;

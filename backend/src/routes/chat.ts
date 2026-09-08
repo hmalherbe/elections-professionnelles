@@ -35,10 +35,10 @@ function systemPromptFor(role: string, academie: string | null, spelc: string | 
     "extractible, dis-le si lire_document l'indique.";
 
   if (role === "admin_general") {
-    return `${base} Tu t'adresses à l'admin général : il a accès à l'ensemble des données (scrutin national CCMMEP, toutes les académies, tous les Spelcs, y compris les adhérents).`;
+    return `${base} Tu t'adresses à l'admin général : il a accès à l'ensemble des données de participation (scrutin national CCMMEP, toutes les académies, tous les Spelcs), mais jamais aux données d'adhérents, propres au niveau Spelc et réservées à l'admin de chaque Spelc.`;
   }
   if (role === "admin_academique") {
-    return `${base} Tu t'adresses à l'admin de l'académie « ${academie} ». Tu ne dois répondre qu'avec les données de cette académie (scrutin national filtré sur l'académie, et scrutin académique local) — jamais celles d'une autre académie, et jamais de données d'adhérents (propres aux Spelcs).`;
+    return `${base} Tu t'adresses à l'admin de l'académie « ${academie} ». Tu ne dois répondre qu'avec les données de cette académie (scrutin national filtré sur l'académie, et scrutin académique local) — jamais celles d'une autre académie, jamais de données propres à un Spelc (adhérents ou documents Spelc), et jamais de données d'adhérents en général (propres aux Spelcs).`;
   }
   return `${base} Tu t'adresses à l'admin du Spelc « ${spelc} ». Tu ne dois répondre qu'avec les données de ce Spelc (participation de ses adhérents et non-adhérents au scrutin national et local) — jamais celles d'un autre Spelc ou d'une autre académie.`;
 }
