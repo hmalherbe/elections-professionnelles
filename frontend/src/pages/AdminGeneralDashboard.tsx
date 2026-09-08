@@ -66,55 +66,39 @@ export function AdminGeneralDashboard() {
   );
 }
 
-/** Dépôt des documents pour une académie ou un Spelc, choisi ci-dessous : c'est
- * l'unique point de dépôt — les vues académique/Spelc affichent ensuite la même
- * arborescence en lecture seule (voir DocumentsPanel). */
+/** Dépôt des documents pour une académie, choisie ci-dessous pour organiser son
+ * arborescence — chaque dépôt peut aussi être diffusé vers d'autres académies
+ * (ou toutes), voir le sélecteur de destinataires dans DocumentsPanel. La vue
+ * académique affiche ensuite la même arborescence en lecture seule. Pas de
+ * Spelc ici : la partie Spelc n'a plus d'onglet Documents. */
 function DocumentsAdminPanel() {
   const [academies, setAcademies] = useState<string[]>([]);
-  const [spelcs, setSpelcs] = useState<string[]>([]);
-  const [scopeKind, setScopeKind] = useState<"academique" | "spelc">("academique");
   const [selected, setSelected] = useState("");
 
   useEffect(() => {
     api.get<{ academies: string[] }>("/admin/reference/academies").then((r) => setAcademies(r.academies));
-    api.get<{ spelcs: { spelc: string }[] }>("/admin/reference/spelcs").then((r) => setSpelcs(r.spelcs.map((s) => s.spelc)));
   }, []);
-
-  const options = scopeKind === "academique" ? academies : spelcs;
 
   return (
     <div className="space-y-4">
       <Card
-        title="Choisir le périmètre"
-        subtitle="Les documents déposés ici seront visibles en lecture seule par l'administrateur académique ou Spelc correspondant."
+        title="Choisir l'académie"
+        subtitle="Arborescence de dossiers à organiser. Lors du dépôt d'un document, vous pourrez choisir de le diffuser aussi vers d'autres académies, ou toutes."
       >
-        <div className="flex flex-wrap items-center gap-3">
-          <select
-            className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-            value={scopeKind}
-            onChange={(e) => {
-              setScopeKind(e.target.value as "academique" | "spelc");
-              setSelected("");
-            }}
-          >
-            <option value="academique">Académie</option>
-            <option value="spelc">Spelc</option>
-          </select>
-          <select
-            className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-            value={selected}
-            onChange={(e) => setSelected(e.target.value)}
-          >
-            <option value="">— Sélectionner —</option>
-            {options.map((o) => (
-              <option key={o} value={o}>
-                {o}
-              </option>
-            ))}
-          </select>
-        </div>
+        <select
+          className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+          value={selected}
+          onChange={(e) => setSelected(e.target.value)}
+        >
+          <option value="">— Sélectionner —</option>
+          {academies.map((a) => (
+            <option key={a} value={a}>
+              {a}
+            </option>
+          ))}
+        </select>
       </Card>
-      {selected && (scopeKind === "academique" ? <DocumentsPanel academie={selected} /> : <DocumentsPanel spelc={selected} />)}
+      {selected && <DocumentsPanel key={selected} academie={selected} allAcademies={academies} />}
     </div>
   );
 }

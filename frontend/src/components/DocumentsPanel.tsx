@@ -124,8 +124,20 @@ function FolderTree({
 /** Dépôt, arborescence de dossiers et consultation de documents (tout type de fichier),
  * pour un académique ou un Spelc — exactement l'un des deux props est fourni.
  * readOnly (vues académique/Spelc) affiche la même arborescence que l'admin général
- * (mêmes lignes en base, pas de copie) sans les actions de dépôt/création/suppression. */
-export function DocumentsPanel({ academie, spelc, readOnly = false }: { academie?: string; spelc?: string; readOnly?: boolean }) {
+ * (mêmes lignes en base, pas de copie) sans les actions de dépôt/création/suppression.
+ * allAcademies (admin général uniquement) permet de choisir une ou plusieurs académies
+ * destinataires du prochain dépôt, en plus de celle dont l'arborescence est affichée. */
+export function DocumentsPanel({
+  academie,
+  spelc,
+  readOnly = false,
+  allAcademies,
+}: {
+  academie?: string;
+  spelc?: string;
+  readOnly?: boolean;
+  allAcademies?: string[];
+}) {
   const [documents, setDocuments] = useState<DocumentRecord[]>([]);
   const [folders, setFolders] = useState<FolderRecord[]>([]);
   const [currentFolderId, setCurrentFolderId] = useState<number | null>(null);
@@ -133,6 +145,7 @@ export function DocumentsPanel({ academie, spelc, readOnly = false }: { academie
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [targetAcademies, setTargetAcademies] = useState<Set<string>>(() => new Set(academie ? [academie] : []));
 
   const filesInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
@@ -246,8 +259,28 @@ export function DocumentsPanel({ academie, spelc, readOnly = false }: { academie
     }
   }
 
+  function toggleTargetAcademie(a: string) {
+    setTargetAcademies((prev) => {
+      const next = new Set(prev);
+      if (next.has(a)) next.delete(a);
+      else next.add(a);
+      return next;
+    });
+  }
+
+  function toggleAllTargetAcademies() {
+    setTargetAcademies((prev) => {
+      if (allAcademies && allAcademies.every((a) => prev.has(a))) return new Set();
+      return new Set(allAcademies ?? []);
+    });
+  }
+
   async function uploadFiles(fileList: FileList | null) {
     if (!fileList || fileList.length === 0) return;
+    if (allAcademies && targetAcademies.size === 0) {
+      setError("Sélectionnez au moins une académie destinataire.");
+      return;
+    }
     const files = Array.from(fileList);
     setUploading(true);
     setOutcomes(null);
@@ -259,8 +292,12 @@ export function DocumentsPanel({ academie, spelc, readOnly = false }: { academie
       try {
         const fd = new FormData();
         fd.append("file", file);
-        if (academie) fd.append("academie", academie);
         if (spelc) fd.append("spelc", spelc);
+        if (academie && allAcademies) {
+          fd.append("academies", JSON.stringify([...targetAcademies]));
+        } else if (academie) {
+          fd.append("academie", academie);
+        }
         if (currentFolderId !== null) fd.append("folder_id", String(currentFolderId));
         await api.upload("/documents", fd);
         results.push({ name: file.name, ok: true, message: "ajouté." });
@@ -364,6 +401,33 @@ export function DocumentsPanel({ academie, spelc, readOnly = false }: { academie
           title="Ajouter des documents"
           subtitle="Tout type de fichier (PDF, Word, Excel, image...), visible et téléchargeable par les administrateurs ayant accès à ce périmètre. Sélectionnez un ou plusieurs fichiers, ou un dossier entier — tout son contenu sera importé dans le dossier actuellement ouvert."
         >
+          {allAcademies && allAcademies.length > 0 && (
+            <div className="mb-3 rounded-md border border-slate-200 p-3">
+              <p className="mb-2 text-xs font-medium text-slate-500">Académies destinataires du prochain dépôt :</p>
+              <label className="mb-2 flex items-center gap-2 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={allAcademies.every((a) => targetAcademies.has(a))}
+                  onChange={toggleAllTargetAcademies}
+                />
+                Toutes les académies
+              </label>
+              <div className="grid max-h-40 grid-cols-2 gap-x-4 gap-y-1 overflow-y-auto pr-1 sm:grid-cols-3 md:grid-cols-4">
+                {allAcademies.map((a) => (
+                  <label key={a} className="flex items-center gap-2 text-sm text-slate-700">
+                    <input type="checkbox" checked={targetAcademies.has(a)} onChange={() => toggleTargetAcademie(a)} />
+                    {a}
+                  </label>
+                ))}
+              </div>
+              {targetAcademies.size > 1 && (
+                <p className="mt-2 text-xs text-amber-700">
+                  Plusieurs académies sélectionnées : le document sera déposé à la racine de chacune (le dossier
+                  actuellement ouvert n'est utilisé que si une seule académie est ciblée).
+                </p>
+              )}
+            </div>
+          )}
           <div className="flex flex-wrap gap-2">
             <label
               className={`cursor-pointer rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700 ${uploading ? "pointer-events-none opacity-60" : ""}`}
