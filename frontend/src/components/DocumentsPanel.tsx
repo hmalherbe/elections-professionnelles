@@ -156,7 +156,7 @@ export function DocumentsPanel({
   const [creatingFolder, setCreatingFolder] = useState(false);
   const [exportingZip, setExportingZip] = useState(false);
   const [importingZip, setImportingZip] = useState(false);
-  const [importMessage, setImportMessage] = useState<string | null>(null);
+  const [importResult, setImportResult] = useState<{ summary: string; skipped: string[] } | null>(null);
 
   useEffect(() => {
     // webkitdirectory n'est pas un attribut HTML standard (donc pas typé par React) :
@@ -361,7 +361,7 @@ export function DocumentsPanel({
   async function handleImportZip(file: File | null) {
     if (!file) return;
     setImportingZip(true);
-    setImportMessage(null);
+    setImportResult(null);
     setError(null);
     try {
       const fd = new FormData();
@@ -372,10 +372,12 @@ export function DocumentsPanel({
         "/documents/zip-import",
         fd
       );
-      setImportMessage(
-        `${res.filesImported} document(s) et ${res.foldersCreated} dossier(s) importés à la racine.` +
-          (res.skipped.length > 0 ? ` ${res.skipped.length} élément(s) ignoré(s).` : "")
-      );
+      setImportResult({
+        summary:
+          `${res.filesImported} document(s) et ${res.foldersCreated} dossier(s) importés à la racine.` +
+          (res.skipped.length > 0 ? ` ${res.skipped.length} élément(s) ignoré(s) — détail ci-dessous.` : ""),
+        skipped: res.skipped,
+      });
       navigateTo(null); // le contenu importé est toujours reproduit à la racine.
       refreshFolders();
       refreshDocuments();
@@ -511,7 +513,18 @@ export function DocumentsPanel({
             </label>
           )}
         </div>
-        {importMessage && <p className="mt-2 text-xs text-emerald-600">{importMessage}</p>}
+        {importResult && (
+          <div className="mt-2 space-y-1 text-xs">
+            <p className={importResult.skipped.length > 0 ? "text-amber-700" : "text-emerald-600"}>{importResult.summary}</p>
+            {importResult.skipped.length > 0 && (
+              <ul className="list-disc space-y-0.5 pl-4 text-red-600">
+                {importResult.skipped.map((reason, i) => (
+                  <li key={i}>{reason}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
       </Card>
 
       <Card

@@ -8,7 +8,6 @@ import * as unzipper from "unzipper";
 import { db } from "../db/index.js";
 import { requireAuth, requireRole, canAccessAcademie, canAccessSpelc, type AuthUser } from "../middleware/auth.js";
 import { saveDocumentUpload, deleteDocumentFile, DOCUMENTS_DIR } from "../lib/documentStorage.js";
-import { extractDocumentText } from "../lib/documentText.js";
 
 const router = Router();
 
@@ -313,13 +312,20 @@ async function processZipImport(
       try {
         const buffer = await entry.buffer();
         const storedFilename = saveDocumentUpload(buffer, fileName);
-        const { text, status } = await extractDocumentText(buffer, fileName, null);
+        // Extraction de texte volontairement différée (extraction_status NULL) plutôt que
+        // faite ici pour chaque fichier : sur un zip de plusieurs centaines/milliers de
+        // documents, l'extraction PDF/DOCX synchrone de chacun peut prendre plusieurs
+        // minutes et n'a d'intérêt que pour les documents effectivement consultés par
+        // l'Assistant IA — lire_document l'exécute alors à la demande et met la base à
+        // jour (voir services/chatTools.ts), exactement comme pour un document déposé
+        // avant l'ajout de cette colonne.
         db.prepare(
           `INSERT INTO documents (scope, academie, spelc, folder_id, filename, original_name, mime_type, size_bytes, uploaded_by, extracted_text, extraction_status)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-        ).run(scope, academie ?? null, spelc ?? null, folderId, storedFilename, fileName, null, buffer.length, req.user!.id, text, status);
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL)`
+        ).run(scope, academie ?? null, spelc ?? null, folderId, storedFilename, fileName, null, buffer.length, req.user!.id);
         filesImported++;
       } catch (err) {
+        console.error(`Import zip : échec sur "${cleanPath}" :`, err);
         skipped.push(`${cleanPath} : ${(err as Error).message}`);
       }
     }
