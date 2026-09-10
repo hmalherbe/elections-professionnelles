@@ -1,0 +1,740 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1">
+<title>Système de suivi des élections professionnelles CCM — Spelc</title>
+<style>:root{color-scheme:light}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found]){display:none!important}</style>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
+
+  :root{
+    --bg: #F6F7FB;
+    --surface: #FFFFFF;
+    --surface-2: #EEF1F8;
+    --ink: #16213E;
+    --muted: #5B6478;
+    --primary: #1B2A4A;
+    --primary-ink: #FFFFFF;
+    --accent: #B5232B;
+    --accent-ink: #FFFFFF;
+    --line: #E1E5F0;
+    --chip-bg: #EEF1F8;
+    --code-bg: #101B33;
+    --code-ink: #DCE6FF;
+    --shadow: 0 1px 2px rgba(22,33,62,0.04), 0 8px 24px -12px rgba(22,33,62,0.14);
+
+    /* Diagramme du schéma de base de données (note technique) */
+    --sch-z1-stroke:#93650f; --sch-z1-fill:#f4e6c4; --sch-z1-text:#5e4108;
+    --sch-z2-stroke:#2451c4; --sch-z2-fill:#dde4fb; --sch-z2-text:#1c3a94;
+    --sch-z3-stroke:#0d7264; --sch-z3-fill:#d1ece4; --sch-z3-text:#0a534a;
+    --sch-z4-stroke:#87397a; --sch-z4-fill:#efdaec; --sch-z4-text:#652b5b;
+    --sch-z5-stroke:#b3441f; --sch-z5-fill:#f5dccc; --sch-z5-text:#873318;
+    --sch-z6-stroke:#54566a; --sch-z6-fill:#e4e2e8; --sch-z6-text:#3d3e4d;
+    --sch-rail-spelc:#a9790c; --sch-rail-academie:#0f7a6c;
+    --sch-zone-bg: rgba(22,33,62,0.03);
+    --sch-zone-label: #8b8fa8;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg: #0E1424;
+      --surface: #161F35;
+      --surface-2: #1D2740;
+      --ink: #EAEDF8;
+      --muted: #9AA5C4;
+      --primary: #A9C0EE;
+      --primary-ink: #0E1424;
+      --accent: #F1747A;
+      --accent-ink: #2A0508;
+      --line: #2A3454;
+      --chip-bg: #1D2740;
+      --code-bg: #0A1122;
+      --code-ink: #C9D6FA;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.5);
+
+      --sch-z1-stroke:#d9a742; --sch-z1-fill:#3b2e12; --sch-z1-text:#f0cf8a;
+      --sch-z2-stroke:#84a2ff; --sch-z2-fill:#1b2648; --sch-z2-text:#b3c4ff;
+      --sch-z3-stroke:#4bcab2; --sch-z3-fill:#0f2b26; --sch-z3-text:#8fe3d1;
+      --sch-z4-stroke:#dd8fce; --sch-z4-fill:#361b31; --sch-z4-text:#f0b8e3;
+      --sch-z5-stroke:#ee9a72; --sch-z5-fill:#3a2013; --sch-z5-text:#f6c1a1;
+      --sch-z6-stroke:#a4a7bd; --sch-z6-fill:#26232e; --sch-z6-text:#c7c9d8;
+      --sch-rail-spelc:#e0b34d; --sch-rail-academie:#4bcab2;
+      --sch-zone-bg: rgba(255,255,255,0.035);
+      --sch-zone-label: #7f84a0;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg: #0E1424;
+    --surface: #161F35;
+    --surface-2: #1D2740;
+    --ink: #EAEDF8;
+    --muted: #9AA5C4;
+    --primary: #A9C0EE;
+    --primary-ink: #0E1424;
+    --accent: #F1747A;
+    --accent-ink: #2A0508;
+    --line: #2A3454;
+    --chip-bg: #1D2740;
+    --code-bg: #0A1122;
+    --code-ink: #C9D6FA;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.5);
+
+    --sch-z1-stroke:#d9a742; --sch-z1-fill:#3b2e12; --sch-z1-text:#f0cf8a;
+    --sch-z2-stroke:#84a2ff; --sch-z2-fill:#1b2648; --sch-z2-text:#b3c4ff;
+    --sch-z3-stroke:#4bcab2; --sch-z3-fill:#0f2b26; --sch-z3-text:#8fe3d1;
+    --sch-z4-stroke:#dd8fce; --sch-z4-fill:#361b31; --sch-z4-text:#f0b8e3;
+    --sch-z5-stroke:#ee9a72; --sch-z5-fill:#3a2013; --sch-z5-text:#f6c1a1;
+    --sch-z6-stroke:#a4a7bd; --sch-z6-fill:#26232e; --sch-z6-text:#c7c9d8;
+    --sch-rail-spelc:#e0b34d; --sch-rail-academie:#4bcab2;
+    --sch-zone-bg: rgba(255,255,255,0.035);
+    --sch-zone-label: #7f84a0;
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'Public Sans', system-ui, sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{ max-width:920px; margin:0 auto; padding:0 24px 96px; }
+
+  h1,h2,h3{ font-family:'Source Serif 4', Georgia, serif; text-wrap:balance; margin:0; }
+
+  /* ---- Header ---- */
+  header.hero{
+    background:var(--primary);
+    color:var(--primary-ink);
+    padding:64px 24px 48px;
+  }
+  header.hero .wrap{ padding:0; max-width:920px; margin:0 auto; }
+  .eyebrow{
+    font-size:12.5px; font-weight:600; letter-spacing:.12em; text-transform:uppercase;
+    opacity:.72; margin:0 0 14px;
+  }
+  header.hero h1{ font-size:clamp(26px,3.6vw,38px); font-weight:700; line-height:1.18; max-width:24ch; }
+  header.hero p.lede{
+    font-size:17px; line-height:1.55; max-width:56ch; margin:18px 0 0; opacity:.92;
+  }
+  .stat-row{ display:flex; gap:36px; margin-top:38px; flex-wrap:wrap; }
+  .stat{ min-width:110px; }
+  .stat b{
+    display:block; font-family:'Source Serif 4', serif; font-size:34px; font-weight:700;
+    font-variant-numeric:tabular-nums; line-height:1;
+  }
+  .stat span{ display:block; font-size:12.5px; opacity:.75; margin-top:6px; }
+
+  /* ---- Sections ---- */
+  section{ padding:56px 0 0; }
+  section.tight{ padding-top:40px; }
+  .section-head{ margin-bottom:28px; }
+  .section-head .kicker{
+    font-size:12px; font-weight:600; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--accent); margin:0 0 8px;
+  }
+  .section-head h2{ font-size:26px; font-weight:600; color:var(--ink); }
+  .section-head p{ color:var(--muted); font-size:15px; margin:8px 0 0; max-width:60ch; line-height:1.5; }
+
+  p.intro{ font-size:17px; line-height:1.7; color:var(--ink); max-width:66ch; }
+  p.intro strong{ color:var(--primary); }
+
+  /* ---- Role groups ---- */
+  .role-group{
+    border:1px solid var(--line); border-radius:14px; background:var(--surface);
+    box-shadow:var(--shadow); overflow:hidden; margin-bottom:20px;
+  }
+  .role-head{
+    display:flex; align-items:center; gap:14px;
+    padding:18px 22px; border-bottom:1px solid var(--line);
+    background:var(--surface-2);
+  }
+  .role-badge{
+    width:34px; height:34px; border-radius:9px; flex:none;
+    display:flex; align-items:center; justify-content:center;
+    background:var(--primary); color:var(--primary-ink);
+  }
+  .role-badge svg{ width:18px; height:18px; }
+  .role-head h3{ font-size:17px; font-weight:600; color:var(--ink); font-family:'Public Sans',sans-serif; }
+  .role-head .role-tag{
+    margin-left:auto; font-size:11.5px; font-weight:600; color:var(--muted);
+    letter-spacing:.04em; text-transform:uppercase;
+  }
+  .feature-list{ display:grid; grid-template-columns:1fr 1fr; }
+  @media (max-width:680px){ .feature-list{ grid-template-columns:1fr; } }
+  .feature{
+    padding:16px 22px; border-bottom:1px solid var(--line);
+  }
+  .feature:nth-last-child(-n+2){ border-bottom:none; }
+  @media (max-width:680px){
+    .feature:nth-last-child(-n+2):not(:last-child){ border-bottom:1px solid var(--line); }
+  }
+  .feature h4{
+    margin:0 0 4px; font-size:14.5px; font-weight:600; color:var(--ink);
+  }
+  .feature p{ margin:0; font-size:13.5px; line-height:1.55; color:var(--muted); }
+
+  /* ---- Stack ---- */
+  .stack-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
+  @media (max-width:760px){ .stack-grid{ grid-template-columns:1fr; } }
+  .stack-card{
+    background:var(--surface); border:1px solid var(--line); border-radius:14px;
+    padding:20px 20px 22px; box-shadow:var(--shadow);
+  }
+  .stack-card h3{
+    font-size:12px; font-weight:600; letter-spacing:.08em; text-transform:uppercase;
+    color:var(--accent); font-family:'Public Sans',sans-serif; margin-bottom:14px;
+  }
+  .tag-list{ display:flex; flex-wrap:wrap; gap:8px; }
+  .tag{
+    font-family:'IBM Plex Mono', ui-monospace, monospace; font-size:12px;
+    background:var(--chip-bg); color:var(--ink); border-radius:7px;
+    padding:5px 9px; line-height:1.3; white-space:nowrap;
+  }
+
+  /* ---- Note technique : schéma de la base ---- */
+  .db-facts{
+    display:grid; grid-template-columns:repeat(3,1fr); gap:1px;
+    background:var(--line); border:1px solid var(--line); border-radius:12px;
+    overflow:hidden; margin-bottom:24px;
+  }
+  @media (max-width:640px){ .db-facts{ grid-template-columns:repeat(2,1fr); } }
+  .db-fact{ background:var(--surface); padding:13px 16px; min-width:0; }
+  .db-fact .k{
+    font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted);
+    font-weight:600; margin:0 0 4px;
+  }
+  .db-fact .v{
+    font-family:'IBM Plex Mono',monospace; font-size:13px; color:var(--ink); font-weight:500;
+    overflow-wrap:anywhere; word-break:break-word;
+  }
+  .db-fact .v.accent{ color:var(--accent); font-weight:600; }
+
+  /* Sort le diagramme de la colonne de lecture (920px) pour lui laisser sa largeur naturelle */
+  .breakout{
+    width:100vw; position:relative; left:50%; right:50%; margin-left:-50vw; margin-right:-50vw;
+    display:flex; justify-content:center; padding:0 24px;
+  }
+  .diagram-card{
+    width:100%; max-width:1180px; background:var(--surface); border:1px solid var(--line);
+    border-radius:14px; padding:20px 20px 8px; box-shadow:var(--shadow);
+  }
+  .diagram-scroll{ overflow-x:auto; }
+  .diagram-scroll svg{ display:block; min-width:1100px; }
+  .diagram-card figcaption{
+    font-size:13px; color:var(--muted); padding:14px 4px 6px; line-height:1.55;
+    border-top:1px solid var(--line); margin-top:14px;
+  }
+
+  .db-legend{
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:12px 26px;
+    background:var(--surface); border:1px solid var(--line); border-radius:14px;
+    padding:18px 22px; margin-top:16px; box-shadow:var(--shadow);
+  }
+  .db-legend-item{ display:flex; align-items:flex-start; gap:10px; font-size:13px; color:var(--ink); line-height:1.45; }
+  .db-legend-item .mark{ flex:0 0 auto; margin-top:3px; }
+  .db-legend-item b{ font-family:'IBM Plex Mono',monospace; font-weight:600; }
+  .db-legend-item span.sub{ display:block; color:var(--muted); font-size:12.5px; margin-top:2px; }
+
+  footer{
+    margin-top:64px; padding-top:24px; border-top:1px solid var(--line);
+    display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px;
+    font-size:12.5px; color:var(--muted);
+  }
+
+  svg{ display:block; }
+</style>
+</head><body>
+
+<header class="hero">
+  <div class="wrap">
+    <p class="eyebrow">Note de synthèse — Spelc</p>
+    <h1>Système de suivi des élections professionnelles CCM — Spelc</h1>
+    <p class="lede">
+      Outil interne du Spelc pour le suivi des élections professionnelles 2026 : scrutin national
+      CCMMEP et scrutins académiques locaux — participation, adhérents, relances et simulation de
+      la journée des PSA.
+    </p>
+    <div class="stat-row">
+      <div class="stat"><b>3</b><span>rôles utilisateurs</span></div>
+      <div class="stat"><b>41</b><span>Spelcs</span></div>
+      <div class="stat"><b>32</b><span>académies</span></div>
+      <div class="stat"><b>8</b><span>jours de scrutin (3&nbsp;→&nbsp;10 déc.)</span></div>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <section class="tight">
+    <div class="section-head">
+      <p class="kicker">Vue d'ensemble</p>
+      <h2>Une plateforme, trois profils, un seul socle</h2>
+    </div>
+    <p class="intro">
+      L'application couvre le cycle complet du scrutin : <strong>import</strong> quotidien des
+      fichiers d'émargement JSON, <strong>tableaux de bord</strong> de participation (national,
+      académique, par Spelc), <strong>gestion des adhérents</strong>, et <strong>relances</strong>
+      mail/SMS via Brevo — y compris pour les Présidents de Section (PSA) simulés avant le jour J.
+      Trois profils d'administrateurs se partagent ces fonctions selon leur périmètre.
+    </p>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <p class="kicker">Fonctionnalités</p>
+      <h2>Par profil d'administrateur</h2>
+      <p>Chaque rôle a accès uniquement aux données et actions de son périmètre.</p>
+    </div>
+
+    <div class="role-group">
+      <div class="role-head">
+        <span class="role-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 3 7v6c0 5 4 8.5 9 9 5-.5 9-4 9-9V7l-9-5Z"/></svg>
+        </span>
+        <h3>Admin général</h3>
+        <span class="role-tag">Pilotage national</span>
+      </div>
+      <div class="feature-list">
+        <div class="feature"><h4>Import CCMMEP national</h4><p>Import du fichier JSON quotidien du scrutin national (émargements cumulés).</p></div>
+        <div class="feature"><h4>Gestion des comptes</h4><p>Création manuelle ou import en masse (CSV/Excel) des comptes admin académique et admin Spelc.</p></div>
+        <div class="feature"><h4>Gestion des adhérents</h4><p>Import global par Spelc, ou import/suppression de tous les adhérents en un clic.</p></div>
+        <div class="feature"><h4>Simulation &amp; relances PSA</h4><p>Simulation de la journée des PSA, relance mail/SMS des non-votants — une seule relance par personne et par canal.</p></div>
+        <div class="feature"><h4>Récupération automatique</h4><p>Scraping headless (Playwright) du portail national pour récupérer le fichier CCMMEP.</p></div>
+        <div class="feature"><h4>Journal des relances</h4><p>Historique consultable de chaque envoi (mail/SMS, campagne, destinataire, succès).</p></div>
+      </div>
+    </div>
+
+    <div class="role-group">
+      <div class="role-head">
+        <span class="role-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V8l8-5 8 5v13"/><path d="M9 21v-6h6v6"/><path d="M9 12h.01M15 12h.01M9 8h.01M15 8h.01"/></svg>
+        </span>
+        <h3>Admin académique</h3>
+        <span class="role-tag">Pilotage local</span>
+      </div>
+      <div class="feature-list">
+        <div class="feature"><h4>Imports 1er / 2nd degré</h4><p>Import des fichiers JSON de son académie (deux fichiers distincts).</p></div>
+        <div class="feature"><h4>Tableaux de bord académiques</h4><p>Scrutin local et scrutin national filtré sur l'académie.</p></div>
+        <div class="feature"><h4>Récupération automatique</h4><p>Scraping headless des deux fichiers académiques (1D et 2D).</p></div>
+        <div class="feature"><h4>Filtre votant / non-votant</h4><p>Sur les tableaux de scrutin, pour cibler rapidement les non-votants.</p></div>
+      </div>
+    </div>
+
+    <div class="role-group">
+      <div class="role-head">
+        <span class="role-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>
+        </span>
+        <h3>Admin Spelc</h3>
+        <span class="role-tag">Adhérents &amp; relances</span>
+      </div>
+      <div class="feature-list">
+        <div class="feature"><h4>Import des adhérents</h4><p>Liste des adhérents du Spelc, au format CSV ou Excel.</p></div>
+        <div class="feature"><h4>Configuration Brevo</h4><p>Clé API et modèles de mail/SMS propres au Spelc.</p></div>
+        <div class="feature"><h4>Campagnes de relance</h4><p>Envois réels aux non-votants, avec un mode test dédié.</p></div>
+        <div class="feature"><h4>Suivi &amp; tableau de bord</h4><p>Statistiques d'envoi et participation de son Spelc.</p></div>
+      </div>
+    </div>
+
+    <div class="role-group">
+      <div class="role-head">
+        <span class="role-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/></svg>
+        </span>
+        <h3>Documents</h3>
+        <span class="role-tag">Arborescence partagée</span>
+      </div>
+      <div class="feature-list">
+        <div class="feature"><h4>Dépôt par l'admin général</h4><p>Dossiers et documents de tout type (PDF, Word, Excel, images...), organisés en arborescence — une seule copie physique en base, jamais dupliquée par académie.</p></div>
+        <div class="feature"><h4>Lecture seule pour les académies</h4><p>Chaque académie consulte et télécharge la même arborescence — mêmes lignes en base, pas de copie — sans possibilité de dépôt ni de suppression, toujours à jour sans synchronisation.</p></div>
+      </div>
+    </div>
+
+    <div class="role-group">
+      <div class="role-head">
+        <span class="role-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        </span>
+        <h3>Transverse &amp; sécurité</h3>
+        <span class="role-tag">Socle commun</span>
+      </div>
+      <div class="feature-list">
+        <div class="feature"><h4>Authentification par rôle</h4><p>Connexion JWT, changement de mot de passe obligatoire à la première connexion.</p></div>
+        <div class="feature"><h4>Secrets chiffrés</h4><p>Mots de passe des portails de scraping chiffrés en base (AES-256-GCM), jamais renvoyés en clair.</p></div>
+        <div class="feature"><h4>Imports robustes</h4><p>Parseur CSV/Excel (exceljs) avec validation ligne par ligne des imports en masse.</p></div>
+        <div class="feature"><h4>Traçabilité</h4><p>Journal NDJSON de tous les envois mail/SMS, consultable côté admin général.</p></div>
+      </div>
+    </div>
+
+    <div class="role-group">
+      <div class="role-head">
+        <span class="role-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+        </span>
+        <h3>Assistant IA</h3>
+        <span class="role-tag">Function calling (Mistral)</span>
+      </div>
+      <div class="feature-list">
+        <div class="feature"><h4>Admin général — CCMMEP</h4><p>Accès à toutes les données : scrutin national, toutes les académies, tous les Spelcs (adhérents compris).</p></div>
+        <div class="feature"><h4>Admin académique</h4><p>Uniquement les données de sa propre académie (national filtré + scrutin local) — jamais les autres académies ni les adhérents.</p></div>
+        <div class="feature"><h4>Admin Spelc</h4><p>Uniquement les données de son propre Spelc, adhérents et non-adhérents — jamais un autre Spelc.</p></div>
+        <div class="feature"><h4>Pas d'hallucination possible</h4><p>Le modèle choisit parmi des outils prédéfinis basés sur les mêmes requêtes que les tableaux de bord ; le périmètre est forcé côté serveur, jamais confié au modèle.</p></div>
+      </div>
+    </div>
+
+    <div class="role-group">
+      <div class="role-head">
+        <span class="role-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-6 4 3 5-8"/></svg>
+        </span>
+        <h3>Résultats CCM 2022</h3>
+        <span class="role-tag">Référence historique figée</span>
+      </div>
+      <div class="feature-list">
+        <div class="feature"><h4>Admin général — CCMMEP</h4><p>Carte interactive de France — au choix par académie, département ou Spelc — coloriée selon l'organisation en tête, et tableau complet des voix et sièges pour toutes les académies et l'outre-mer. Bascule 1er / 2nd degré.</p></div>
+        <div class="feature"><h4>Admin académique</h4><p>Onglet dédié affichant uniquement les voix et sièges par organisation syndicale de sa propre académie.</p></div>
+        <div class="feature"><h4>Admin Spelc</h4><p>Onglet dédié affichant uniquement les voix et sièges par organisation syndicale de son propre Spelc. Si le Spelc chevauche deux académies (cas « Centre-Poitou-Charente »), les deux résultats sont affichés séparément plutôt qu'un total trompeur.</p></div>
+        <div class="feature"><h4>Données figées</h4><p>Résultats du scrutin 2022 tels que fournis, sans lien avec le scrutin 2026 en cours de suivi — rien à réimporter.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <p class="kicker">Stack technique</p>
+      <h2>Ce qui fait tourner l'application</h2>
+      <p>Monorepo npm workspaces, TypeScript de bout en bout, déploiement Docker sur un unique VPS.</p>
+    </div>
+    <div class="stack-grid">
+      <div class="stack-card">
+        <h3>Backend</h3>
+        <div class="tag-list">
+          <span class="tag">Node.js</span><span class="tag">Express</span><span class="tag">TypeScript</span>
+          <span class="tag">better-sqlite3</span><span class="tag">JWT</span><span class="tag">bcryptjs</span>
+          <span class="tag">Playwright</span><span class="tag">exceljs</span><span class="tag">multer</span>
+          <span class="tag">Mistral API</span><span class="tag">zod</span><span class="tag">dayjs</span><span class="tag">vitest</span>
+        </div>
+      </div>
+      <div class="stack-card">
+        <h3>Frontend</h3>
+        <div class="tag-list">
+          <span class="tag">React 19</span><span class="tag">TypeScript</span><span class="tag">Vite 8</span>
+          <span class="tag">React Router 7</span><span class="tag">Tailwind CSS 4</span>
+          <span class="tag">Recharts</span><span class="tag">oxlint</span>
+        </div>
+      </div>
+      <div class="stack-card">
+        <h3>Infrastructure</h3>
+        <div class="tag-list">
+          <span class="tag">Docker Compose</span><span class="tag">nginx</span><span class="tag">mock-portal</span>
+          <span class="tag">Brevo API</span><span class="tag">VPS Scaleway</span><span class="tag">SQLite volume</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <p class="kicker">Note technique</p>
+      <h2>Schéma de la base de données</h2>
+      <p>Base <strong>SQLite</strong> (via <code>better-sqlite3</code>), pas PostgreSQL — un seul fichier, monté dans le volume Docker persistant. 20 tables réparties en six domaines ; les rapprochements par <code>spelc</code>/<code>academie</code> sont de simples colonnes texte, pas des clés étrangères.</p>
+    </div>
+    <div class="db-facts">
+      <div class="db-fact"><p class="k">Moteur</p><p class="v accent">SQLite</p></div>
+      <div class="db-fact"><p class="k">Driver Node.js</p><p class="v">better-sqlite3</p></div>
+      <div class="db-fact"><p class="k">Fichier</p><p class="v">elections.sqlite</p></div>
+      <div class="db-fact"><p class="k">Journal</p><p class="v">WAL</p></div>
+      <div class="db-fact"><p class="k">Contraintes</p><p class="v">foreign_keys = ON</p></div>
+      <div class="db-fact"><p class="k">Tables</p><p class="v">20</p></div>
+    </div>
+  </section>
+
+  <div class="breakout">
+    <div class="diagram-card">
+      <div class="diagram-scroll">
+        <figure style="margin:0;">
+<svg viewBox="0 0 1560 1150" role="img" aria-label="Schéma entité-relation des 20 tables SQLite de l'application, groupées en six domaines (référentiels, comptes, résultats d'élection, PSA, relances Brevo, configuration), avec les clés étrangères déclarées et les rapprochements par spelc ou académie.">
+          <defs>
+            <marker id="arrow" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" style="fill:var(--primary)"/>
+            </marker>
+          </defs>
+
+          <!-- ===== zone backgrounds ===== -->
+          <g>
+            <rect x="245" y="46" width="1291" height="136" rx="12" style="fill:var(--sch-zone-bg)"/>
+            <text x="262" y="66" style="font:600 11px 'IBM Plex Sans';letter-spacing:.06em;fill:var(--sch-zone-label)">RÉFÉRENTIELS</text>
+
+            <rect x="245" y="194" width="1291" height="154" rx="12" style="fill:var(--sch-zone-bg)"/>
+            <text x="262" y="214" style="font:600 11px 'IBM Plex Sans';letter-spacing:.06em;fill:var(--sch-zone-label)">COMPTES</text>
+
+            <rect x="245" y="360" width="1291" height="154" rx="12" style="fill:var(--sch-zone-bg)"/>
+            <text x="262" y="380" style="font:600 11px 'IBM Plex Sans';letter-spacing:.06em;fill:var(--sch-zone-label)">RÉSULTATS D'ÉLECTION &amp; ADHÉRENTS</text>
+
+            <rect x="245" y="526" width="1291" height="154" rx="12" style="fill:var(--sch-zone-bg)"/>
+            <text x="262" y="546" style="font:600 11px 'IBM Plex Sans';letter-spacing:.06em;fill:var(--sch-zone-label)">PSA — JOURNÉE DE SIMULATION</text>
+
+            <rect x="245" y="688" width="1291" height="280" rx="12" style="fill:var(--sch-zone-bg)"/>
+            <text x="262" y="708" style="font:600 11px 'IBM Plex Sans';letter-spacing:.06em;fill:var(--sch-zone-label)">RELANCES / BREVO</text>
+
+            <rect x="245" y="976" width="1291" height="136" rx="12" style="fill:var(--sch-zone-bg)"/>
+            <text x="262" y="996" style="font:600 11px 'IBM Plex Sans';letter-spacing:.06em;fill:var(--sch-zone-label)">CONFIGURATION TECHNIQUE</text>
+          </g>
+
+          <!-- ===== soft-key rails (drawn under the table boxes) ===== -->
+          <line x1="110" y1="100" x2="110" y2="920" style="stroke:var(--sch-rail-spelc)" stroke-width="1.6" stroke-dasharray="2 4" opacity="0.55"/>
+          <line x1="175" y1="100" x2="175" y2="1058" style="stroke:var(--sch-rail-academie)" stroke-width="1.6" stroke-dasharray="2 4" opacity="0.55"/>
+
+          <!-- soft ties → spelc rail -->
+          <g stroke-width="1.3" stroke-dasharray="2 4" opacity="0.55">
+            <line x1="768" y1="119" x2="110" y2="119" style="stroke:var(--sch-rail-spelc)"/>
+            <line x1="514" y1="276" x2="110" y2="276" style="stroke:var(--sch-rail-spelc)"/>
+            <line x1="514" y1="442" x2="110" y2="438" style="stroke:var(--sch-rail-spelc)"/>
+            <line x1="768" y1="442" x2="110" y2="447" style="stroke:var(--sch-rail-spelc)"/>
+            <line x1="260" y1="770" x2="110" y2="770" style="stroke:var(--sch-rail-spelc)"/>
+            <line x1="514" y1="752" x2="110" y2="747" style="stroke:var(--sch-rail-spelc)"/>
+            <line x1="768" y1="752" x2="110" y2="757" style="stroke:var(--sch-rail-spelc)"/>
+            <line x1="1022" y1="761" x2="110" y2="764" style="stroke:var(--sch-rail-spelc)"/>
+            <line x1="260" y1="905" x2="110" y2="901" style="stroke:var(--sch-rail-spelc)"/>
+            <line x1="514" y1="905" x2="110" y2="910" style="stroke:var(--sch-rail-spelc)"/>
+          </g>
+          <!-- soft ties → académie rail -->
+          <g stroke-width="1.3" stroke-dasharray="2 4" opacity="0.55">
+            <line x1="768" y1="119" x2="175" y2="112" style="stroke:var(--sch-rail-academie)"/>
+            <line x1="514" y1="119" x2="175" y2="126" style="stroke:var(--sch-rail-academie)"/>
+            <line x1="514" y1="276" x2="175" y2="276" style="stroke:var(--sch-rail-academie)"/>
+            <line x1="260" y1="442" x2="175" y2="437" style="stroke:var(--sch-rail-academie)"/>
+            <line x1="514" y1="442" x2="175" y2="448" style="stroke:var(--sch-rail-academie)"/>
+            <line x1="260" y1="1049" x2="175" y2="1049" style="stroke:var(--sch-rail-academie)"/>
+          </g>
+
+          <!-- ===== hard FK arrows (declared, enforced) ===== -->
+          <g fill="none" style="stroke:var(--primary)" stroke-width="2">
+            <path d="M 460 384 L 460 358 L 529 358 L 529 336" marker-end="url(#arrow)"/>
+            <path d="M 783 384 L 783 358 L 729 358 L 729 336" marker-end="url(#arrow)"/>
+            <path d="M 783 550 L 783 524 L 502 524 L 502 358 L 529 358 L 529 336" marker-end="url(#arrow)"/>
+            <path d="M 744 608 L 756 608 L 756 599 L 766 599" marker-end="url(#arrow)"/>
+            <path d="M 514 608 L 502 608 L 502 599 L 492 599" marker-end="url(#arrow)"/>
+            <path d="M 483 712 L 483 689 L 502 689 L 502 358 L 529 358 L 529 336" marker-end="url(#arrow)"/>
+            <path d="M 514 442 L 492 442" marker-end="url(#arrow)"/>
+          </g>
+
+          <!-- ===================== TABLE BOXES ===================== -->
+          <!-- L1 · Référentiels -->
+          <g>
+            <rect x="260" y="70" width="230" height="98" rx="9" style="fill:var(--sch-z1-fill);stroke:var(--sch-z1-stroke)" stroke-width="1.6"/>
+            <text x="274" y="93" style="font:700 13.5px 'IBM Plex Mono';fill:var(--sch-z1-text)">ref_academie_scrutins</text>
+            <line x1="274" y1="101" x2="476" y2="101" style="stroke:var(--sch-z1-stroke)" opacity="0.35"/>
+            <text x="274" y="118" style="font:600 11.5px 'IBM Plex Mono';fill:var(--ink)">academie · PK</text>
+            <text x="274" y="136" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">type_1d</text>
+            <text x="274" y="154" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">type_2d</text>
+          </g>
+
+          <g>
+            <rect x="514" y="70" width="230" height="98" rx="9" style="fill:var(--sch-z1-fill);stroke:var(--sch-z1-stroke)" stroke-width="1.6"/>
+            <text x="528" y="93" style="font:700 13.5px 'IBM Plex Mono';fill:var(--sch-z1-text)">ref_spelc</text>
+            <line x1="528" y1="101" x2="730" y2="101" style="stroke:var(--sch-z1-stroke)" opacity="0.35"/>
+            <text x="528" y="118" style="font:600 11.5px 'IBM Plex Mono';fill:var(--ink)">spelc · PK</text>
+            <text x="528" y="136" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">accord</text>
+            <text x="528" y="154" style="font:400 italic 11.5px 'IBM Plex Mono';fill:var(--muted)">~academie</text>
+          </g>
+
+          <g>
+            <rect x="768" y="70" width="230" height="98" rx="9" style="fill:var(--sch-z1-fill);stroke:var(--sch-z1-stroke)" stroke-width="1.6"/>
+            <text x="782" y="93" style="font:700 13.5px 'IBM Plex Mono';fill:var(--sch-z1-text)">ref_departements</text>
+            <line x1="782" y1="101" x2="984" y2="101" style="stroke:var(--sch-z1-stroke)" opacity="0.35"/>
+            <text x="782" y="118" style="font:600 11.5px 'IBM Plex Mono';fill:var(--ink)">departement · PK</text>
+            <text x="782" y="136" style="font:400 italic 11.5px 'IBM Plex Mono';fill:var(--muted)">~spelc</text>
+            <text x="782" y="154" style="font:400 italic 11.5px 'IBM Plex Mono';fill:var(--muted)">~academie</text>
+          </g>
+
+          <!-- L2 · Comptes -->
+          <g>
+            <rect x="514" y="218" width="230" height="116" rx="9" style="fill:var(--sch-z2-fill);stroke:var(--sch-z2-stroke)" stroke-width="1.6"/>
+            <text x="528" y="241" style="font:700 13.5px 'IBM Plex Mono';fill:var(--sch-z2-text)">users</text>
+            <line x1="528" y1="249" x2="730" y2="249" style="stroke:var(--sch-z2-stroke)" opacity="0.35"/>
+            <text x="528" y="266" style="font:600 11.5px 'IBM Plex Mono';fill:var(--ink)">id · PK</text>
+            <text x="528" y="284" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">email · role</text>
+            <text x="528" y="302" style="font:400 italic 11.5px 'IBM Plex Mono';fill:var(--muted)">~spelc · ~academie</text>
+            <text x="528" y="320" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">brevo_api_key</text>
+          </g>
+
+          <!-- L3 · Résultats & adhérents -->
+          <g>
+            <rect x="260" y="384" width="230" height="116" rx="9" style="fill:var(--sch-z3-fill);stroke:var(--sch-z3-stroke)" stroke-width="1.6"/>
+            <text x="274" y="407" style="font:700 13.5px 'IBM Plex Mono';fill:var(--sch-z3-text)">imports</text>
+            <line x1="274" y1="415" x2="476" y2="415" style="stroke:var(--sch-z3-stroke)" opacity="0.35"/>
+            <text x="274" y="432" style="font:600 11.5px 'IBM Plex Mono';fill:var(--ink)">id · PK</text>
+            <text x="274" y="450" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">scope · degre</text>
+            <text x="274" y="468" style="font:400 italic 11.5px 'IBM Plex Mono';fill:var(--muted)">~academie</text>
+            <text x="274" y="486" style="font:500 11.5px 'IBM Plex Mono';fill:var(--primary)">imported_by → users</text>
+          </g>
+
+          <g>
+            <rect x="514" y="384" width="230" height="116" rx="9" style="fill:var(--sch-z3-fill);stroke:var(--sch-z3-stroke)" stroke-width="1.6"/>
+            <text x="528" y="407" style="font:700 13.5px 'IBM Plex Mono';fill:var(--sch-z3-text)">emargements</text>
+            <line x1="528" y1="415" x2="730" y2="415" style="stroke:var(--sch-z3-stroke)" opacity="0.35"/>
+            <text x="528" y="432" style="font:600 11.5px 'IBM Plex Mono';fill:var(--ink)">id · PK</text>
+            <text x="528" y="450" style="font:400 italic 11.5px 'IBM Plex Mono';fill:var(--muted)">~spelc · ~academie</text>
+            <text x="528" y="468" style="font:500 11.5px 'IBM Plex Mono';fill:var(--primary)">import_id → imports</text>
+            <text x="528" y="486" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">votant, nom_norm</text>
+          </g>
+
+          <g>
+            <rect x="768" y="384" width="230" height="116" rx="9" style="fill:var(--sch-z3-fill);stroke:var(--sch-z3-stroke)" stroke-width="1.6"/>
+            <text x="782" y="407" style="font:700 13.5px 'IBM Plex Mono';fill:var(--sch-z3-text)">adherents</text>
+            <line x1="782" y1="415" x2="984" y2="415" style="stroke:var(--sch-z3-stroke)" opacity="0.35"/>
+            <text x="782" y="432" style="font:600 11.5px 'IBM Plex Mono';fill:var(--ink)">id · PK</text>
+            <text x="782" y="450" style="font:400 italic 11.5px 'IBM Plex Mono';fill:var(--muted)">~spelc</text>
+            <text x="782" y="468" style="font:500 11.5px 'IBM Plex Mono';fill:var(--primary)">uploaded_by → users</text>
+            <text x="782" y="486" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">mail · mobile</text>
+          </g>
+
+          <!-- L4 · PSA -->
+          <g>
+            <rect x="260" y="550" width="230" height="98" rx="9" style="fill:var(--sch-z4-fill);stroke:var(--sch-z4-stroke)" stroke-width="1.6"/>
+            <text x="274" y="573" style="font:700 13.5px 'IBM Plex Mono';fill:var(--sch-z4-text)">psa</text>
+            <line x1="274" y1="581" x2="476" y2="581" style="stroke:var(--sch-z4-stroke)" opacity="0.35"/>
+            <text x="274" y="598" style="font:600 11.5px 'IBM Plex Mono';fill:var(--ink)">id · PK</text>
+            <text x="274" y="616" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">nom · prenom</text>
+            <text x="274" y="634" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">email · mobile</text>
+          </g>
+
+          <g>
+            <rect x="514" y="550" width="230" height="116" rx="9" style="fill:var(--sch-z4-fill);stroke:var(--sch-z4-stroke)" stroke-width="1.6"/>
+            <text x="528" y="573" style="font:700 13.5px 'IBM Plex Mono';fill:var(--sch-z4-text)">psa_emargements</text>
+            <line x1="528" y1="581" x2="730" y2="581" style="stroke:var(--sch-z4-stroke)" opacity="0.35"/>
+            <text x="528" y="598" style="font:600 11.5px 'IBM Plex Mono';fill:var(--ink)">id · PK</text>
+            <text x="528" y="616" style="font:500 11.5px 'IBM Plex Mono';fill:var(--primary)">run_id → psa_simulation_runs</text>
+            <text x="528" y="634" style="font:500 11.5px 'IBM Plex Mono';fill:var(--primary)">psa_id → psa</text>
+            <text x="528" y="652" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">scrutin, date</text>
+          </g>
+
+          <g>
+            <rect x="768" y="550" width="230" height="98" rx="9" style="fill:var(--sch-z4-fill);stroke:var(--sch-z4-stroke)" stroke-width="1.6"/>
+            <text x="782" y="573" style="font:700 13.5px 'IBM Plex Mono';fill:var(--sch-z4-text)">psa_simulation_runs</text>
+            <line x1="782" y1="581" x2="984" y2="581" style="stroke:var(--sch-z4-stroke)" opacity="0.35"/>
+            <text x="782" y="598" style="font:600 11.5px 'IBM Plex Mono';fill:var(--ink)">id · PK</text>
+            <text x="782" y="616" style="font:500 11.5px 'IBM Plex Mono';fill:var(--primary)">run_by → users</text>
+            <text x="782" y="634" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">run_at, description</text>
+          </g>
+
+          <g>
+            <rect x="1022" y="550" width="230" height="80" rx="9" style="fill:var(--sch-z4-fill);stroke:var(--sch-z4-stroke)" stroke-width="1.6"/>
+            <text x="1036" y="573" style="font:700 13px 'IBM Plex Mono';fill:var(--sch-z4-text)">psa_email_template</text>
+            <line x1="1036" y1="581" x2="1238" y2="581" style="stroke:var(--sch-z4-stroke)" opacity="0.35"/>
+            <text x="1036" y="598" style="font:600 11.5px 'IBM Plex Mono';fill:var(--ink)">id · PK (=1)</text>
+            <text x="1036" y="616" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">subject, body</text>
+          </g>
+
+          <g>
+            <rect x="1276" y="550" width="230" height="80" rx="9" style="fill:var(--sch-z4-fill);stroke:var(--sch-z4-stroke)" stroke-width="1.6"/>
+            <text x="1290" y="573" style="font:700 13px 'IBM Plex Mono';fill:var(--sch-z4-text)">psa_sms_template</text>
+            <line x1="1290" y1="581" x2="1492" y2="581" style="stroke:var(--sch-z4-stroke)" opacity="0.35"/>
+            <text x="1290" y="598" style="font:600 11.5px 'IBM Plex Mono';fill:var(--ink)">id · PK (=1)</text>
+            <text x="1290" y="616" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">body</text>
+          </g>
+
+          <!-- L5 · Relances / Brevo -->
+          <g>
+            <rect x="260" y="712" width="230" height="116" rx="9" style="fill:var(--sch-z5-fill);stroke:var(--sch-z5-stroke)" stroke-width="1.6"/>
+            <text x="274" y="735" style="font:700 13px 'IBM Plex Mono';fill:var(--sch-z5-text)">relance_tracking</text>
+            <line x1="274" y1="743" x2="476" y2="743" style="stroke:var(--sch-z5-stroke)" opacity="0.35"/>
+            <text x="274" y="760" style="font:600 11.5px 'IBM Plex Mono';fill:var(--ink)">id · PK</text>
+            <text x="274" y="778" style="font:500 11.5px 'IBM Plex Mono';fill:var(--primary)">owner_user_id → users</text>
+            <text x="274" y="796" style="font:400 italic 11.5px 'IBM Plex Mono';fill:var(--muted)">~scope (spelc | 'PSA')</text>
+            <text x="274" y="814" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">type, statut, clics</text>
+          </g>
+
+          <g>
+            <rect x="514" y="712" width="230" height="80" rx="9" style="fill:var(--sch-z5-fill);stroke:var(--sch-z5-stroke)" stroke-width="1.6"/>
+            <text x="528" y="735" style="font:700 13px 'IBM Plex Mono';fill:var(--sch-z5-text)">email_templates</text>
+            <line x1="528" y1="743" x2="730" y2="743" style="stroke:var(--sch-z5-stroke)" opacity="0.35"/>
+            <text x="528" y="760" style="font:600 11.5px 'IBM Plex Mono';fill:var(--ink)">spelc · PK</text>
+            <text x="528" y="778" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">subject, body</text>
+          </g>
+
+          <g>
+            <rect x="768" y="712" width="230" height="80" rx="9" style="fill:var(--sch-z5-fill);stroke:var(--sch-z5-stroke)" stroke-width="1.6"/>
+            <text x="782" y="735" style="font:700 13px 'IBM Plex Mono';fill:var(--sch-z5-text)">sms_templates</text>
+            <line x1="782" y1="743" x2="984" y2="743" style="stroke:var(--sch-z5-stroke)" opacity="0.35"/>
+            <text x="782" y="760" style="font:600 11.5px 'IBM Plex Mono';fill:var(--ink)">spelc · PK</text>
+            <text x="782" y="778" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">body</text>
+          </g>
+
+          <g>
+            <rect x="1022" y="712" width="230" height="98" rx="9" style="fill:var(--sch-z5-fill);stroke:var(--sch-z5-stroke)" stroke-width="1.6"/>
+            <text x="1036" y="735" style="font:700 13px 'IBM Plex Mono';fill:var(--sch-z5-text)">spelc_settings</text>
+            <line x1="1036" y1="743" x2="1238" y2="743" style="stroke:var(--sch-z5-stroke)" opacity="0.35"/>
+            <text x="1036" y="760" style="font:600 11.5px 'IBM Plex Mono';fill:var(--ink)">spelc · PK</text>
+            <text x="1036" y="778" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">logo, reseaux_sociaux</text>
+            <text x="1036" y="796" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">test_email, test_mobile</text>
+          </g>
+
+          <g>
+            <rect x="260" y="856" width="230" height="98" rx="9" style="fill:var(--sch-z5-fill);stroke:var(--sch-z5-stroke)" stroke-width="1.6"/>
+            <text x="274" y="879" style="font:700 13px 'IBM Plex Mono';fill:var(--sch-z5-text)">relances_mail</text>
+            <line x1="274" y1="887" x2="476" y2="887" style="stroke:var(--sch-z5-stroke)" opacity="0.35"/>
+            <text x="274" y="904" style="font:600 11.5px 'IBM Plex Mono';fill:var(--ink)">id · PK</text>
+            <text x="274" y="922" style="font:400 italic 11.5px 'IBM Plex Mono';fill:var(--muted)">~spelc</text>
+            <text x="274" y="940" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">campagne_tag, stats</text>
+          </g>
+
+          <g>
+            <rect x="514" y="856" width="230" height="98" rx="9" style="fill:var(--sch-z5-fill);stroke:var(--sch-z5-stroke)" stroke-width="1.6"/>
+            <text x="528" y="879" style="font:700 13px 'IBM Plex Mono';fill:var(--sch-z5-text)">relances_sms</text>
+            <line x1="528" y1="887" x2="730" y2="887" style="stroke:var(--sch-z5-stroke)" opacity="0.35"/>
+            <text x="528" y="904" style="font:600 11.5px 'IBM Plex Mono';fill:var(--ink)">id · PK</text>
+            <text x="528" y="922" style="font:400 italic 11.5px 'IBM Plex Mono';fill:var(--muted)">~spelc</text>
+            <text x="528" y="940" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">campagne_tag, stats</text>
+          </g>
+
+          <g>
+            <rect x="768" y="856" width="230" height="80" rx="9" style="fill:var(--sch-z5-fill);stroke:var(--sch-z5-stroke)" stroke-width="1.6"/>
+            <text x="782" y="879" style="font:700 13px 'IBM Plex Mono';fill:var(--sch-z5-text)">app_settings</text>
+            <line x1="782" y1="887" x2="984" y2="887" style="stroke:var(--sch-z5-stroke)" opacity="0.35"/>
+            <text x="782" y="904" style="font:600 11.5px 'IBM Plex Mono';fill:var(--ink)">key · PK</text>
+            <text x="782" y="922" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">value (global, hors spelc)</text>
+          </g>
+
+          <!-- L6 · Configuration -->
+          <g>
+            <rect x="260" y="1000" width="230" height="98" rx="9" style="fill:var(--sch-z6-fill);stroke:var(--sch-z6-stroke)" stroke-width="1.6"/>
+            <text x="274" y="1023" style="font:700 13px 'IBM Plex Mono';fill:var(--sch-z6-text)">scraping_config</text>
+            <line x1="274" y1="1031" x2="476" y2="1031" style="stroke:var(--sch-z6-stroke)" opacity="0.35"/>
+            <text x="274" y="1048" style="font:600 11.5px 'IBM Plex Mono';fill:var(--ink)">academie · PK ('' = nat.)</text>
+            <text x="274" y="1066" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">portal_url</text>
+            <text x="274" y="1084" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">identifiants chiffrés</text>
+          </g>
+        </svg>
+          <figcaption>
+            20 tables SQLite regroupées en six domaines. Flèches pleines : clé étrangère déclarée (<code>REFERENCES</code>) et contrainte par SQLite (<code>PRAGMA foreign_keys = ON</code>), avec suppression en cascade pour les tables filles d'un import ou d'une simulation PSA. Liserés pointillés en marge gauche : rapprochement par valeur texte partagée — ambre pour <b style="color:var(--sch-rail-spelc)">spelc</b>, sarcelle pour <b style="color:var(--sch-rail-academie)">académie</b> — jamais contraint par le moteur, uniquement joint dans les requêtes applicatives. Une colonne préfixée <code>~</code> dans une table indique ce type de rapprochement.
+          </figcaption>
+        </figure>
+      </div>
+    </div>
+  </div>
+
+  <div class="db-legend">
+    <div class="db-legend-item">
+      <svg class="mark" width="34" height="14" viewBox="0 0 34 14"><line x1="1" y1="7" x2="27" y2="7" style="stroke:var(--primary)" stroke-width="2.4"/><polygon points="27,3 34,7 27,11" style="fill:var(--primary)"/></svg>
+      <div><b>Flèche pleine</b><span class="sub">Clé étrangère déclarée en SQL et contrainte par SQLite (ex. <code>emargements.import_id → imports.id</code>, suppression en cascade).</span></div>
+    </div>
+    <div class="db-legend-item">
+      <svg class="mark" width="34" height="14" viewBox="0 0 34 14"><line x1="1" y1="7" x2="33" y2="7" style="stroke:var(--sch-rail-spelc)" stroke-width="1.8" stroke-dasharray="2 4"/></svg>
+      <div><b>Liseré pointillé</b><span class="sub">Rapprochement par colonne texte (<code>spelc</code> ou <code>academie</code>) partagée avec un référentiel — pas de contrainte, juste une convention utilisée dans les requêtes.</span></div>
+    </div>
+    <div class="db-legend-item">
+      <svg class="mark" width="16" height="16" viewBox="0 0 16 16"><rect x="1" y="1" width="14" height="14" rx="3" style="fill:var(--sch-z2-fill);stroke:var(--sch-z2-stroke)" stroke-width="1.4"/></svg>
+      <div><b>Couleur de bloc</b><span class="sub">Domaine fonctionnel de la table (voir les six libellés de zone sur le diagramme).</span></div>
+    </div>
+    <div class="db-legend-item">
+      <svg class="mark" width="16" height="16" viewBox="0 0 16 16"><text x="0" y="12" style="font:600 11px 'IBM Plex Mono';fill:var(--ink)">PK</text></svg>
+      <div><b>Suffixe PK</b><span class="sub">Colonne clé primaire de la table (<code>INTEGER PRIMARY KEY AUTOINCREMENT</code> le plus souvent, parfois une clé texte comme <code>spelc</code>).</span></div>
+    </div>
+  </div>
+
+  <footer>
+    <span>Système de suivi des élections professionnelles CCM — Spelc</span>
+    <span>CCMMEP &amp; scrutins académiques · 3 → 10 décembre 2026</span>
+  </footer>
+</div>
+
+</body></html>

@@ -18,6 +18,7 @@ import type { AcademieNode, CourbePoint, ImportRecord, ManagedUser } from "../li
 import type { SocialLinks } from "../lib/socialLinks";
 
 const TABS = [
+  "Descriptif applicatif",
   "Vue nationale",
   "Résultats CCM 2022",
   "Scrutins",
@@ -51,6 +52,7 @@ export function AdminGeneralDashboard() {
         ))}
       </div>
 
+      {tab === "Descriptif applicatif" && <DescriptifApplicatifTab />}
       {tab === "Vue nationale" && <VueNationale />}
       {tab === "Résultats CCM 2022" && <Ccm2022MapPanel />}
       {tab === "Scrutins" && <ScrutinsTab scope="national" />}
@@ -63,6 +65,19 @@ export function AdminGeneralDashboard() {
       {tab === "Assistant IA" && <ChatAssistantPanel />}
       {tab === "Journée des PSA le 16 septembre 2026" && <PsaPanel />}
     </div>
+  );
+}
+
+/** Note de synthèse de l'application (fonctionnalités par profil, stack technique,
+ * schéma de base de données) — page HTML statique servie telle quelle, éditée en
+ * dehors du code source de l'application. */
+function DescriptifApplicatifTab() {
+  return (
+    <iframe
+      src="/descriptif-applicatif.html"
+      title="Descriptif applicatif"
+      className="h-[calc(100vh-180px)] w-full rounded-md border border-slate-200"
+    />
   );
 }
 
