@@ -3,10 +3,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-// Volume persistant (backend_data:/app/data en production) : contrairement à
-// backend/assets (image-baked, remplacé à chaque rebuild), ce qui est écrit
-// ici survit aux redéploiements.
-export const UPLOADS_DIR = path.resolve(__dirname, "../../data/uploads/logos");
+// Volume persistant (backend_data:/app/data en production, UPLOADS_DIR fixé par le
+// Dockerfile) : contrairement à backend/assets (image-baked, remplacé à chaque rebuild),
+// ce qui est écrit ici doit survivre aux redéploiements — le repli relatif ne sert qu'en
+// dev, où il ne pointait pas dans le volume monté et perdait les logos à chaque rebuild.
+export const UPLOADS_DIR = process.env.UPLOADS_DIR ?? path.resolve(__dirname, "../../data/uploads/logos");
 
 const EXT_BY_MIME: Record<string, string> = {
   "image/png": "png",

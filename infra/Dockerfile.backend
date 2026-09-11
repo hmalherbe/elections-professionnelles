@@ -22,6 +22,9 @@ RUN npm run build --workspace backend
 
 ENV NODE_ENV=production
 ENV DATABASE_PATH=/app/data/elections.sqlite
+ENV DOCUMENTS_DIR=/app/data/uploads/documents
+ENV UPLOADS_DIR=/app/data/uploads/logos
+ENV RELANCE_LOG_PATH=/app/data/relances.log
 VOLUME ["/app/data"]
 
 EXPOSE 4000

@@ -4,8 +4,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-// Volume persistant (backend_data:/app/data en production), comme lib/uploads.ts.
-export const DOCUMENTS_DIR = path.resolve(__dirname, "../../data/uploads/documents");
+// Volume persistant (backend_data:/app/data en production, DOCUMENTS_DIR fixé par le
+// Dockerfile) — le repli relatif ne sert qu'en dev, où data/ est un sous-dossier réel de
+// backend/. Sans variable d'environnement, ce chemin retombait dans la couche inscriptible
+// du conteneur (hors volume) et les documents étaient perdus à chaque rebuild.
+export const DOCUMENTS_DIR = process.env.DOCUMENTS_DIR ?? path.resolve(__dirname, "../../data/uploads/documents");
 
 /**
  * Écrit un document uploadé sur disque sous un nom de fichier aléatoire —
