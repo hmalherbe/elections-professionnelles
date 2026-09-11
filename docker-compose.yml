@@ -13,6 +13,9 @@ services:
       MOCK_PORTAL_PASSWORD: ${MOCK_PORTAL_PASSWORD}
       SYSTEM_EMAIL_BREVO_API_KEY: ${SYSTEM_EMAIL_BREVO_API_KEY}
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL}
+      # "full" (par défaut) ou "psa-only" — voir GET /api/config. Ne pas
+      # définir APP_MODE dans .env laisse ce déploiement en mode complet.
+      APP_MODE: ${APP_MODE:-full}
     volumes:
       - backend_data:/app/data
     expose:

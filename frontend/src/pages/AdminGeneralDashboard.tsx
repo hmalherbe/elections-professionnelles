@@ -13,6 +13,7 @@ import { ScrapingPanel } from "../components/ScrapingPanel";
 import { ScrutinsTab } from "../components/ScrutinsTab";
 import { SocialLinksEditor } from "../components/SocialLinksEditor";
 import { api } from "../lib/api";
+import { useAppMode } from "../lib/appMode";
 import { CATEGORICAL } from "../lib/colors";
 import type { AcademieNode, CourbePoint, ImportRecord, ManagedUser } from "../lib/types";
 import type { SocialLinks } from "../lib/socialLinks";
@@ -33,18 +34,26 @@ const TABS = [
 ] as const;
 type Tab = (typeof TABS)[number];
 
+const PSA_TAB: Tab = "Journée des PSA le 16 septembre 2026";
+
 export function AdminGeneralDashboard() {
+  const mode = useAppMode();
   const [tab, setTab] = useState<Tab>("Vue nationale");
+  const visibleTabs = mode === "psa-only" ? [PSA_TAB] : TABS;
+  // En mode psa-only, la seule rubrique visible/sélectionnable est celle des PSA —
+  // dérivé au rendu plutôt que via un effect qui écraserait le choix de l'utilisateur
+  // sur les autres environnements.
+  const activeTab = mode === "psa-only" ? PSA_TAB : tab;
 
   return (
     <div>
       <div className="mb-4 flex flex-wrap gap-2">
-        {TABS.map((t) => (
+        {visibleTabs.map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
             className={`rounded-md px-3 py-1.5 text-sm font-medium ${
-              tab === t ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-100"
+              activeTab === t ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-100"
             } border border-slate-200`}
           >
             {t}
@@ -52,18 +61,18 @@ export function AdminGeneralDashboard() {
         ))}
       </div>
 
-      {tab === "Descriptif applicatif" && <DescriptifApplicatifTab />}
-      {tab === "Vue nationale" && <VueNationale />}
-      {tab === "Résultats CCM 2022" && <Ccm2022MapPanel />}
-      {tab === "Scrutins" && <ScrutinsTab scope="national" />}
-      {tab === "Imports" && <ImportsPanel />}
-      {tab === "Electeurs académiques" && <ElecteursAcademiquesPanel />}
-      {tab === "Utilisateurs" && <UsersPanel />}
-      {tab === "Adhérents" && <AdherentsAdminPanel />}
-      {tab === "Référentiels" && <ReferentielsPanel />}
-      {tab === "Documents" && <DocumentsAdminPanel />}
-      {tab === "Assistant IA" && <ChatAssistantPanel />}
-      {tab === "Journée des PSA le 16 septembre 2026" && <PsaPanel />}
+      {activeTab === "Descriptif applicatif" && <DescriptifApplicatifTab />}
+      {activeTab === "Vue nationale" && <VueNationale />}
+      {activeTab === "Résultats CCM 2022" && <Ccm2022MapPanel />}
+      {activeTab === "Scrutins" && <ScrutinsTab scope="national" />}
+      {activeTab === "Imports" && <ImportsPanel />}
+      {activeTab === "Electeurs académiques" && <ElecteursAcademiquesPanel />}
+      {activeTab === "Utilisateurs" && <UsersPanel />}
+      {activeTab === "Adhérents" && <AdherentsAdminPanel />}
+      {activeTab === "Référentiels" && <ReferentielsPanel />}
+      {activeTab === "Documents" && <DocumentsAdminPanel />}
+      {activeTab === "Assistant IA" && <ChatAssistantPanel />}
+      {activeTab === "Journée des PSA le 16 septembre 2026" && <PsaPanel />}
     </div>
   );
 }
@@ -649,6 +658,17 @@ const DEFAULT_PSA_SMS_TEMPLATE = {
     "{{#if not(CCMMEP_non_votant) and scrutin_local_non_votant}} au {{scrutin_local}}{{/if}} avant le 10/12.",
 };
 
+/** Environnement "psa-only" (port 8081) : pas de logo ni de champs liés au
+ * statut de vote, uniquement {{nom}}/{{prenom}}. */
+const DEFAULT_PSA_EMAIL_TEMPLATE_SIMPLE = {
+  subject: "Rappel : votez aux élections professionnelles 2026",
+  body: "Bonjour {{prenom}} {{nom}},\n\nmerci de voter aux élections professionnelles.",
+};
+
+const DEFAULT_PSA_SMS_TEMPLATE_SIMPLE = {
+  body: "Elections pro 2026 : {{prenom}}, pensez à voter avant le 10/12.",
+};
+
 interface RelanceLogEntry {
   timestamp: string;
   type: "mail" | "sms";
@@ -668,6 +688,7 @@ interface RelanceLogEntry {
 }
 
 function PsaPanel() {
+  const mode = useAppMode();
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [runId, setRunId] = useState<number | null>(null);
@@ -727,18 +748,22 @@ function PsaPanel() {
               <p className="text-xs text-slate-500">PSA</p>
               <p className="text-lg font-semibold">{summary.totalPsa}</p>
             </div>
-            <div className="rounded-md bg-slate-50 p-3">
-              <p className="text-xs text-slate-500">Votants CCMMEP</p>
-              <p className="text-lg font-semibold">
-                {summary.votedNational} ({(summary.tauxNational * 100).toFixed(0)}%)
-              </p>
-            </div>
-            <div className="rounded-md bg-slate-50 p-3">
-              <p className="text-xs text-slate-500">Votants scrutin local</p>
-              <p className="text-lg font-semibold">
-                {summary.votedLocal} ({(summary.tauxLocal * 100).toFixed(0)}%)
-              </p>
-            </div>
+            {mode !== "psa-only" && (
+              <>
+                <div className="rounded-md bg-slate-50 p-3">
+                  <p className="text-xs text-slate-500">Votants CCMMEP</p>
+                  <p className="text-lg font-semibold">
+                    {summary.votedNational} ({(summary.tauxNational * 100).toFixed(0)}%)
+                  </p>
+                </div>
+                <div className="rounded-md bg-slate-50 p-3">
+                  <p className="text-xs text-slate-500">Votants scrutin local</p>
+                  <p className="text-lg font-semibold">
+                    {summary.votedLocal} ({(summary.tauxLocal * 100).toFixed(0)}%)
+                  </p>
+                </div>
+              </>
+            )}
           </div>
         )}
       </Card>
@@ -746,8 +771,12 @@ function PsaPanel() {
       <PsaBrevoSettings />
       <PsaTemplates />
       {runId && <PsaRelanceSection runId={runId} onSent={() => setLogRefreshKey((k) => k + 1)} />}
-      <PsaRelanceCharts key={`charts-${logRefreshKey}`} />
-      <RelanceLogPanel key={logRefreshKey} />
+      {mode !== "psa-only" && (
+        <>
+          <PsaRelanceCharts key={`charts-${logRefreshKey}`} />
+          <RelanceLogPanel key={logRefreshKey} />
+        </>
+      )}
     </div>
   );
 }
@@ -834,6 +863,7 @@ function findSmsCredits(plan: BrevoPlanEntry[] | null): number | null {
 }
 
 function PsaBrevoSettings() {
+  const mode = useAppMode();
   const [configured, setConfigured] = useState(false);
   const [maskedKey, setMaskedKey] = useState<string | null>(null);
   const [apiKey, setApiKey] = useState("");
@@ -868,7 +898,7 @@ function PsaBrevoSettings() {
   useEffect(refresh, []);
 
   return (
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+    <div className={`grid grid-cols-1 gap-4 ${mode === "psa-only" ? "" : "md:grid-cols-2"}`}>
       <Card
         title="Clé API Brevo (relances PSA)"
         subtitle={configured ? `Configurée (${maskedKey})` : "Non configurée — indépendante des clés des Spelcs"}
@@ -924,49 +954,52 @@ function PsaBrevoSettings() {
         {planError && <p className="mt-2 text-sm text-red-600">{planError}</p>}
       </Card>
 
-      <Card
-        title="Mail / mobile de test (global)"
-        subtitle="Utilisés partout où le mode test est activé : campagnes Brevo des Spelcs et relances PSA"
-      >
-        <div className="space-y-2">
-          <div>
-            <label className="block text-xs font-medium text-slate-500">Mail de test</label>
-            <input
-              type="email"
-              placeholder="moi@exemple.fr"
-              className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-              value={testEmail}
-              onChange={(e) => setTestEmail(e.target.value)}
-            />
+      {mode !== "psa-only" && (
+        <Card
+          title="Mail / mobile de test (global)"
+          subtitle="Utilisés partout où le mode test est activé : campagnes Brevo des Spelcs et relances PSA"
+        >
+          <div className="space-y-2">
+            <div>
+              <label className="block text-xs font-medium text-slate-500">Mail de test</label>
+              <input
+                type="email"
+                placeholder="moi@exemple.fr"
+                className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+                value={testEmail}
+                onChange={(e) => setTestEmail(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-500">Mobile de test</label>
+              <input
+                type="tel"
+                placeholder="06 00 00 00 00"
+                className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+                value={testMobile}
+                onChange={(e) => setTestMobile(e.target.value)}
+              />
+            </div>
+            <button
+              className="rounded-md bg-slate-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-900"
+              onClick={async () => {
+                await api.put("/admin/test-settings", { testEmail, testMobile });
+                setSaved("Enregistré.");
+                setTimeout(() => setSaved(null), 2000);
+              }}
+            >
+              Enregistrer
+            </button>
+            {saved && <span className="ml-2 text-sm text-emerald-600">{saved}</span>}
           </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-500">Mobile de test</label>
-            <input
-              type="tel"
-              placeholder="06 00 00 00 00"
-              className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-              value={testMobile}
-              onChange={(e) => setTestMobile(e.target.value)}
-            />
-          </div>
-          <button
-            className="rounded-md bg-slate-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-900"
-            onClick={async () => {
-              await api.put("/admin/test-settings", { testEmail, testMobile });
-              setSaved("Enregistré.");
-              setTimeout(() => setSaved(null), 2000);
-            }}
-          >
-            Enregistrer
-          </button>
-          {saved && <span className="ml-2 text-sm text-emerald-600">{saved}</span>}
-        </div>
-      </Card>
+        </Card>
+      )}
     </div>
   );
 }
 
 function PsaTemplates() {
+  const mode = useAppMode();
   const [emailTemplate, setEmailTemplate] = useState({ subject: "", body: "" });
   const [smsTemplate, setSmsTemplate] = useState({ body: "" });
   const [branding, setBranding] = useState<{ logoDataUri: string | null; socialLinks: SocialLinks }>({
@@ -1018,35 +1051,41 @@ function PsaTemplates() {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <LogoUploadCard
-          title="Logo (entête des mails PSA)"
-          currentLogo={branding.logoDataUri}
-          onSave={async (dataUri) => {
-            await api.put("/psa/branding", { logoDataUri: dataUri });
-            setBranding((b) => ({ ...b, logoDataUri: dataUri }));
-          }}
-        />
-        <SocialLinksEditor
-          value={branding.socialLinks}
-          onSave={async (links) => {
-            await api.put("/psa/branding", { socialLinks: links });
-            setBranding((b) => ({ ...b, socialLinks: links }));
-          }}
-        />
-      </div>
+      {mode !== "psa-only" && (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <LogoUploadCard
+            title="Logo (entête des mails PSA)"
+            currentLogo={branding.logoDataUri}
+            onSave={async (dataUri) => {
+              await api.put("/psa/branding", { logoDataUri: dataUri });
+              setBranding((b) => ({ ...b, logoDataUri: dataUri }));
+            }}
+          />
+          <SocialLinksEditor
+            value={branding.socialLinks}
+            onSave={async (links) => {
+              await api.put("/psa/branding", { socialLinks: links });
+              setBranding((b) => ({ ...b, socialLinks: links }));
+            }}
+          />
+        </div>
+      )}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Card
           title="Modèle de mail de relance PSA"
           subtitle={
-            "Champs : {{nom}} {{prenom}} {{scrutin_local}} · {{CCMMEP_non_votant}} {{scrutin_local_non_votant}} · " +
-            "{{logo}} {{reseaux_sociaux}} · {{#if expr}}…{{else}}…{{/if}} avec expr combinant and/or/not(...)"
+            mode === "psa-only"
+              ? "Champs : {{nom}} {{prenom}}"
+              : "Champs : {{nom}} {{prenom}} {{scrutin_local}} · {{CCMMEP_non_votant}} {{scrutin_local_non_votant}} · " +
+                "{{logo}} {{reseaux_sociaux}} · {{#if expr}}…{{else}}…{{/if}} avec expr combinant and/or/not(...)"
           }
         >
           <button
             type="button"
             className="mb-2 rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
-            onClick={() => setEmailTemplate(DEFAULT_PSA_EMAIL_TEMPLATE)}
+            onClick={() =>
+              setEmailTemplate(mode === "psa-only" ? DEFAULT_PSA_EMAIL_TEMPLATE_SIMPLE : DEFAULT_PSA_EMAIL_TEMPLATE)
+            }
           >
             Charger le modèle prégarni
           </button>
@@ -1081,18 +1120,28 @@ function PsaTemplates() {
         </Card>
         <Card
           title="Modèle de SMS de relance PSA"
-          subtitle="Mêmes champs que le mail : {{nom}} {{prenom}} {{scrutin_local}} · {{CCMMEP_non_votant}} {{scrutin_local_non_votant}}"
+          subtitle={
+            mode === "psa-only"
+              ? "Mêmes champs que le mail : {{nom}} {{prenom}}"
+              : "Mêmes champs que le mail : {{nom}} {{prenom}} {{scrutin_local}} · {{CCMMEP_non_votant}} {{scrutin_local_non_votant}}"
+          }
         >
           <button
             type="button"
             className="mb-2 rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
-            onClick={() => setSmsTemplate(DEFAULT_PSA_SMS_TEMPLATE)}
+            onClick={() =>
+              setSmsTemplate(mode === "psa-only" ? DEFAULT_PSA_SMS_TEMPLATE_SIMPLE : DEFAULT_PSA_SMS_TEMPLATE)
+            }
           >
             Charger le modèle prégarni
           </button>
           <textarea
             className="h-40 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-            placeholder="{{prenom}}, pensez à voter au {{scrutin_local}} avant le 10/12."
+            placeholder={
+              mode === "psa-only"
+                ? "{{prenom}}, pensez à voter avant le 10/12."
+                : "{{prenom}}, pensez à voter au {{scrutin_local}} avant le 10/12."
+            }
             value={smsTemplate.body}
             onChange={(e) => setSmsTemplate({ body: e.target.value })}
           />

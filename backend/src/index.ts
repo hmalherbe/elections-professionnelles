@@ -26,6 +26,12 @@ app.use(express.json({ limit: "5mb" }));
 
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 
+// Mode d'affichage de cette instance (APP_MODE) : "full" (par défaut) ou
+// "psa-only", pour un environnement dédié réduit à l'onglet PSA de l'admin
+// général (voir infra/docker-compose : même code, config différente par
+// déploiement). Public — aucune donnée sensible, juste un nom de mode.
+app.get("/api/config", (_req, res) => res.json({ mode: process.env.APP_MODE === "psa-only" ? "psa-only" : "full" }));
+
 // Pictogrammes réseaux sociaux des mails de relance : servis en fichiers
 // réels à une URL publique absolue (voir lib/socialLinks.ts) plutôt qu'en
 // data URI, que de nombreux clients mail (Gmail, Outlook.com...) bloquent.
