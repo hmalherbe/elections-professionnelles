@@ -46,7 +46,10 @@ services:
     depends_on:
       - backend
     ports:
-      - "80:80"
+      # Port hôte exposé, 80 par défaut (prod). Sur un déploiement secondaire
+      # partageant le même serveur qu'une prod déjà sur le port 80 (ex. la
+      # sandbox "relance-only"), définir FRONTEND_PORT dans .env (ex. 8080).
+      - "${FRONTEND_PORT:-80}:80"
 
 volumes:
   backend_data:
