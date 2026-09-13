@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { db, migrate } from "./index.js";
-import { loadDepartementsWorkbook, loadAcademieScrutinsWorkbook, loadPsaWorkbook } from "../services/reference.js";
+import { loadDepartementsWorkbook, loadAcademieScrutinsWorkbook } from "../services/reference.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const seedDir = path.resolve(__dirname, "../../../seed-data");
@@ -34,12 +34,6 @@ async function main(): Promise<void> {
   if (fs.existsSync(scrutinsFile)) {
     const result = await loadAcademieScrutinsWorkbook(fs.readFileSync(scrutinsFile));
     console.log(`Référentiel scrutins académiques chargé : ${result.count} académies.`);
-  }
-
-  const psaFile = path.join(seedDir, "psa.xlsx");
-  if (fs.existsSync(psaFile)) {
-    const result = await loadPsaWorkbook(fs.readFileSync(psaFile));
-    console.log(`Liste des PSA chargée : ${result.count} présidents.`);
   }
 
   console.log("Seed terminé.");

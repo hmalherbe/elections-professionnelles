@@ -12,7 +12,7 @@ export interface BrevoSendSummary {
   /**
    * Identifiant Brevo du dernier envoi réussi de cette boucle (chaque appel
    * de ce module n'envoie en pratique qu'à un seul destinataire à la fois —
-   * voir les call sites dans routes/psa.ts et routes/brevo.ts), utilisé pour
+   * voir les call sites dans routes/brevo.ts), utilisé pour
    * retrouver plus tard le statut de livraison et les clics de CE destinataire
    * précis via l'API d'évènements Brevo. `null` si l'envoi a échoué ou si
    * Brevo n'a pas renvoyé d'identifiant exploitable.

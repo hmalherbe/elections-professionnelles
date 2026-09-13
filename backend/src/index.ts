@@ -11,7 +11,6 @@ import importsRoutes from "./routes/imports.js";
 import adherentsRoutes from "./routes/adherents.js";
 import statsRoutes from "./routes/stats.js";
 import brevoRoutes from "./routes/brevo.js";
-import psaRoutes from "./routes/psa.js";
 import scrapingRoutes from "./routes/scraping.js";
 import chatRoutes from "./routes/chat.js";
 import documentsRoutes from "./routes/documents.js";
@@ -27,10 +26,32 @@ app.use(express.json({ limit: "5mb" }));
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 
 // Mode d'affichage de cette instance (APP_MODE) : "full" (par défaut) ou
-// "psa-only", pour un environnement dédié réduit à l'onglet PSA de l'admin
-// général (voir infra/docker-compose : même code, config différente par
-// déploiement). Public — aucune donnée sensible, juste un nom de mode.
-app.get("/api/config", (_req, res) => res.json({ mode: process.env.APP_MODE === "psa-only" ? "psa-only" : "full" }));
+// "relance-only", pour un environnement de démonstration réduit à la seule
+// fonctionnalité de relance des adhérents, sans écran de connexion (voir
+// routes/auth.ts POST /demo-login et le verrou de routes ci-dessous). Même
+// code, configuration différente par déploiement (voir docker-compose.yml).
+// Public — aucune donnée sensible, juste un nom de mode.
+const APP_MODE = process.env.APP_MODE === "relance-only" ? "relance-only" : "full";
+app.get("/api/config", (_req, res) => res.json({ mode: APP_MODE }));
+
+/**
+ * Verrou côté serveur du mode "relance-only" : au-delà du masquage des
+ * onglets côté interface, on refuse ici toute route qui ne sert pas
+ * strictement la démonstration de la relance des adhérents — même avec des
+ * identifiants valides d'un autre rôle. Placé avant l'enregistrement des
+ * routes pour s'appliquer uniformément à toutes.
+ */
+if (APP_MODE === "relance-only") {
+  const RELANCE_ONLY_ALLOWED = ["/api/health", "/api/config", "/api/auth/demo-login", "/api/auth/me", "/api/brevo", "/api/uploads/logos"];
+  app.use((req, res, next) => {
+    const allowed = RELANCE_ONLY_ALLOWED.some((p) => req.path === p || req.path.startsWith(`${p}/`));
+    if (!allowed) {
+      res.status(404).json({ error: "Route indisponible sur cet environnement de démonstration." });
+      return;
+    }
+    next();
+  });
+}
 
 // Pictogrammes réseaux sociaux des mails de relance : servis en fichiers
 // réels à une URL publique absolue (voir lib/socialLinks.ts) plutôt qu'en
@@ -38,9 +59,9 @@ app.get("/api/config", (_req, res) => res.json({ mode: process.env.APP_MODE === 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 app.use("/api/assets", express.static(path.resolve(__dirname, "../assets")));
 
-// Logos uploadés par les admins (PSA / Spelc) : mêmes raisons que ci-dessus,
-// mais stockés dans le volume persistant (voir lib/uploads.ts) puisqu'il
-// s'agit de contenu généré à l'exécution, pas d'un fichier versionné.
+// Logos uploadés par les admins Spelc : mêmes raisons que ci-dessus, mais
+// stockés dans le volume persistant (voir lib/uploads.ts) puisqu'il s'agit
+// de contenu généré à l'exécution, pas d'un fichier versionné.
 app.use("/api/uploads/logos", express.static(UPLOADS_DIR));
 
 app.use("/api/auth", authRoutes);
@@ -49,7 +70,6 @@ app.use("/api/imports", importsRoutes);
 app.use("/api/adherents", adherentsRoutes);
 app.use("/api/stats", statsRoutes);
 app.use("/api/brevo", brevoRoutes);
-app.use("/api/psa", psaRoutes);
 app.use("/api/scraping", scrapingRoutes);
 app.use("/api/chat", chatRoutes);
 // Monté avant documentsRoutes : /folders, /zip et /zip-import sont des chemins

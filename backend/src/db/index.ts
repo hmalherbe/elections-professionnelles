@@ -53,15 +53,6 @@ export function migrate(): void {
       type_2d TEXT NOT NULL
     );
 
-    CREATE TABLE IF NOT EXISTS psa (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      type_scrutin TEXT,
-      nom TEXT NOT NULL,
-      prenom TEXT NOT NULL,
-      email TEXT,
-      mobile TEXT
-    );
-
     CREATE TABLE IF NOT EXISTS imports (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       scope TEXT NOT NULL CHECK (scope IN ('national','academique')),
@@ -128,49 +119,18 @@ export function migrate(): void {
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
-    CREATE TABLE IF NOT EXISTS psa_simulation_runs (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      run_at TEXT NOT NULL DEFAULT (datetime('now')),
-      description TEXT,
-      run_by INTEGER REFERENCES users(id)
-    );
-
-    CREATE TABLE IF NOT EXISTS psa_emargements (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      run_id INTEGER NOT NULL REFERENCES psa_simulation_runs(id) ON DELETE CASCADE,
-      psa_id INTEGER NOT NULL REFERENCES psa(id) ON DELETE CASCADE,
-      scrutin TEXT NOT NULL CHECK (scrutin IN ('CCMMEP','LOCAL')),
-      scrutin_type TEXT,
-      date_emargement TEXT
-    );
-    CREATE INDEX IF NOT EXISTS idx_psa_emargements_run ON psa_emargements(run_id);
-
     -- Réglages globaux (admin général) : mail/mobile de test utilisés
-    -- partout où le mode test est actif (campagnes Spelc et relances PSA).
+    -- partout où le mode test est actif.
     CREATE TABLE IF NOT EXISTS app_settings (
       key TEXT PRIMARY KEY,
       value TEXT
-    );
-
-    -- Modèles de relance pour les PSA (nationaux, non rattachés à un Spelc).
-    CREATE TABLE IF NOT EXISTS psa_email_template (
-      id INTEGER PRIMARY KEY CHECK (id = 1),
-      subject TEXT NOT NULL DEFAULT '',
-      body TEXT NOT NULL DEFAULT '',
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-
-    CREATE TABLE IF NOT EXISTS psa_sms_template (
-      id INTEGER PRIMARY KEY CHECK (id = 1),
-      body TEXT NOT NULL DEFAULT '',
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
     -- Réglages propres à un Spelc pour ses campagnes de relance : logo
     -- (image encodée en base64, insérée en entête des mails), réseaux
     -- sociaux (JSON) insérés en pied de mail, et mail/mobile de test propres
     -- à ce Spelc (indépendants du mail/mobile de test global de l'admin
-    -- général, utilisé lui pour les relances PSA).
+    -- général).
     CREATE TABLE IF NOT EXISTS spelc_settings (
       spelc TEXT PRIMARY KEY,
       logo_data_uri TEXT,
@@ -279,6 +239,22 @@ export function migrate(): void {
   addColumnIfMissing("documents", "folder_id", "INTEGER REFERENCES document_folders(id)");
 
   migrateScopeIncludesGeneral();
+  dropPsaTables();
+}
+
+/**
+ * Retire la fonctionnalité "Journée des PSA" (simulation + relances de test) :
+ * supprime les tables dédiées, y compris sur une base déjà déployée où elles
+ * ont été créées par une version antérieure. Idempotent (IF EXISTS).
+ */
+function dropPsaTables(): void {
+  db.exec(`
+    DROP TABLE IF EXISTS psa_emargements;
+    DROP TABLE IF EXISTS psa_simulation_runs;
+    DROP TABLE IF EXISTS psa_email_template;
+    DROP TABLE IF EXISTS psa_sms_template;
+    DROP TABLE IF EXISTS psa;
+  `);
 }
 
 /**

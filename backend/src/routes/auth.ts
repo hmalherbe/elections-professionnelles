@@ -44,6 +44,41 @@ router.get("/me", requireAuth, (req, res) => {
   res.json({ user: req.user });
 });
 
+/**
+ * Connexion automatique, sans identifiants, pour l'environnement de
+ * démonstration "relance-only" (voir index.ts) : donne accès direct au
+ * compte admin Spelc désigné par RELANCE_DEMO_EMAIL, sans écran de
+ * connexion. Volontairement inactive (404) hors de ce mode — voir aussi le
+ * verrou de routes dans index.ts qui bloque tout le reste en relance-only.
+ */
+router.post("/demo-login", (req, res) => {
+  if (process.env.APP_MODE !== "relance-only") {
+    res.status(404).json({ error: "Route introuvable." });
+    return;
+  }
+  const demoEmail = process.env.RELANCE_DEMO_EMAIL;
+  if (!demoEmail) {
+    res.status(500).json({ error: "RELANCE_DEMO_EMAIL n'est pas configuré sur cet environnement." });
+    return;
+  }
+  const row = db
+    .prepare("SELECT * FROM users WHERE email = ? AND role = 'admin_spelc'")
+    .get(demoEmail.toLowerCase()) as UserRow | undefined;
+  if (!row) {
+    res.status(500).json({ error: "Compte de démonstration introuvable (vérifier RELANCE_DEMO_EMAIL)." });
+    return;
+  }
+  const user: AuthUser = {
+    id: row.id,
+    email: row.email,
+    role: row.role,
+    academie: row.academie,
+    spelc: row.spelc,
+    mustChangePassword: false,
+  };
+  res.json({ token: signToken(user), user });
+});
+
 router.put("/change-password", requireAuth, (req, res) => {
   const { currentPassword, newPassword } = req.body ?? {};
   if (!currentPassword || !newPassword) {

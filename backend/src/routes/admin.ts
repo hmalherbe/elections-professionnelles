@@ -6,7 +6,6 @@ import { requireAuth, requireRole } from "../middleware/auth.js";
 import {
   loadAcademieScrutinsWorkbook,
   loadDepartementsWorkbook,
-  loadPsaWorkbook,
   clearDeptCache,
 } from "../services/reference.js";
 import { getTestContactSettings, setSetting } from "../services/settings.js";
@@ -116,19 +115,6 @@ router.post("/reference/academie-scrutins", upload.single("file"), async (req, r
   }
 });
 
-router.post("/reference/psa", upload.single("file"), async (req, res) => {
-  if (!req.file) {
-    res.status(400).json({ error: "Fichier requis." });
-    return;
-  }
-  try {
-    const result = await loadPsaWorkbook(req.file.buffer);
-    res.json(result);
-  } catch (err) {
-    res.status(400).json({ error: (err as Error).message });
-  }
-});
-
 router.get("/reference/academies", (_req, res) => {
   const rows = db
     .prepare(
@@ -147,15 +133,10 @@ router.get("/reference/spelcs", (req, res) => {
   res.json({ spelcs: rows });
 });
 
-router.get("/psa", (_req, res) => {
-  const rows = db.prepare("SELECT * FROM psa ORDER BY nom").all();
-  res.json({ psa: rows });
-});
-
 /**
  * Mail/mobile de test globaux : utilisés partout où le mode test est actif
- * (campagnes Brevo des Spelcs et relances PSA), configurés une seule fois
- * par l'admin général plutôt que ressaisis à chaque écran.
+ * (campagnes Brevo des Spelcs), configurés une seule fois par l'admin
+ * général plutôt que ressaisis à chaque écran.
  */
 router.get("/test-settings", (_req, res) => {
   res.json(getTestContactSettings());
@@ -169,7 +150,7 @@ router.put("/test-settings", (req, res) => {
 });
 
 /**
- * Journal des relances par personne (PSA et Spelcs confondus), avec statut
+ * Journal des relances par personne, tous Spelcs confondus, avec statut
  * d'envoi et clics — mis à jour au fil du temps par le sondage périodique de
  * l'API Brevo (voir services/relanceTracking.ts), jamais disponible en
  * totalité au moment de l'envoi lui-même.

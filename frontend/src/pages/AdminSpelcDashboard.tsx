@@ -226,7 +226,7 @@ function sanitizeSmsSenderInput(value: string): string {
   return value.replace(/[^A-Za-z0-9]/g, "").slice(0, 11);
 }
 
-function BrevoPanel({ spelc }: { spelc: string }) {
+export function BrevoPanel({ spelc }: { spelc: string }) {
   const [configured, setConfigured] = useState(false);
   const [maskedKey, setMaskedKey] = useState<string | null>(null);
   const [apiKey, setApiKey] = useState("");

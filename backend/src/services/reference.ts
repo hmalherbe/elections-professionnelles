@@ -85,34 +85,6 @@ export async function loadAcademieScrutinsWorkbook(buffer: Buffer): Promise<{ co
   return { count };
 }
 
-export async function loadPsaWorkbook(buffer: Buffer): Promise<{ count: number }> {
-  const wb = await loadWorkbook(buffer);
-  const rows = rowsAsObjects(wb.worksheets[0]);
-
-  db.prepare("DELETE FROM psa").run();
-  const insert = db.prepare(
-    `INSERT INTO psa (type_scrutin, nom, prenom, email, mobile) VALUES (?, ?, ?, ?, ?)`
-  );
-  let count = 0;
-  const tx = db.transaction((r: Record<string, unknown>[]) => {
-    for (const row of r) {
-      const values = Object.values(row);
-      const [typeScrutin, nom, prenom, email, mobile] = values;
-      if (!nom || !prenom) continue;
-      insert.run(
-        String(typeScrutin ?? "").trim(),
-        String(nom).trim(),
-        String(prenom).trim(),
-        email ? String(email).trim() : null,
-        mobile ? String(mobile).trim() : null
-      );
-      count++;
-    }
-  });
-  tx(rows);
-  return { count };
-}
-
 export interface DeptLookup {
   spelc: string;
   academie: string;

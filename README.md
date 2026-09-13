@@ -2,8 +2,7 @@
 
 Application de suivi des élections professionnelles (3 au 10 décembre 2026) :
 scrutin national CCMMEP et scrutins académiques locaux, tableaux de bord de
-participation, gestion des adhérents, relances par mail/SMS via Brevo, et
-simulation de la journée des PSA.
+participation, gestion des adhérents, relances par mail/SMS via Brevo.
 
 ## Structure du projet
 
@@ -11,7 +10,7 @@ simulation de la journée des PSA.
 backend/    API Express + TypeScript + SQLite (better-sqlite3)
 frontend/   Application React + TypeScript + Vite + Tailwind
 seed-data/  Référentiels Excel fournis (départements/Spelc/académie,
-            scrutins académiques, PSA) + un échantillon JSON CCMMEP pour
+            scrutins académiques) + un échantillon JSON CCMMEP pour
             les tests
 ```
 
@@ -88,13 +87,14 @@ Le compte admin général créé par le seed :
 | `DATABASE_PATH` | Emplacement du fichier SQLite | `backend/data/elections.sqlite` |
 | `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` | Identifiants du compte admin général créé par le seed | voir ci-dessus |
 | `SCRAPING_SECRET_KEY` | Clé de chiffrement des mots de passe des portails de scraping | reprend `JWT_SECRET` si absent |
+| `APP_MODE` | `full` (par défaut) ou `relance-only` (démo, voir plus bas) | `full` |
+| `RELANCE_DEMO_EMAIL` | Email du compte admin Spelc utilisé en mode `relance-only` | requis seulement dans ce mode |
 
 ## Rôles
 
 - **Admin général** : importe le fichier JSON CCMMEP quotidien, gère les
   comptes admin académique/Spelc, charge les référentiels (départements/Spelc/
-  académie, scrutins académiques, liste des PSA), consulte le tableau de bord
-  national et lance la simulation de la journée PSA.
+  académie, scrutins académiques), consulte le tableau de bord national.
 - **Admin académique** (plusieurs comptes possibles par académie) : importe
   les fichiers JSON 1D et 2D de son académie, consulte les tableaux de bord
   de son académie (scrutin local et/ou national filtré).
@@ -129,9 +129,6 @@ l'admin général, peut changer son mot de passe à tout moment via le bouton
   reconstituer l'historique complet des jours déjà écoulés.
 - **Rapprochement adhérents** : par nom/prénom normalisés (majuscules, sans
   accents), contre les scrutins locaux (1D + 2D réunis) du Spelc.
-- **Simulation PSA** : génère aléatoirement, pour chaque PSA et pour les
-  scrutins CCMMEP + local, une date d'émargement (ou une abstention) répartie
-  sur les 8 jours du scrutin (3 → 10 décembre 2026).
 
 ## Sécurité
 
@@ -158,38 +155,29 @@ admin Spelc. Sans clé configurée, l'envoi est refusé explicitement (aucune
 donnée simulée n'est renvoyée comme si l'envoi avait eu lieu).
 
 Chaque campagne (Spelc) peut être envoyée en **mode test** : contenu
-personnalisé de vrais adhérents mais destinataire réel remplacé par le
-mail/mobile de test — configuré une seule fois par l'admin général
-(onglet PSA, section « Mail / mobile de test »), utilisé partout où le
-mode test est actif.
-
-## Relances PSA
-
-L'admin général possède sa propre clé API Brevo et ses propres modèles
-mail/SMS (indépendants de ceux des Spelcs), utilisés pour relancer les
-PSA après une simulation. Sur l'onglet PSA, cocher une ou plusieurs
-dates parmi les 8 jours du scrutin déclenche, pour chaque date et pour
-chaque canal (mail/SMS), une relance réelle vers Brevo à destination des
-PSA n'ayant pas encore voté (national et/ou local) à cette date-là dans
-la simulation en cours.
+personnalisé de vrais adhérents mais destinataire réel remplacé par un
+mail/mobile de test. Réglable à deux niveaux : un réglage **global**
+(`GET`/`PUT /api/admin/test-settings`, sans écran dédié), utilisé par
+défaut, et un réglage **propre à chaque Spelc** (onglet Brevo), prioritaire
+sur le réglage global pour les campagnes de ce Spelc.
 
 ## Journal des relances
 
-Chaque envoi individuel (campagne Spelc ou relance PSA, mail ou SMS) est
-journalisé dans `backend/data/relances.log` (NDJSON, un envoi par ligne :
-horodatage, type, périmètre, campagne, nom, prénom, contact utilisé, mode
-test, succès). Consultable depuis l'onglet PSA de l'admin général
-(« Journal des relances ») ou directement sur le serveur.
+Chaque envoi individuel (campagne Spelc, mail ou SMS) est journalisé dans
+`backend/data/relances.log` (NDJSON, un envoi par ligne : horodatage, type,
+périmètre, campagne, nom, prénom, contact utilisé, mode test, succès).
+Consultable directement sur le serveur, ou via `GET /api/admin/relance-log`
+(tous Spelcs confondus, sans écran dédié) et `GET /api/brevo/relance-tracking`
+(propre à un Spelc, onglet « Relances adhérents »).
 
 ## Personnalisation des mails de relance (logo, réseaux sociaux, envois de test)
 
-Les modèles de mail (relances PSA côté admin général, campagnes côté admin
-Spelc) supportent deux champs supplémentaires dans leur « modèle prégarni » :
+Les modèles de mail (onglet « Relances adhérents » de l'admin Spelc)
+supportent deux champs supplémentaires dans leur « modèle prégarni » :
 
-- `{{logo}}` : image d'entête, uploadée une fois (encodée en base64,
-  stockée en base — pas de fichier ni d'URL publique nécessaire). Un logo
-  global pour les relances PSA (onglet « Journée des PSA... ») et un logo
-  propre à chaque Spelc (onglet Brevo).
+- `{{logo}}` : image d'entête propre à chaque Spelc, uploadée une fois
+  (encodée en base64, stockée en base — pas de fichier ni d'URL publique
+  nécessaire).
 - `{{reseaux_sociaux}}` : pied de page listant les réseaux sociaux cochés
   (Facebook, X/Twitter, Instagram, LinkedIn, YouTube) avec leur URL,
   configurables au même endroit que le logo.
@@ -197,16 +185,27 @@ Spelc) supportent deux champs supplémentaires dans leur « modèle prégarni »
 Chaque écran de modèle propose aussi un bouton **« Mail de test »** /
 **« SMS de test »** : envoie un unique message avec le contenu du modèle
 actuellement affiché (pas forcément encore enregistré), avec les champs
-dynamiques calculés pour le premier PSA/adhérent encore non-votant — utile
+dynamiques calculés pour le premier adhérent encore non-votant — utile
 pour vérifier le rendu avant d'enregistrer puis de lancer une vraie
-relance/campagne.
+campagne.
 
-Le mail/mobile de test utilisé par ces envois (et par le mode test des
-campagnes) est réglable à deux niveaux : un réglage **global** (onglet PSA,
-admin général), utilisé par défaut partout, et un réglage **propre à
-chaque Spelc** (onglet Brevo), prioritaire sur le réglage global pour les
-campagnes de ce Spelc uniquement — les relances PSA continuent, elles,
-d'utiliser uniquement le réglage global.
+## Environnement de démonstration "relance-only"
+
+Le même code peut être déployé une seconde fois, en configuration réduite,
+pour faire tester au client la seule fonctionnalité de relance des
+adhérents, sans écran de connexion :
+
+- `.env` de ce déploiement : `APP_MODE=relance-only` et
+  `RELANCE_DEMO_EMAIL=<email d'un compte admin Spelc existant>` (créer ce
+  compte au préalable, en mode `full`, via l'admin général).
+- Le frontend saute directement à l'onglet « Relances adhérents » du Spelc
+  désigné (`POST /api/auth/demo-login`, sans mot de passe).
+- Le backend refuse en plus, quel que soit le compte utilisé, toute route
+  hors `/api/brevo/*` (verrou serveur, voir `backend/src/index.ts`) — pas
+  seulement un masquage côté interface.
+
+Laisser `APP_MODE` vide (ou absent) déploie l'application complète, sans
+aucune restriction — c'est le mode de la prod.
 
 ## Récupération automatique des fichiers (scraping)
 
