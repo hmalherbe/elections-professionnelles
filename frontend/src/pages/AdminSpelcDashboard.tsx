@@ -190,6 +190,21 @@ const DEFAULT_SMS_TEMPLATE = {
     "{{#if not(CCMMEP_non_votant) and scrutin_local_non_votant}} au {{scrutin_local}}{{/if}} avant le 10/12.",
 };
 
+/** Environnement "relance-only" (démo) : pas de statut de vote ni de réseaux
+ * sociaux, uniquement {{nom}}/{{prenom}}. */
+const DEFAULT_EMAIL_TEMPLATE_SIMPLE = {
+  subject: "Rappel : votez aux élections professionnelles 2026",
+  body:
+    "{{logo}}" +
+    "Bonjour {{prenom}} {{nom}},\n\n" +
+    "merci de voter aux élections professionnelles." +
+    `\n\nPour consulter le site des élections : <a href="${ELECTIONS_SITE_URL}">${ELECTIONS_SITE_URL}</a>`,
+};
+
+const DEFAULT_SMS_TEMPLATE_SIMPLE = {
+  body: "Elections pro 2026 : {{prenom}}, pensez à voter avant le 10/12.",
+};
+
 interface BrevoPlanEntry {
   type: string;
   credits: number;
@@ -226,7 +241,7 @@ function sanitizeSmsSenderInput(value: string): string {
   return value.replace(/[^A-Za-z0-9]/g, "").slice(0, 11);
 }
 
-export function BrevoPanel({ spelc }: { spelc: string }) {
+export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; relanceOnly?: boolean }) {
   const [configured, setConfigured] = useState(false);
   const [maskedKey, setMaskedKey] = useState<string | null>(null);
   const [apiKey, setApiKey] = useState("");
@@ -442,7 +457,7 @@ export function BrevoPanel({ spelc }: { spelc: string }) {
         </Card>
       )}
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div className={`grid grid-cols-1 gap-4 ${relanceOnly ? "" : "md:grid-cols-2"}`}>
         <LogoUploadCard
           title="Logo (entête des mails)"
           currentLogo={spelcSettings.logoDataUri}
@@ -451,13 +466,15 @@ export function BrevoPanel({ spelc }: { spelc: string }) {
             setSpelcSettings((s) => ({ ...s, logoDataUri: dataUri }));
           }}
         />
-        <SocialLinksEditor
-          value={spelcSettings.socialLinks}
-          onSave={async (links) => {
-            await api.put("/brevo/spelc-settings", { spelc, socialLinks: links });
-            setSpelcSettings((s) => ({ ...s, socialLinks: links }));
-          }}
-        />
+        {!relanceOnly && (
+          <SocialLinksEditor
+            value={spelcSettings.socialLinks}
+            onSave={async (links) => {
+              await api.put("/brevo/spelc-settings", { spelc, socialLinks: links });
+              setSpelcSettings((s) => ({ ...s, socialLinks: links }));
+            }}
+          />
+        )}
       </div>
 
       <Card
@@ -517,22 +534,26 @@ export function BrevoPanel({ spelc }: { spelc: string }) {
       <p className="text-sm text-slate-600">
         Pour vos mails comme pour vos SMS de relance, vous pouvez : choisir un logo personnalisé en entête (ci-dessus),
         charger un modèle prêt à l'emploi (bouton « Charger le modèle prégarni »), et personnaliser le contenu avec
-        des champs dynamiques ({"{{nom}}"}, {"{{prenom}}"}, statut de vote…) comme dans un publipostage.
+        {relanceOnly
+          ? <> des champs dynamiques ({"{{nom}}"}, {"{{prenom}}"}) comme dans un publipostage.</>
+          : <> des champs dynamiques ({"{{nom}}"}, {"{{prenom}}"}, statut de vote…) comme dans un publipostage.</>}
       </p>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Card
           title="Modèle de mail de relance"
           subtitle={
-            "Champs : {{nom}} {{prenom}} {{scrutin_local}} · {{CCMMEP_non_votant}} {{scrutin_local_non_votant}} · " +
-            "{{logo}} {{reseaux_sociaux}} · {{#if expr}}…{{else}}…{{/if}} avec expr combinant and/or/not(...), ex. " +
-            "\"CCMMEP_non_votant and not(scrutin_local_non_votant)\""
+            relanceOnly
+              ? "Champs : {{nom}} {{prenom}}"
+              : "Champs : {{nom}} {{prenom}} {{scrutin_local}} · {{CCMMEP_non_votant}} {{scrutin_local_non_votant}} · " +
+                "{{logo}} {{reseaux_sociaux}} · {{#if expr}}…{{else}}…{{/if}} avec expr combinant and/or/not(...), ex. " +
+                "\"CCMMEP_non_votant and not(scrutin_local_non_votant)\""
           }
         >
           <button
             type="button"
             className="mb-2 rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
-            onClick={() => setEmailTemplate(DEFAULT_EMAIL_TEMPLATE)}
+            onClick={() => setEmailTemplate(relanceOnly ? DEFAULT_EMAIL_TEMPLATE_SIMPLE : DEFAULT_EMAIL_TEMPLATE)}
           >
             Charger le modèle prégarni
           </button>
@@ -557,12 +578,12 @@ export function BrevoPanel({ spelc }: { spelc: string }) {
         </Card>
         <Card
           title="Modèle de SMS de relance"
-          subtitle="Mêmes champs que le mail : {{nom}} {{prenom}} {{scrutin_local}} · {{CCMMEP_non_votant}} {{scrutin_local_non_votant}}"
+          subtitle={relanceOnly ? "Mêmes champs que le mail : {{nom}} {{prenom}}" : "Mêmes champs que le mail : {{nom}} {{prenom}} {{scrutin_local}} · {{CCMMEP_non_votant}} {{scrutin_local_non_votant}}"}
         >
           <button
             type="button"
             className="mb-2 rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
-            onClick={() => setSmsTemplate(DEFAULT_SMS_TEMPLATE)}
+            onClick={() => setSmsTemplate(relanceOnly ? DEFAULT_SMS_TEMPLATE_SIMPLE : DEFAULT_SMS_TEMPLATE)}
           >
             Charger le modèle prégarni
           </button>

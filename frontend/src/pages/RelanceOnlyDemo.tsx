@@ -46,7 +46,7 @@ export function RelanceOnlyDemo() {
         </div>
       </header>
       <main className="mx-auto max-w-5xl px-6 py-6">
-        <BrevoPanel spelc={user.spelc!} />
+        <BrevoPanel spelc={user.spelc!} relanceOnly />
       </main>
     </div>
   );
