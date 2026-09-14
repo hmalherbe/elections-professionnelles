@@ -457,16 +457,16 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
         </Card>
       )}
 
-      <div className={`grid grid-cols-1 gap-4 ${relanceOnly ? "" : "md:grid-cols-2"}`}>
-        <LogoUploadCard
-          title="Logo (entête des mails)"
-          currentLogo={spelcSettings.logoDataUri}
-          onSave={async (dataUri) => {
-            await api.put("/brevo/spelc-settings", { spelc, logoDataUri: dataUri });
-            setSpelcSettings((s) => ({ ...s, logoDataUri: dataUri }));
-          }}
-        />
-        {!relanceOnly && (
+      {!relanceOnly && (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <LogoUploadCard
+            title="Logo (entête des mails)"
+            currentLogo={spelcSettings.logoDataUri}
+            onSave={async (dataUri) => {
+              await api.put("/brevo/spelc-settings", { spelc, logoDataUri: dataUri });
+              setSpelcSettings((s) => ({ ...s, logoDataUri: dataUri }));
+            }}
+          />
           <SocialLinksEditor
             value={spelcSettings.socialLinks}
             onSave={async (links) => {
@@ -474,12 +474,12 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
               setSpelcSettings((s) => ({ ...s, socialLinks: links }));
             }}
           />
-        )}
-      </div>
+        </div>
+      )}
 
       <Card
         title="Mail / mobile de test & expéditeur SMS de ce Spelc"
-        subtitle="Mail/mobile de test prioritaires sur le réglage global de l'admin général (laisser vide pour l'utiliser). L'expéditeur SMS est celui affiché comme « De » chez le destinataire."
+        subtitle={relanceOnly ? undefined : "Mail/mobile de test prioritaires sur le réglage global de l'admin général (laisser vide pour l'utiliser). L'expéditeur SMS est celui affiché comme « De » chez le destinataire."}
       >
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
           <div>
@@ -532,11 +532,20 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
       </Card>
 
       <p className="text-sm text-slate-600">
-        Pour vos mails comme pour vos SMS de relance, vous pouvez : choisir un logo personnalisé en entête (ci-dessus),
-        charger un modèle prêt à l'emploi (bouton « Charger le modèle prégarni »), et personnaliser le contenu avec
-        {relanceOnly
-          ? <> des champs dynamiques ({"{{nom}}"}, {"{{prenom}}"}) comme dans un publipostage.</>
-          : <> des champs dynamiques ({"{{nom}}"}, {"{{prenom}}"}, statut de vote…) comme dans un publipostage.</>}
+        {relanceOnly ? (
+          <>
+            Pour vos mails comme pour vos SMS de relance, vous pouvez charger un modèle prêt à l'emploi (bouton
+            « Charger le modèle prégarni »), et personnaliser le contenu avec des champs dynamiques ({"{{nom}}"},{" "}
+            {"{{prenom}}"}) comme dans un publipostage.
+          </>
+        ) : (
+          <>
+            Pour vos mails comme pour vos SMS de relance, vous pouvez : choisir un logo personnalisé en entête
+            (ci-dessus), charger un modèle prêt à l'emploi (bouton « Charger le modèle prégarni »), et personnaliser
+            le contenu avec des champs dynamiques ({"{{nom}}"}, {"{{prenom}}"}, statut de vote…) comme dans un
+            publipostage.
+          </>
+        )}
       </p>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -744,40 +753,42 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
         {testSmsMsg && <p className="mt-1 text-sm text-slate-600">{testSmsMsg}</p>}
       </Card>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <Card title="Courbe de suivi des mails">
-          <div className="h-48">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={mailRows}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
-                <Tooltip />
-                <Legend />
-                <Line type="monotone" dataKey="total_envoye" name="Envoyés" stroke={CATEGORICAL[0]} strokeWidth={2} />
-                <Line type="monotone" dataKey="mails_lus" name="Lus" stroke={CATEGORICAL[4]} strokeWidth={2} />
-                <Line type="monotone" dataKey="liens_clique" name="Cliqués" stroke={CATEGORICAL[2]} strokeWidth={2} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-        <Card title="Courbe de suivi des SMS">
-          <div className="h-48">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={smsRows}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
-                <Tooltip />
-                <Legend />
-                <Line type="monotone" dataKey="sms_envoyes" name="Envoyés" stroke={CATEGORICAL[0]} strokeWidth={2} />
-                <Line type="monotone" dataKey="sms_delivres" name="Délivrés" stroke={CATEGORICAL[4]} strokeWidth={2} />
-                <Line type="monotone" dataKey="sms_rejetes" name="Rejetés" stroke={CATEGORICAL[3]} strokeWidth={2} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-      </div>
+      {!relanceOnly && (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <Card title="Courbe de suivi des mails">
+            <div className="h-48">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={mailRows}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                  <Tooltip />
+                  <Legend />
+                  <Line type="monotone" dataKey="total_envoye" name="Envoyés" stroke={CATEGORICAL[0]} strokeWidth={2} />
+                  <Line type="monotone" dataKey="mails_lus" name="Lus" stroke={CATEGORICAL[4]} strokeWidth={2} />
+                  <Line type="monotone" dataKey="liens_clique" name="Cliqués" stroke={CATEGORICAL[2]} strokeWidth={2} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
+          <Card title="Courbe de suivi des SMS">
+            <div className="h-48">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={smsRows}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                  <Tooltip />
+                  <Legend />
+                  <Line type="monotone" dataKey="sms_envoyes" name="Envoyés" stroke={CATEGORICAL[0]} strokeWidth={2} />
+                  <Line type="monotone" dataKey="sms_delivres" name="Délivrés" stroke={CATEGORICAL[4]} strokeWidth={2} />
+                  <Line type="monotone" dataKey="sms_rejetes" name="Rejetés" stroke={CATEGORICAL[3]} strokeWidth={2} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
+        </div>
+      )}
 
       <Card
         title="Suivi détaillé des relances, par personne"
@@ -793,18 +804,22 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
           >
             Actualiser
           </button>
-          <button
-            type="button"
-            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 disabled:opacity-60"
-            disabled={trackingChecking}
-            onClick={checkTrackingNow}
-            title="Interroge Brevo maintenant pour les statuts et clics en attente, au lieu d'attendre le prochain sondage automatique (toutes les 5 minutes)."
-          >
-            {trackingChecking ? "Vérification…" : "Vérifier les statuts Brevo"}
-          </button>
-          <span className="text-xs text-slate-400">
-            Le statut final et les clics ne sont jamais immédiats : mis à jour automatiquement toutes les 5 minutes.
-          </span>
+          {!relanceOnly && (
+            <>
+              <button
+                type="button"
+                className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 disabled:opacity-60"
+                disabled={trackingChecking}
+                onClick={checkTrackingNow}
+                title="Interroge Brevo maintenant pour les statuts et clics en attente, au lieu d'attendre le prochain sondage automatique (toutes les 5 minutes)."
+              >
+                {trackingChecking ? "Vérification…" : "Vérifier les statuts Brevo"}
+              </button>
+              <span className="text-xs text-slate-400">
+                Le statut final et les clics ne sont jamais immédiats : mis à jour automatiquement toutes les 5 minutes.
+              </span>
+            </>
+          )}
         </div>
         <div className="max-h-96 overflow-auto">
           <table className="w-full text-sm">
