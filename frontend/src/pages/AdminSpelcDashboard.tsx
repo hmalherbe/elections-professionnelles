@@ -191,14 +191,11 @@ const DEFAULT_SMS_TEMPLATE = {
 };
 
 /** Environnement "relance-only" (démo) : pas de statut de vote ni de réseaux
- * sociaux, uniquement {{nom}}/{{prenom}}. */
+ * sociaux, uniquement {{nom}}/{{prenom}}. Corps laissé vide : à la charge du
+ * Spelc de rédiger son propre message. */
 const DEFAULT_EMAIL_TEMPLATE_SIMPLE = {
   subject: "Rappel : votez aux élections professionnelles 2026",
-  body:
-    "{{logo}}" +
-    "Bonjour {{prenom}} {{nom}},\n\n" +
-    "merci de voter aux élections professionnelles." +
-    `\n\nPour consulter le site des élections : <a href="${ELECTIONS_SITE_URL}">${ELECTIONS_SITE_URL}</a>`,
+  body: "",
 };
 
 const DEFAULT_SMS_TEMPLATE_SIMPLE = {
@@ -796,31 +793,29 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
           trackingLoadedAt ? ` · dernière mise à jour ${trackingLoadedAt.toLocaleTimeString("fr-FR")}` : ""
         }`}
       >
-        <div className="mb-2 flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
-            onClick={reloadTracking}
-          >
-            Actualiser
-          </button>
-          {!relanceOnly && (
-            <>
-              <button
-                type="button"
-                className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 disabled:opacity-60"
-                disabled={trackingChecking}
-                onClick={checkTrackingNow}
-                title="Interroge Brevo maintenant pour les statuts et clics en attente, au lieu d'attendre le prochain sondage automatique (toutes les 5 minutes)."
-              >
-                {trackingChecking ? "Vérification…" : "Vérifier les statuts Brevo"}
-              </button>
-              <span className="text-xs text-slate-400">
-                Le statut final et les clics ne sont jamais immédiats : mis à jour automatiquement toutes les 5 minutes.
-              </span>
-            </>
-          )}
-        </div>
+        {!relanceOnly && (
+          <div className="mb-2 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
+              onClick={reloadTracking}
+            >
+              Actualiser
+            </button>
+            <button
+              type="button"
+              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 disabled:opacity-60"
+              disabled={trackingChecking}
+              onClick={checkTrackingNow}
+              title="Interroge Brevo maintenant pour les statuts et clics en attente, au lieu d'attendre le prochain sondage automatique (toutes les 5 minutes)."
+            >
+              {trackingChecking ? "Vérification…" : "Vérifier les statuts Brevo"}
+            </button>
+            <span className="text-xs text-slate-400">
+              Le statut final et les clics ne sont jamais immédiats : mis à jour automatiquement toutes les 5 minutes.
+            </span>
+          </div>
+        )}
         <div className="max-h-96 overflow-auto">
           <table className="w-full text-sm">
             <thead className="sticky top-0 bg-white">
