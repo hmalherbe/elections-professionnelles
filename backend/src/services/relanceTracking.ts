@@ -91,6 +91,10 @@ export function listRelanceTrackingByScope(scope: string, limit = 500): (Relance
   return rows.map(withStatus);
 }
 
+export function clearRelanceTrackingByScope(scope: string): number {
+  return db.prepare("DELETE FROM relance_tracking WHERE scope = ?").run(scope).changes;
+}
+
 export function listAllRelanceTracking(limit = 500): (RelanceTrackingRow & { statusLabel: StatusLabel })[] {
   const rows = db.prepare("SELECT * FROM relance_tracking ORDER BY created_at DESC LIMIT ?").all(limit) as RelanceTrackingRow[];
   return rows.map(withStatus);

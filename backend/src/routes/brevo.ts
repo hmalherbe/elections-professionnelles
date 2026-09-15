@@ -12,6 +12,7 @@ import { appendRelanceLog } from "../lib/relanceLog.js";
 import {
   insertRelanceTracking,
   listRelanceTrackingByScope,
+  clearRelanceTrackingByScope,
   refreshPendingRelanceTracking,
   getMailSeriesByScope,
   getSmsSeriesByScope,
@@ -588,6 +589,14 @@ router.post("/relance-tracking/refresh", requireRole("admin_spelc", "admin_gener
   if (!spelc || !assertSpelcAccess(req, res, spelc)) return;
   const result = await refreshPendingRelanceTracking({ ownerUserId: req.user!.id, scope: spelc });
   res.json(result);
+});
+
+/** Efface tout le suivi détaillé des relances de ce Spelc (bouton "Effacer le suivi"). */
+router.delete("/relance-tracking", requireRole("admin_spelc", "admin_general"), (req, res) => {
+  const spelc = req.query.spelc as string;
+  if (!spelc || !assertSpelcAccess(req, res, spelc)) return;
+  const deleted = clearRelanceTrackingByScope(spelc);
+  res.json({ deleted });
 });
 
 export default router;
