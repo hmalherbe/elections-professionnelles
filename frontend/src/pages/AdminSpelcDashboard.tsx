@@ -620,8 +620,7 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
             <div className="mt-2 space-y-1 rounded-md border border-red-200 bg-red-50 px-3 py-2">
               {warnings.map((w) => (
                 <p key={w} className="text-sm text-red-700">
-                  Crédit insuffisant — {w} Rachetez des crédits avant l'envoi ou réduisez le nombre de destinataires
-                  ciblés.
+                  Crédit insuffisant — {w} Rachetez des crédits avant l'envoi.
                 </p>
               ))}
             </div>
