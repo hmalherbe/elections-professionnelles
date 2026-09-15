@@ -268,8 +268,12 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
         setTrackingRows(r.rows);
         setTrackingLoadedAt(new Date());
       });
-    api.get<{ rows: RelanceMail[] }>(`/brevo/tracking/mail${qs({ spelc })}`).then((r) => setMailRows(r.rows));
-    api.get<{ rows: RelanceSms[] }>(`/brevo/tracking/sms${qs({ spelc })}`).then((r) => setSmsRows(r.rows));
+    // Courbes de suivi mails/SMS masquées en mode démo relance-only (voir plus
+    // bas) : inutile de les interroger toutes les 60s dans ce cas.
+    if (!relanceOnly) {
+      api.get<{ rows: RelanceMail[] }>(`/brevo/tracking/mail${qs({ spelc })}`).then((r) => setMailRows(r.rows));
+      api.get<{ rows: RelanceSms[] }>(`/brevo/tracking/sms${qs({ spelc })}`).then((r) => setSmsRows(r.rows));
+    }
   }
   // Le statut final et les clics n'arrivent jamais au moment de l'envoi
   // (sondage Brevo côté serveur toutes les 5 minutes) : on relit régulièrement
