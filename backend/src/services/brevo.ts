@@ -29,6 +29,17 @@ export interface BrevoSendSummary {
 
 const BREVO_BASE = "https://api.brevo.com/v3";
 
+/** `fetch` échoue au niveau réseau (DNS, connexion refusée, TLS...) avec un
+ * message générique "fetch failed" ; la cause réelle (ex. "getaddrinfo
+ * ENOTFOUND api.brevo.com") est dans `.cause`, sans quoi elle reste invisible
+ * à l'admin comme dans les logs. */
+function describeFetchException(err: unknown): string {
+  if (!(err instanceof Error)) return String(err);
+  const cause = (err as { cause?: unknown }).cause;
+  const causeMessage = cause instanceof Error ? cause.message : cause ? String(cause) : null;
+  return causeMessage ? `${err.message} (${causeMessage})` : err.message;
+}
+
 /** Réponse d'erreur Brevo typique : {"code":"...","message":"..."}. On
  * retombe sur le texte brut (tronqué) si ce n'est pas ce format. */
 async function describeBrevoError(response: Response): Promise<string> {
@@ -75,7 +86,7 @@ export async function sendBrevoEmails(payload: SendEmailPayload): Promise<BrevoS
       }
     } catch (err) {
       errors++;
-      errorMessage = err instanceof Error ? err.message : String(err);
+      errorMessage = describeFetchException(err);
       console.error("Échec envoi mail Brevo (exception):", err);
     }
   }
@@ -126,7 +137,7 @@ export async function sendBrevoSms(payload: SendSmsPayload): Promise<BrevoSendSu
       }
     } catch (err) {
       errors++;
-      errorMessage = err instanceof Error ? err.message : String(err);
+      errorMessage = describeFetchException(err);
       console.error("Échec envoi SMS Brevo (exception):", err);
     }
   }
