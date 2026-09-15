@@ -211,18 +211,23 @@ export interface BrevoPlanEntry {
 export async function fetchAccountInfo(
   apiKey: string
 ): Promise<{ email: string; companyName: string; plan: BrevoPlanEntry[] } | null> {
-  const response = await fetch(`${BREVO_BASE}/account`, {
-    headers: { "api-key": apiKey, Accept: "application/json" },
-  });
-  if (!response.ok) return null;
-  const data = (await response.json()) as {
-    email?: string;
-    companyName?: string;
-    plan?: BrevoPlanEntry[];
-  };
-  return {
-    email: data.email ?? "",
-    companyName: data.companyName ?? "",
-    plan: Array.isArray(data.plan) ? data.plan : [],
-  };
+  try {
+    const response = await fetch(`${BREVO_BASE}/account`, {
+      headers: { "api-key": apiKey, Accept: "application/json" },
+    });
+    if (!response.ok) return null;
+    const data = (await response.json()) as {
+      email?: string;
+      companyName?: string;
+      plan?: BrevoPlanEntry[];
+    };
+    return {
+      email: data.email ?? "",
+      companyName: data.companyName ?? "",
+      plan: Array.isArray(data.plan) ? data.plan : [],
+    };
+  } catch (err) {
+    console.error("Échec récupération compte Brevo:", describeFetchException(err));
+    return null;
+  }
 }
