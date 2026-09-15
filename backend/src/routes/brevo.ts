@@ -70,11 +70,16 @@ router.get("/settings", requireRole("admin_spelc", "admin_general"), (req, res) 
 
 router.put("/settings", requireRole("admin_spelc", "admin_general"), (req, res) => {
   const { apiKey } = req.body ?? {};
-  if (!apiKey) {
+  // Un espace ou retour à la ligne collé par erreur avec la clé (fréquent en
+  // copier-coller depuis le tableau de bord Brevo) la rend invalide sans
+  // qu'aucun message ne le laisse deviner : on l'écarte à la saisie plutôt
+  // que de forcer l'utilisateur à le repérer lui-même dans un champ masqué.
+  const trimmedKey = typeof apiKey === "string" ? apiKey.trim() : "";
+  if (!trimmedKey) {
     res.status(400).json({ error: "apiKey requise." });
     return;
   }
-  db.prepare("UPDATE users SET brevo_api_key = ? WHERE id = ?").run(String(apiKey), req.user!.id);
+  db.prepare("UPDATE users SET brevo_api_key = ? WHERE id = ?").run(trimmedKey, req.user!.id);
   res.json({ ok: true });
 });
 
