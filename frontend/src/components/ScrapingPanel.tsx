@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../lib/api";
+import { parseSqliteUtc } from "../lib/date";
 import { Card } from "./Card";
 import type { ImportRecord } from "../lib/types";
 
@@ -36,8 +37,8 @@ const DEFAULT_FILE_URLS: Record<"national" | "academique", { url1: string; url2:
   academique: { url1: "http://mock-portal:8081/academie/1d.json", url2: "http://mock-portal:8081/academie/2d.json" },
 };
 
-function formatImportDate(iso: string): string {
-  return new Date(iso).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" });
+function formatImportDate(sqliteDatetime: string): string {
+  return parseSqliteUtc(sqliteDatetime).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" });
 }
 
 /** Le dernier import (manuel ou par scraping) le plus récent d'une liste, ou null si aucun. */

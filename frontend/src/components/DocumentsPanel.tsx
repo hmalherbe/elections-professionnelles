@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Card } from "./Card";
 import { api, qs } from "../lib/api";
+import { parseSqliteUtc } from "../lib/date";
 
 interface DocumentRecord {
   id: number;
@@ -582,7 +583,7 @@ export function DocumentsPanel({
                   </button>
                 </td>
                 <td className="px-4 py-1.5 text-slate-500">{formatSize(doc.size_bytes)}</td>
-                <td className="px-4 py-1.5 text-slate-500">{new Date(doc.uploaded_at).toLocaleString("fr-FR")}</td>
+                <td className="px-4 py-1.5 text-slate-500">{parseSqliteUtc(doc.uploaded_at).toLocaleString("fr-FR")}</td>
               </tr>
             ))}
           </tbody>

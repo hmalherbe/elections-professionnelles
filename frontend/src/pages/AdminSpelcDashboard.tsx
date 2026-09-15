@@ -13,6 +13,7 @@ import { ScopeToggle } from "../components/ScopeToggle";
 import { ScrutinsTab } from "../components/ScrutinsTab";
 import { SocialLinksEditor } from "../components/SocialLinksEditor";
 import { api, qs } from "../lib/api";
+import { parseSqliteUtc } from "../lib/date";
 import { useAuth } from "../lib/auth";
 import type { CourbePoint } from "../lib/types";
 import type { SocialLinks } from "../lib/socialLinks";
@@ -829,7 +830,7 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
             <tbody>
               {filteredTrackingRows.map((r) => (
                 <tr key={r.id} className="border-b border-slate-100">
-                  <td className="py-1.5 pr-4 text-slate-500">{new Date(r.created_at).toLocaleString("fr-FR")}</td>
+                  <td className="py-1.5 pr-4 text-slate-500">{parseSqliteUtc(r.created_at).toLocaleString("fr-FR")}</td>
                   <td className="px-4 py-1.5">
                     {r.type === "mail" ? "Mail" : "SMS"}
                     {Boolean(r.test_mode) && (
