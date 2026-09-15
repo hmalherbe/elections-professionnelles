@@ -1,8 +1,18 @@
 import express from "express";
 import cors from "cors";
 import path from "node:path";
+import dns from "node:dns";
 import { fileURLToPath } from "node:url";
 import { migrate } from "./db/index.js";
+
+/**
+ * Certains réseaux Docker annoncent une route IPv6 non fonctionnelle : sans
+ * ceci, une requête vers un hôte externe (ex. api.brevo.com) tente d'abord
+ * IPv6, attend l'expiration de cette tentative avant de retomber sur IPv4 —
+ * plusieurs dizaines de secondes de délai fixe et reproductible avant que la
+ * requête ne réussisse enfin. On force donc l'ordre de résolution DNS.
+ */
+dns.setDefaultResultOrder("ipv4first");
 import { refreshPendingRelanceTracking } from "./services/relanceTracking.js";
 import { startScrapingScheduler } from "./services/scrapingScheduler.js";
 import authRoutes from "./routes/auth.js";
