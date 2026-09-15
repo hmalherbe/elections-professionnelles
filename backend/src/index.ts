@@ -16,6 +16,7 @@ import chatRoutes from "./routes/chat.js";
 import documentsRoutes from "./routes/documents.js";
 import documentFoldersRoutes from "./routes/documentFolders.js";
 import { UPLOADS_DIR } from "./lib/uploads.js";
+import { APP_MODE } from "./lib/appMode.js";
 
 migrate();
 
@@ -25,13 +26,7 @@ app.use(express.json({ limit: "5mb" }));
 
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 
-// Mode d'affichage de cette instance (APP_MODE) : "full" (par défaut) ou
-// "relance-only", pour un environnement de démonstration réduit à la seule
-// fonctionnalité de relance des adhérents, sans écran de connexion (voir
-// routes/auth.ts POST /demo-login et le verrou de routes ci-dessous). Même
-// code, configuration différente par déploiement (voir docker-compose.yml).
 // Public — aucune donnée sensible, juste un nom de mode.
-const APP_MODE = process.env.APP_MODE === "relance-only" ? "relance-only" : "full";
 app.get("/api/config", (_req, res) => res.json({ mode: APP_MODE }));
 
 /**
@@ -42,7 +37,7 @@ app.get("/api/config", (_req, res) => res.json({ mode: APP_MODE }));
  * routes pour s'appliquer uniformément à toutes.
  */
 if (APP_MODE === "relance-only") {
-  const RELANCE_ONLY_ALLOWED = ["/api/health", "/api/config", "/api/auth/demo-login", "/api/auth/me", "/api/brevo", "/api/uploads/logos"];
+  const RELANCE_ONLY_ALLOWED = ["/api/health", "/api/config", "/api/auth/demo-login", "/api/auth/me", "/api/brevo", "/api/uploads/logos", "/api/assets"];
   app.use((req, res, next) => {
     const allowed = RELANCE_ONLY_ALLOWED.some((p) => req.path === p || req.path.startsWith(`${p}/`));
     if (!allowed) {

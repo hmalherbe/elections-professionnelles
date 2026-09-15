@@ -19,6 +19,15 @@ import {
 } from "../services/relanceTracking.js";
 import { normalizeFrenchMobile } from "../lib/phone.js";
 import { isValidSmsSender, suggestSmsSender } from "../lib/smsSender.js";
+import { isRelanceOnly } from "../lib/appMode.js";
+
+/** Démo "relance-only" : pas de gestion de logo par l'admin (voir
+ * AdminSpelcDashboard.tsx), donc le logo du Spelc fédéral est fixe, ajouté en
+ * tête de chaque mail plutôt que laissé au modèle (voir DEFAULT_EMAIL_TEMPLATE_SIMPLE
+ * qui ne le référence plus depuis qu'il a été vidé). */
+function withDemoLogo(html: string): string {
+  return isRelanceOnly() ? buildLogoHtml("/api/assets/logo/spelc.png") + html : html;
+}
 
 const MAX_TEST_RECIPIENTS = 20;
 const DEFAULT_TEST_RECIPIENTS = 3;
@@ -290,7 +299,7 @@ router.post("/templates/email/test", requireRole("admin_spelc", "admin_general")
     apiKey: user.brevo_api_key,
     to: [{ email: testEmail, name: `${recipient.prenom} ${recipient.nom}` }],
     subject: renderTemplate(String(subject), fields),
-    htmlContent: wrapEmailHtml(renderTemplate(ensureSiteLink(String(body)), fields)),
+    htmlContent: wrapEmailHtml(withDemoLogo(renderTemplate(ensureSiteLink(String(body)), fields))),
     tag: "test-modele",
   });
   appendRelanceLog({
@@ -434,7 +443,7 @@ router.post("/campaigns/email", requireRole("admin_spelc"), async (req, res) => 
     nom: r.nom,
     prenom: r.prenom,
     subject: renderTemplate(template.subject, templateFieldsFor(r, spelc)),
-    html: wrapEmailHtml(renderTemplate(ensureSiteLink(template.body), templateFieldsFor(r, spelc))),
+    html: wrapEmailHtml(withDemoLogo(renderTemplate(ensureSiteLink(template.body), templateFieldsFor(r, spelc)))),
   }));
 
   const campagneTag = (tag ?? "relance") + (testMode ? "-test" : "");
