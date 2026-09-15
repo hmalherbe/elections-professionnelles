@@ -167,41 +167,6 @@ interface RelanceTrackingRow {
   statusLabel: "ok" | "echec" | "en_attente";
 }
 
-const ELECTIONS_SITE_URL = "https://electionsprofessionnelles.spelc.fr/";
-
-const DEFAULT_EMAIL_TEMPLATE = {
-  subject: "Rappel : votez aux élections professionnelles 2026",
-  body:
-    "{{logo}}" +
-    "Bonjour {{prenom}} {{nom}},\n\n" +
-    "merci de voter aux élections professionnelles" +
-    "{{#if CCMMEP_non_votant and scrutin_local_non_votant}} aux scrutins CCMMEP et {{scrutin_local}}{{/if}}" +
-    "{{#if CCMMEP_non_votant and not(scrutin_local_non_votant)}} au scrutin CCMMEP{{/if}}" +
-    "{{#if not(CCMMEP_non_votant) and scrutin_local_non_votant}} au scrutin {{scrutin_local}}{{/if}}." +
-    `\n\nPour consulter le site des élections : <a href="${ELECTIONS_SITE_URL}">${ELECTIONS_SITE_URL}</a>` +
-    "{{reseaux_sociaux}}",
-};
-
-const DEFAULT_SMS_TEMPLATE = {
-  body:
-    "Elections pro 2026 : {{prenom}}, pensez à voter" +
-    "{{#if CCMMEP_non_votant and scrutin_local_non_votant}} au CCMMEP et au {{scrutin_local}}{{/if}}" +
-    "{{#if CCMMEP_non_votant and not(scrutin_local_non_votant)}} au CCMMEP{{/if}}" +
-    "{{#if not(CCMMEP_non_votant) and scrutin_local_non_votant}} au {{scrutin_local}}{{/if}} avant le 10/12.",
-};
-
-/** Environnement "relance-only" (démo) : pas de statut de vote ni de réseaux
- * sociaux, uniquement {{nom}}/{{prenom}}. Corps laissé vide : à la charge du
- * Spelc de rédiger son propre message. */
-const DEFAULT_EMAIL_TEMPLATE_SIMPLE = {
-  subject: "Rappel : votez aux élections professionnelles 2026",
-  body: "",
-};
-
-const DEFAULT_SMS_TEMPLATE_SIMPLE = {
-  body: "Elections pro 2026 : {{prenom}}, pensez à voter avant le 10/12.",
-};
-
 interface BrevoPlanEntry {
   type: string;
   credits: number;
@@ -271,6 +236,7 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
   const [trackingRows, setTrackingRows] = useState<RelanceTrackingRow[]>([]);
   const [trackingLoadedAt, setTrackingLoadedAt] = useState<Date | null>(null);
   const [trackingChecking, setTrackingChecking] = useState(false);
+  const [trackingTypeFilter, setTrackingTypeFilter] = useState<"all" | "mail" | "sms">("all");
   const [preview, setPreview] = useState<{ mailRecipients: number; smsRecipients: number } | null>(null);
 
   function reloadTracking() {
@@ -291,6 +257,9 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
     const id = setInterval(reloadTracking, 60_000);
     return () => clearInterval(id);
   }, [spelc]);
+
+  const filteredTrackingRows =
+    trackingTypeFilter === "all" ? trackingRows : trackingRows.filter((r) => r.type === trackingTypeFilter);
 
   async function checkTrackingNow() {
     setTrackingChecking(true);
@@ -556,13 +525,22 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
                 "\"CCMMEP_non_votant and not(scrutin_local_non_votant)\""
           }
         >
-          <button
-            type="button"
-            className="mb-2 rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
-            onClick={() => setEmailTemplate(relanceOnly ? DEFAULT_EMAIL_TEMPLATE_SIMPLE : DEFAULT_EMAIL_TEMPLATE)}
-          >
-            Charger le modèle prégarni
-          </button>
+          <div className="mb-2 flex gap-2">
+            <button
+              type="button"
+              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
+              onClick={() => api.get<{ subject: string; body: string }>(`/brevo/templates/email${qs({ spelc })}`).then(setEmailTemplate)}
+            >
+              Charger le modèle
+            </button>
+            <button
+              type="button"
+              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
+              onClick={() => api.put("/brevo/templates/email", { spelc, ...emailTemplate })}
+            >
+              Enregistrer comme modèle
+            </button>
+          </div>
           <input
             className="mb-2 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
             placeholder="Objet du mail"
@@ -580,13 +558,22 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
           title="Modèle de SMS de relance"
           subtitle={relanceOnly ? "Mêmes champs que le mail : {{nom}} {{prenom}}" : "Mêmes champs que le mail : {{nom}} {{prenom}} {{scrutin_local}} · {{CCMMEP_non_votant}} {{scrutin_local_non_votant}}"}
         >
-          <button
-            type="button"
-            className="mb-2 rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
-            onClick={() => setSmsTemplate(relanceOnly ? DEFAULT_SMS_TEMPLATE_SIMPLE : DEFAULT_SMS_TEMPLATE)}
-          >
-            Charger le modèle prégarni
-          </button>
+          <div className="mb-2 flex gap-2">
+            <button
+              type="button"
+              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
+              onClick={() => api.get<{ body: string }>(`/brevo/templates/sms${qs({ spelc })}`).then(setSmsTemplate)}
+            >
+              Charger le modèle
+            </button>
+            <button
+              type="button"
+              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
+              onClick={() => api.put("/brevo/templates/sms", { spelc, body: smsTemplate.body })}
+            >
+              Enregistrer comme modèle
+            </button>
+          </div>
           <textarea
             className="h-40 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
             placeholder="{{prenom}}, pensez à voter au {{scrutin}} avant le 10/12."
@@ -782,10 +769,26 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
 
       <Card
         title="Suivi détaillé des relances, par personne"
-        subtitle={`${trackingRows.length} envois récents${
+        subtitle={`${filteredTrackingRows.length} envois récents${
           trackingLoadedAt ? ` · dernière mise à jour ${trackingLoadedAt.toLocaleTimeString("fr-FR")}` : ""
         }`}
       >
+        <div className="mb-2 flex flex-wrap items-center gap-2">
+          {(["all", "mail", "sms"] as const).map((type) => (
+            <button
+              key={type}
+              type="button"
+              className={`rounded-md border px-3 py-1.5 text-sm ${
+                trackingTypeFilter === type
+                  ? "border-slate-800 bg-slate-800 text-white"
+                  : "border-slate-300 text-slate-600 hover:bg-slate-100"
+              }`}
+              onClick={() => setTrackingTypeFilter(type)}
+            >
+              {type === "all" ? "Tous" : type === "mail" ? "Mail" : "SMS"}
+            </button>
+          ))}
+        </div>
         {!relanceOnly && (
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <button
@@ -824,7 +827,7 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
               </tr>
             </thead>
             <tbody>
-              {trackingRows.map((r) => (
+              {filteredTrackingRows.map((r) => (
                 <tr key={r.id} className="border-b border-slate-100">
                   <td className="py-1.5 pr-4 text-slate-500">{new Date(r.created_at).toLocaleString("fr-FR")}</td>
                   <td className="px-4 py-1.5">
@@ -862,7 +865,11 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
               ))}
             </tbody>
           </table>
-          {trackingRows.length === 0 && <p className="py-4 text-sm text-slate-400">Aucune relance envoyée pour le moment.</p>}
+          {filteredTrackingRows.length === 0 && (
+            <p className="py-4 text-sm text-slate-400">
+              {trackingRows.length === 0 ? "Aucune relance envoyée pour le moment." : "Aucune relance de ce type."}
+            </p>
+          )}
         </div>
       </Card>
     </div>
