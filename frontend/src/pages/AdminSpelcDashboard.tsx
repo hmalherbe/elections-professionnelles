@@ -575,12 +575,6 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
             value={emailTemplate.body}
             onChange={(e) => setEmailTemplate({ ...emailTemplate, body: e.target.value })}
           />
-          <button
-            className="mt-2 rounded-md bg-slate-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-900"
-            onClick={() => api.put("/brevo/templates/email", { spelc, ...emailTemplate })}
-          >
-            Enregistrer le modèle
-          </button>
         </Card>
         <Card
           title="Modèle de SMS de relance"
@@ -599,12 +593,6 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
             value={smsTemplate.body}
             onChange={(e) => setSmsTemplate({ body: e.target.value })}
           />
-          <button
-            className="mt-2 rounded-md bg-slate-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-900"
-            onClick={() => api.put("/brevo/templates/sms", { spelc, body: smsTemplate.body })}
-          >
-            Enregistrer le modèle
-          </button>
         </Card>
       </div>
 
@@ -696,6 +684,10 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
             className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700"
             onClick={async () => {
               try {
+                // La campagne est envoyée avec le modèle enregistré en base (pas
+                // avec le contenu affiché à l'écran) : on l'enregistre d'abord pour
+                // que ce qui vient d'être saisi soit bien pris en compte.
+                await api.put("/brevo/templates/email", { spelc, ...emailTemplate });
                 const res = await api.post<{ sent: number; errors: number; total: number }>("/brevo/campaigns/email", {
                   tag: campagneTag,
                   testMode,
@@ -722,6 +714,7 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
             className="rounded-md bg-slate-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-900"
             onClick={async () => {
               try {
+                await api.put("/brevo/templates/sms", { spelc, body: smsTemplate.body });
                 const res = await api.post<{ sent: number; errors: number; total: number }>("/brevo/campaigns/sms", {
                   tag: campagneTag,
                   testMode,
