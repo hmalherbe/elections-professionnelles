@@ -257,6 +257,7 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
   const [trackingLoadedAt, setTrackingLoadedAt] = useState<Date | null>(null);
   const [trackingChecking, setTrackingChecking] = useState(false);
   const [trackingTypeFilter, setTrackingTypeFilter] = useState<"all" | "mail" | "sms">("all");
+  const [trackingClearMsg, setTrackingClearMsg] = useState<string | null>(null);
   const [preview, setPreview] = useState<{ mailRecipients: number; smsRecipients: number } | null>(null);
 
   function reloadTracking() {
@@ -774,12 +775,19 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
             className="rounded-md border border-red-300 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50"
             onClick={async () => {
               if (!window.confirm("Effacer tout le suivi détaillé des relances de ce Spelc ? Cette action est irréversible.")) return;
-              await api.delete(`/brevo/relance-tracking${qs({ spelc })}`);
-              reloadTracking();
+              setTrackingClearMsg(null);
+              try {
+                const res = await api.delete<{ deleted: number }>(`/brevo/relance-tracking${qs({ spelc })}`);
+                setTrackingClearMsg(`Suivi effacé (${res.deleted} ligne(s) supprimée(s)).`);
+                reloadTracking();
+              } catch (err) {
+                setTrackingClearMsg((err as Error).message);
+              }
             }}
           >
             Effacer le suivi
           </button>
+          {trackingClearMsg && <span className="text-sm text-slate-600">{trackingClearMsg}</span>}
         </div>
         {!relanceOnly && (
           <div className="mb-2 flex flex-wrap items-center gap-2">
