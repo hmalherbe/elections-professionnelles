@@ -232,6 +232,36 @@
   .db-legend-item b{ font-family:'IBM Plex Mono',monospace; font-weight:600; }
   .db-legend-item span.sub{ display:block; color:var(--muted); font-size:12.5px; margin-top:2px; }
 
+  /* ---- Coût ---- */
+  .cost-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
+  @media (max-width:760px){ .cost-grid{ grid-template-columns:1fr; } }
+  .cost-card{
+    background:var(--surface); border:1px solid var(--line); border-radius:14px;
+    padding:20px 20px 22px; box-shadow:var(--shadow); display:flex; flex-direction:column;
+  }
+  .cost-card h3{ font-size:15px; font-weight:600; color:var(--ink); font-family:'Public Sans',sans-serif; margin-bottom:6px; }
+  .cost-card .price{
+    font-family:'Source Serif 4', serif; font-size:28px; font-weight:700; color:var(--accent);
+    line-height:1.1; margin:4px 0 2px;
+  }
+  .cost-card .price-note{ font-size:12px; color:var(--muted); margin:0 0 14px; }
+  .cost-card ul{ margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:7px; }
+  .cost-card li{ font-size:13px; line-height:1.5; color:var(--muted); padding-left:14px; position:relative; }
+  .cost-card li::before{ content:"–"; position:absolute; left:0; color:var(--accent); }
+  .cost-disclaimer{
+    font-size:12.5px; color:var(--muted); background:var(--surface-2); border:1px solid var(--line);
+    border-radius:10px; padding:12px 16px; margin-top:18px; line-height:1.55;
+  }
+  .cost-table{
+    width:100%; border-collapse:collapse; background:var(--surface); border:1px solid var(--line);
+    border-radius:14px; overflow:hidden; box-shadow:var(--shadow); margin-top:16px;
+  }
+  .cost-table th, .cost-table td{ padding:10px 16px; text-align:left; font-size:13px; border-bottom:1px solid var(--line); }
+  .cost-table th{ background:var(--surface-2); font-weight:600; color:var(--ink); font-size:11px; text-transform:uppercase; letter-spacing:.04em; }
+  .cost-table td{ color:var(--muted); font-family:'IBM Plex Mono', monospace; }
+  .cost-table tr:last-child td{ border-bottom:none; }
+  .cost-table td.v-accent{ color:var(--accent); font-weight:600; }
+
   footer{
     margin-top:64px; padding-top:24px; border-top:1px solid var(--line);
     display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px;
@@ -428,6 +458,69 @@
         </div>
       </div>
     </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <p class="kicker">Budget</p>
+      <h2>Coût</h2>
+      <p>Trois postes : l'hébergement du serveur, une éventuelle extension de disque, et l'appel à l'API Mistral de
+      l'Assistant IA, dont le coût varie avec le nombre de questions posées.</p>
+    </div>
+
+    <div class="cost-grid">
+      <div class="cost-card">
+        <h3>Serveur DEV-S1 (HostPapa)</h3>
+        <p class="price">≈ 20&nbsp;$US<span style="font-size:14px;font-weight:600;">&nbsp;/ mois</span></p>
+        <p class="price-note">≈ 18–20&nbsp;€/mois · ≈ 220–240&nbsp;€/an</p>
+        <ul>
+          <li>Plan VPS d'entrée de gamme : ~2&nbsp;vCPU, 2&nbsp;Go RAM, 50–60&nbsp;Go SSD</li>
+          <li>Suffisant pour l'usage actuel (API Node + frontend + SQLite)</li>
+          <li>Tarif catalogue public HostPapa, hors remise de 1<sup>re</sup> année</li>
+        </ul>
+      </div>
+
+      <div class="cost-card">
+        <h3>Extension du disque</h3>
+        <p class="price">+15 à 20&nbsp;$US<span style="font-size:14px;font-weight:600;">&nbsp;/ mois</span></p>
+        <p class="price-note">pas d'extension à la carte sur une VPS HostPapa</p>
+        <ul>
+          <li>Il faut changer de palier (ex. 4&nbsp;vCPU / 4&nbsp;Go RAM / 100–120&nbsp;Go SSD)</li>
+          <li>Soit ≈ 35–40&nbsp;$US/mois au total pour ce palier supérieur</li>
+          <li>Pertinent si les archives zip déposées (documents, pièces jointes) remplissent le disque actuel</li>
+        </ul>
+      </div>
+
+      <div class="cost-card">
+        <h3>Chatbot (API Mistral)</h3>
+        <p class="price">&lt; 1&nbsp;$US<span style="font-size:14px;font-weight:600;">&nbsp;/ mois</span></p>
+        <p class="price-note">pour un usage courant — voir volumétrie ci-dessous</p>
+        <ul>
+          <li>Modèle utilisé : <code>mistral-small-latest</code></li>
+          <li>≈ 0,15&nbsp;$ / million de tokens en entrée, 0,60&nbsp;$ en sortie</li>
+          <li>≈ 2&nbsp;300 tokens par question (contexte, outils et réponse compris)</li>
+        </ul>
+      </div>
+    </div>
+
+    <table class="cost-table">
+      <thead>
+        <tr><th>Questions posées / mois</th><th>Coût API Mistral estimé</th><th>Contexte</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>100</td><td class="v-accent">≈ 0,05 $</td><td>usage ponctuel, hors période de scrutin</td></tr>
+        <tr><td>1 000</td><td class="v-accent">≈ 0,50 $</td><td>usage régulier d'un admin académique/Spelc</td></tr>
+        <tr><td>10 000</td><td class="v-accent">≈ 5 $</td><td>tous les admins (41 Spelcs + 32 académies) actifs</td></tr>
+        <tr><td>50 000</td><td class="v-accent">≈ 25 $</td><td>pic pendant le scrutin (3 → 10 décembre 2026)</td></tr>
+      </tbody>
+    </table>
+
+    <p class="cost-disclaimer">
+      ⚠️ Chiffres <strong>indicatifs</strong>, basés sur les tarifs publics HostPapa et Mistral AI au moment de la
+      rédaction de cette note — à confirmer avec la facture réelle du serveur DEV-S1 et avec la consommation
+      effective de clé API Mistral (onglet Assistant → admin général) avant toute décision budgétaire. Le coût du
+      chatbot reste dans tous les cas marginal comparé à celui de l'hébergement.
+    </p>
   </section>
 
   <section>
