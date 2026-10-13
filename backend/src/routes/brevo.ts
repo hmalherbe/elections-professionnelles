@@ -190,6 +190,12 @@ interface Recipient {
   votantLocal: number | null;
   scrutinLocal: string | null;
   votantNational: number | null;
+  /** Un adhérent sans aucune ligne d'émargement correspondante (nom/prénom non
+   * retrouvé dans l'import du scrutin) n'est pas forcément un non-votant —
+   * on n'a tout simplement aucune donnée sur lui pour ce scrutin. Distingue
+   * ce cas de "retrouvé, mais n'a pas encore voté". */
+  localMatched: number;
+  nationalMatched: number;
 }
 
 /**
@@ -213,7 +219,9 @@ function matchedAdherents(spelc: string): Recipient[] {
       `SELECT a.nom, a.prenom, a.mail, a.mobile,
               MAX(el.votant) AS votantLocal,
               MAX(el.scrutin_type) AS scrutinLocal,
-              MAX(en.votant) AS votantNational
+              MAX(en.votant) AS votantNational,
+              MAX(CASE WHEN el.id IS NOT NULL THEN 1 ELSE 0 END) AS localMatched,
+              MAX(CASE WHEN en.id IS NOT NULL THEN 1 ELSE 0 END) AS nationalMatched
        FROM adherents a
        LEFT JOIN emargements el ON el.spelc = a.spelc AND el.nom_norm = a.nom_norm AND el.prenom_norm = a.prenom_norm
          AND el.import_id IN (${localPlaceholders})
@@ -233,8 +241,8 @@ function templateFieldsFor(r: Recipient, spelc: string): TemplateFields {
     nom: r.nom,
     prenom: r.prenom,
     scrutin_local: scrutinLocal,
-    CCMMEP_non_votant: !r.votantNational,
-    scrutin_local_non_votant: !votantLocal,
+    CCMMEP_non_votant: Boolean(r.nationalMatched) && !r.votantNational,
+    scrutin_local_non_votant: Boolean(r.localMatched) && !votantLocal,
     // alias conservés pour compatibilité avec d'anciens modèles
     scrutin: scrutinLocal,
     votant: votantLocal,
@@ -258,9 +266,15 @@ function resolveSmsSender(spelc: string): string {
   return getSpelcSettings(spelc).smsSender || suggestSmsSender(spelc);
 }
 
-/** Une personne est ciblée par une relance si elle n'a voté à AU MOINS un des deux scrutins. */
+/**
+ * Une personne est ciblée par une relance si elle est retrouvée dans les
+ * émargements d'AU MOINS un des deux scrutins et n'y a pas encore voté. Un
+ * adhérent absent des deux listes d'émargement (nom/prénom non reconnu, ou
+ * simplement pas électeur à ce scrutin) n'est jamais ciblé : on n'a aucune
+ * donnée de vote sur lui, ce n'est pas un non-votant.
+ */
 function needsRelance(r: Recipient): boolean {
-  return !r.votantNational || !r.votantLocal;
+  return (Boolean(r.nationalMatched) && !r.votantNational) || (Boolean(r.localMatched) && !r.votantLocal);
 }
 
 function firstNonVotantAdherent(spelc: string): Recipient | null {
