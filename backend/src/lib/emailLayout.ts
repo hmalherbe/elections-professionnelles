@@ -12,7 +12,7 @@
  */
 const EMAIL_COLUMN_WIDTH = 600;
 
-export const ELECTIONS_SITE_URL = "https://electionsprofessionnelles.spelc.fr/";
+export const ELECTIONS_SITE_URL = "https://electionspro2026.education-superieur-recherche-jeunesse-sports.gouv.fr/";
 
 /**
  * Le lien du site des élections est un texte libre du modèle (comme le

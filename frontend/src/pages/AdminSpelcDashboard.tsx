@@ -168,7 +168,7 @@ interface RelanceTrackingRow {
   statusLabel: "ok" | "echec" | "en_attente";
 }
 
-const ELECTIONS_SITE_URL = "https://electionsprofessionnelles.spelc.fr/";
+const ELECTIONS_SITE_URL = "https://electionspro2026.education-superieur-recherche-jeunesse-sports.gouv.fr/";
 
 /** Mode "full" uniquement : exemple riche illustrant la syntaxe des champs
  * dynamiques et des conditions ({{#if}}, {{logo}}, {{reseaux_sociaux}}) pour
