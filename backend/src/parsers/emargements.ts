@@ -1,5 +1,5 @@
 import { classifyDegre, type Degre } from "../lib/degre.js";
-import { extractDepartement } from "../lib/departement.js";
+import { extractDepartement, extractDepartementFromRne } from "../lib/departement.js";
 import { parseDateEmargement } from "../lib/dateEmargement.js";
 import { normalizeName } from "../lib/normalize.js";
 import { lookupDepartement, soleSpelcForAcademie } from "../services/reference.js";
@@ -11,6 +11,13 @@ export interface RawEmargementItem {
   corps: string | null;
   affectation: string | null;
   referenceBulletin?: string | null;
+  /**
+   * Code RNE/UAI de l'établissement (ex. "0751234A"), si le fichier le
+   * fournit — nom de champ à confirmer dès réception du format réel du
+   * fichier CCMMEP. Utilisé en priorité sur le code postal contenu dans
+   * `affectation` pour déterminer le département (voir buildEmargementRow).
+   */
+  rne?: string | null;
 }
 
 export interface RawEmargementFile {
@@ -59,7 +66,11 @@ export interface BuildRowOptions {
 }
 
 export function buildEmargementRow(item: RawEmargementItem, options: BuildRowOptions = {}): EmargementRow {
-  const departement = extractDepartement(item.affectation);
+  // Le RNE/UAI, quand il est fourni, est un champ structuré et dédié : plus
+  // fiable que la recherche d'un code postal dans le texte libre
+  // `affectation`, qui reste donc le repli si le RNE est absent ou que son
+  // format n'a pas été reconnu.
+  const departement = extractDepartementFromRne(item.rne) ?? extractDepartement(item.affectation);
   const lookup = lookupDepartement(departement);
   const degre = options.forcedDegre ?? classifyDegre(item.corps);
   const academie = options.forcedAcademie ?? lookup?.academie ?? null;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { classifyDegre } from "../degre.js";
-import { extractDepartement } from "../departement.js";
+import { extractDepartement, extractDepartementFromRne } from "../departement.js";
 import { parseDateEmargement } from "../dateEmargement.js";
 
 describe("classifyDegre", () => {
@@ -35,6 +35,30 @@ describe("extractDepartement", () => {
   it("retourne null si aucun code postal", () => {
     expect(extractDepartement("SANS CODE POSTAL")).toBeNull();
     expect(extractDepartement(null)).toBeNull();
+  });
+});
+
+describe("extractDepartementFromRne", () => {
+  it("extrait un département métropolitain (zéro initial retiré)", () => {
+    expect(extractDepartementFromRne("0751234A")).toBe("75");
+    expect(extractDepartementFromRne("0020001Z")).toBe("02");
+  });
+
+  it("extrait un département d'outre-mer (3 chiffres conservés)", () => {
+    expect(extractDepartementFromRne("9710001B")).toBe("971");
+    expect(extractDepartementFromRne("9780001C")).toBe("978");
+  });
+
+  it("accepte une casse minuscule et des espaces superflus", () => {
+    expect(extractDepartementFromRne(" 0751234a ")).toBe("75");
+  });
+
+  it("retourne null si le format ne correspond pas à un RNE/UAI", () => {
+    expect(extractDepartementFromRne(null)).toBeNull();
+    expect(extractDepartementFromRne("")).toBeNull();
+    expect(extractDepartementFromRne("751234A")).toBeNull();
+    expect(extractDepartementFromRne("0751234")).toBeNull();
+    expect(extractDepartementFromRne("075123AB")).toBeNull();
   });
 });
 
