@@ -1,9 +1,8 @@
 import { Router } from "express";
 import { db } from "../db/index.js";
-import { requireAuth, requireRole, canAccessAcademie } from "../middleware/auth.js";
+import { requireAuth, canAccessAcademie } from "../middleware/auth.js";
 import { encrypt } from "../lib/crypto.js";
 import { getScrapingConfig, isValidScheduleTimes, parseScheduleTimes, runScrapingAndImport } from "../services/scrapingRun.js";
-import { scrapePortalFiles } from "../services/scraper.js";
 
 const router = Router();
 router.use(requireAuth);
@@ -200,60 +199,6 @@ router.put("/schedule", (req, res) => {
     academie
   );
   res.json({ ok: true });
-});
-
-/**
- * Aperçu sans import : essaie de parser le fichier scrapé en JSON (tableau
- * brut ou { items: [...] }, comme pour les émargements) pour en extraire le
- * nombre de lignes et les noms de champs ; sinon renvoie un simple extrait
- * texte, pour diagnostiquer un format imprévu (HTML de connexion, CSV...).
- */
-function previewScrapedFile(raw: string): Record<string, unknown> {
-  try {
-    const parsed = JSON.parse(raw);
-    const items = Array.isArray(parsed) ? parsed : Array.isArray(parsed?.items) ? parsed.items : null;
-    if (items) {
-      return {
-        format: "json",
-        itemCount: items.length,
-        fields: items.length > 0 ? Object.keys(items[0]) : [],
-        sample: items.slice(0, 3),
-      };
-    }
-    return { format: "json", fields: Object.keys(parsed ?? {}), sample: parsed };
-  } catch {
-    return { format: "text", length: raw.length, preview: raw.slice(0, 2000) };
-  }
-}
-
-/**
- * Onglet temporaire "Fichier électeur" (AdminGeneralDashboard) : teste le
- * scraping headless Playwright contre le portail ÉLECTEURS (distinct des
- * portails de gestion CCMMEP/académiques déjà couverts par /config et
- * /run), sans rien persister ni importer — juste récupérer le fichier et en
- * montrer un aperçu, pour valider la mécanique et comparer son format à
- * celui attendu pour les émargements avant de construire un vrai import.
- */
-router.post("/test-electeurs", requireRole("admin_general"), async (req, res) => {
-  const { portalUrl, username, password, fileUrl, usernameSelector, passwordSelector, submitSelector } = req.body ?? {};
-  if (!portalUrl || !username || !password || !fileUrl) {
-    res.status(400).json({ error: "portalUrl, username, password et fileUrl sont requis." });
-    return;
-  }
-  try {
-    const { file1 } = await scrapePortalFiles({
-      portalUrl: String(portalUrl).trim(),
-      username: String(username).trim(),
-      password: String(password),
-      fileUrl1: String(fileUrl).trim(),
-      usernameSelector: usernameSelector ? String(usernameSelector).trim() : null,
-      passwordSelector: passwordSelector ? String(passwordSelector).trim() : null,
-      submitSelector: submitSelector ? String(submitSelector).trim() : null,
-    });
-    res.json(previewScrapedFile(file1));
-  } catch (err) {
-    res.status(502).json({ error: `Échec du scraping : ${(err as Error).message}` });
-  }
 });
 
 export default router;
