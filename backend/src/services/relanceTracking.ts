@@ -155,6 +155,33 @@ export function getSmsSeriesByScope(scope: string): SmsSeriesPoint[] {
     .all(...SMS_FAILURE_STATUSES, scope) as SmsSeriesPoint[];
 }
 
+export interface RelanceDailyPoint {
+  date: string;
+  mailEnvoyes: number;
+  smsEnvoyes: number;
+}
+
+/**
+ * Nombre de relances envoyées avec succès par jour, tous Spelc confondus
+ * (vue nationale, admin général) — pour l'onglet "Statistiques relances".
+ * Relances réelles uniquement (test_mode = 0) : les envois de test faits
+ * pendant la préparation d'une campagne ne sont pas des relances aux
+ * adhérents et fausseraient sinon le nombre réel par jour.
+ */
+export function getRelanceDailyStatsAll(): RelanceDailyPoint[] {
+  return db
+    .prepare(
+      `SELECT date(created_at) AS date,
+              SUM(CASE WHEN type = 'mail' AND send_ok = 1 THEN 1 ELSE 0 END) AS mailEnvoyes,
+              SUM(CASE WHEN type = 'sms' AND send_ok = 1 THEN 1 ELSE 0 END) AS smsEnvoyes
+       FROM relance_tracking
+       WHERE test_mode = 0
+       GROUP BY date(created_at)
+       ORDER BY date(created_at)`
+    )
+    .all() as RelanceDailyPoint[];
+}
+
 /** Les clics peuvent survenir n'importe quand après l'envoi ; au-delà de cette
  * fenêtre on arrête d'interroger Brevo pour ne pas accumuler des appels API
  * sans fin sur de très anciennes relances. */

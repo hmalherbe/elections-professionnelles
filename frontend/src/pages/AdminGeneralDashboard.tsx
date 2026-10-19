@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { CamembertCard } from "../components/CamembertCard";
 import { Card } from "../components/Card";
 import { Ccm2022MapPanel } from "../components/Ccm2022MapPanel";
@@ -10,7 +11,8 @@ import { PivotTree } from "../components/PivotTree";
 import { ScrapingPanel } from "../components/ScrapingPanel";
 import { ScrutinsTab } from "../components/ScrutinsTab";
 import { api } from "../lib/api";
-import type { AcademieNode, CourbePoint, ImportRecord, ManagedUser } from "../lib/types";
+import { CATEGORICAL } from "../lib/colors";
+import type { AcademieNode, CourbePoint, ImportRecord, ManagedUser, RelanceDailyPoint } from "../lib/types";
 
 const TABS = [
   "Descriptif applicatif",
@@ -19,6 +21,7 @@ const TABS = [
   "Scrutins",
   "Imports",
   "Electeurs académiques",
+  "Statistiques relances",
   "Utilisateurs",
   "Adhérents",
   "Référentiels",
@@ -53,6 +56,7 @@ export function AdminGeneralDashboard() {
       {tab === "Scrutins" && <ScrutinsTab scope="national" />}
       {tab === "Imports" && <ImportsPanel />}
       {tab === "Electeurs académiques" && <ElecteursAcademiquesPanel />}
+      {tab === "Statistiques relances" && <StatistiquesRelancesPanel />}
       {tab === "Utilisateurs" && <UsersPanel />}
       {tab === "Adhérents" && <AdherentsAdminPanel />}
       {tab === "Référentiels" && <ReferentielsPanel />}
@@ -370,6 +374,122 @@ function ElecteursAcademiquesPanel() {
             </table>
           </div>
         )}
+      </Card>
+    </div>
+  );
+}
+
+interface RelanceDailyWithTotal extends RelanceDailyPoint {
+  total: number;
+}
+
+interface RelanceCumulPoint {
+  date: string;
+  mailCumul: number;
+  smsCumul: number;
+}
+
+function formatJour(date: string): string {
+  return date.slice(8, 10) + "/" + date.slice(5, 7);
+}
+
+/**
+ * Nombre de relances mail/SMS envoyées par jour, tous Spelc confondus
+ * (relances réelles uniquement, hors envois de test — voir
+ * services/relanceTracking.ts getRelanceDailyStatsAll).
+ */
+function StatistiquesRelancesPanel() {
+  const [rows, setRows] = useState<RelanceDailyPoint[]>([]);
+
+  useEffect(() => {
+    api.get<{ rows: RelanceDailyPoint[] }>("/admin/relance-stats").then((r) => setRows(r.rows));
+  }, []);
+
+  const rowsWithTotal: RelanceDailyWithTotal[] = rows.map((r) => ({ ...r, total: r.mailEnvoyes + r.smsEnvoyes }));
+
+  const cumulRows: RelanceCumulPoint[] = rows.reduce<RelanceCumulPoint[]>((acc, r) => {
+    const prev = acc[acc.length - 1];
+    acc.push({
+      date: r.date,
+      mailCumul: (prev?.mailCumul ?? 0) + r.mailEnvoyes,
+      smsCumul: (prev?.smsCumul ?? 0) + r.smsEnvoyes,
+    });
+    return acc;
+  }, []);
+
+  const totalMail = rows.reduce((s, r) => s + r.mailEnvoyes, 0);
+  const totalSms = rows.reduce((s, r) => s + r.smsEnvoyes, 0);
+
+  return (
+    <div className="space-y-4">
+      <Card
+        title="Relances par jour (tous Spelc confondus)"
+        subtitle="Relances réelles uniquement (hors envois de test)."
+      >
+        {rows.length === 0 ? (
+          <p className="text-sm text-slate-400">Aucune relance envoyée pour le moment.</p>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-500">
+                <th className="py-2 pr-4">Jour</th>
+                <th className="px-4 py-2">Mails envoyés</th>
+                <th className="px-4 py-2">SMS envoyés</th>
+                <th className="px-4 py-2">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rowsWithTotal.map((r) => (
+                <tr key={r.date} className="border-b border-slate-100">
+                  <td className="py-1.5 pr-4">{formatJour(r.date)}</td>
+                  <td className="px-4 py-1.5">{r.mailEnvoyes.toLocaleString("fr-FR")}</td>
+                  <td className="px-4 py-1.5">{r.smsEnvoyes.toLocaleString("fr-FR")}</td>
+                  <td className="px-4 py-1.5 font-medium text-slate-700">{r.total.toLocaleString("fr-FR")}</td>
+                </tr>
+              ))}
+              <tr className="border-t border-slate-200 bg-slate-50 font-medium text-slate-700">
+                <td className="py-1.5 pr-4">Total</td>
+                <td className="px-4 py-1.5">{totalMail.toLocaleString("fr-FR")}</td>
+                <td className="px-4 py-1.5">{totalSms.toLocaleString("fr-FR")}</td>
+                <td className="px-4 py-1.5">{(totalMail + totalSms).toLocaleString("fr-FR")}</td>
+              </tr>
+            </tbody>
+          </table>
+        )}
+      </Card>
+
+      <Card title="Histogramme des relances par jour">
+        <div className="h-64">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={rows} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+              <XAxis dataKey="date" tickFormatter={formatJour} tick={{ fontSize: 12 }} />
+              <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
+              <Tooltip labelFormatter={(label) => `Jour du ${formatJour(String(label))}`} />
+              <Legend />
+              <Bar dataKey="mailEnvoyes" name="Mails" fill={CATEGORICAL[0]} />
+              <Bar dataKey="smsEnvoyes" name="SMS" fill={CATEGORICAL[2]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+        {rows.length === 0 && <p className="text-sm text-slate-400">Aucune relance envoyée pour le moment.</p>}
+      </Card>
+
+      <Card title="Histogramme cumulatif des relances">
+        <div className="h-64">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={cumulRows} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+              <XAxis dataKey="date" tickFormatter={formatJour} tick={{ fontSize: 12 }} />
+              <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
+              <Tooltip labelFormatter={(label) => `Jour du ${formatJour(String(label))}`} />
+              <Legend />
+              <Bar dataKey="mailCumul" name="Mails (cumul)" fill={CATEGORICAL[0]} />
+              <Bar dataKey="smsCumul" name="SMS (cumul)" fill={CATEGORICAL[2]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+        {rows.length === 0 && <p className="text-sm text-slate-400">Aucune relance envoyée pour le moment.</p>}
       </Card>
     </div>
   );

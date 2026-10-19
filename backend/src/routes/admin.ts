@@ -11,7 +11,7 @@ import {
 } from "../services/reference.js";
 import { getTestContactSettings, setSetting } from "../services/settings.js";
 import { isBrevoApiKeyConfigured, maskedBrevoApiKey, saveBrevoApiKey } from "../services/brevo.js";
-import { listAllRelanceTracking, refreshPendingRelanceTracking } from "../services/relanceTracking.js";
+import { listAllRelanceTracking, refreshPendingRelanceTracking, getRelanceDailyStatsAll } from "../services/relanceTracking.js";
 import { importUsersFromFile } from "../services/userImport.js";
 
 const router = Router();
@@ -227,6 +227,14 @@ router.get("/relance-log", (req, res) => {
 router.post("/relance-log/refresh", async (_req, res) => {
   const result = await refreshPendingRelanceTracking();
   res.json(result);
+});
+
+/**
+ * Nombre de relances mail/SMS envoyées par jour, tous Spelc confondus —
+ * pour l'onglet "Statistiques relances" (tableau + histogrammes).
+ */
+router.get("/relance-stats", (_req, res) => {
+  res.json({ rows: getRelanceDailyStatsAll() });
 });
 
 export default router;

@@ -66,6 +66,12 @@ export interface ImportRecord {
   votants: number | null;
 }
 
+export interface RelanceDailyPoint {
+  date: string;
+  mailEnvoyes: number;
+  smsEnvoyes: number;
+}
+
 export interface ManagedUser {
   id: number;
   email: string;
