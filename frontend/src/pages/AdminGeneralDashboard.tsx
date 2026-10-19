@@ -24,6 +24,7 @@ const TABS = [
   "Référentiels",
   "Documents",
   "Assistant IA",
+  "Paramètres",
 ] as const;
 type Tab = (typeof TABS)[number];
 
@@ -57,6 +58,72 @@ export function AdminGeneralDashboard() {
       {tab === "Référentiels" && <ReferentielsPanel />}
       {tab === "Documents" && <DocumentsAdminPanel />}
       {tab === "Assistant IA" && <ChatAssistantPanel />}
+      {tab === "Paramètres" && <ParametresPanel />}
+    </div>
+  );
+}
+
+/**
+ * Clé API Brevo unique, partagée par tous les syndicats adhérents pour
+ * leurs campagnes de relance mail/SMS (voir services/brevo.ts côté
+ * backend) — remplace l'ancienne clé configurée individuellement par
+ * chaque admin Spelc.
+ */
+function ParametresPanel() {
+  const [configured, setConfigured] = useState(false);
+  const [maskedKey, setMaskedKey] = useState<string | null>(null);
+  const [apiKey, setApiKey] = useState("");
+  const [message, setMessage] = useState<string | null>(null);
+
+  function refresh() {
+    api
+      .get<{ configured: boolean; maskedKey: string | null }>("/admin/brevo-settings")
+      .then((r) => {
+        setConfigured(r.configured);
+        setMaskedKey(r.maskedKey);
+      });
+  }
+  useEffect(refresh, []);
+
+  async function save() {
+    setMessage(null);
+    try {
+      await api.put<{ configured: boolean; maskedKey: string | null }>("/admin/brevo-settings", { apiKey });
+      setApiKey("");
+      setMessage("Clé enregistrée.");
+      refresh();
+    } catch (err) {
+      setMessage((err as Error).message);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <Card
+        title="Clé API Brevo"
+        subtitle={
+          (configured ? `Configurée (${maskedKey}). ` : "Non configurée. ") +
+          "Clé unique, utilisée pour les campagnes de relance mail/SMS de tous les syndicats adhérents."
+        }
+      >
+        <div className="flex gap-2">
+          <input
+            type="password"
+            placeholder="Clé API Brevo"
+            className="flex-1 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
+          />
+          <button
+            disabled={!apiKey}
+            className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
+            onClick={save}
+          >
+            Enregistrer
+          </button>
+        </div>
+        {message && <p className="mt-2 text-sm text-slate-600">{message}</p>}
+      </Card>
     </div>
   );
 }

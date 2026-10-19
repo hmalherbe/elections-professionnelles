@@ -226,9 +226,6 @@ function sanitizeSmsSenderInput(value: string): string {
 }
 
 export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; relanceOnly?: boolean }) {
-  const [configured, setConfigured] = useState(false);
-  const [maskedKey, setMaskedKey] = useState<string | null>(null);
-  const [apiKey, setApiKey] = useState("");
   const [emailTemplate, setEmailTemplate] = useState({ subject: "", body: "" });
   const [smsTemplate, setSmsTemplate] = useState({ body: "" });
   const [mailRows, setMailRows] = useState<RelanceMail[]>([]);
@@ -297,17 +294,15 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
     }
   }
 
+  // Clé API Brevo désormais unique et configurée par l'admin général (onglet
+  // "Paramètres") : on se contente de tenter la lecture des crédits, et on
+  // affiche simplement pas d'avertissement si elle n'est pas (encore)
+  // configurée (réponse en erreur, traitée comme plan=null).
   function refreshCredits() {
-    api.get<{ configured: boolean; maskedKey: string | null }>("/brevo/settings").then((r) => {
-      setConfigured(r.configured);
-      setMaskedKey(r.maskedKey);
-      if (r.configured) {
-        api
-          .get<{ plan: BrevoPlanEntry[] }>("/brevo/account")
-          .then((res) => setPlan(res.plan))
-          .catch(() => setPlan(null));
-      }
-    });
+    api
+      .get<{ plan: BrevoPlanEntry[] }>("/brevo/account")
+      .then((res) => setPlan(res.plan))
+      .catch(() => setPlan(null));
   }
 
   function refreshAll() {
@@ -380,28 +375,6 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
 
   return (
     <div className="space-y-4">
-      <Card title="Clé API Brevo" subtitle={configured ? `Configurée (${maskedKey})` : "Non configurée"}>
-        <div className="flex gap-2">
-          <input
-            type="password"
-            placeholder="Clé API Brevo"
-            className="flex-1 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
-          />
-          <button
-            className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700"
-            onClick={async () => {
-              await api.put("/brevo/settings", { apiKey });
-              setApiKey("");
-              refreshAll();
-            }}
-          >
-            Enregistrer
-          </button>
-        </div>
-      </Card>
-
       {!relanceOnly && (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <LogoUploadCard

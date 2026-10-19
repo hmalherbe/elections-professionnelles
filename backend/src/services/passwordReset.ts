@@ -47,10 +47,9 @@ export function consumePasswordResetToken(rawToken: string): number | null {
 
 /**
  * Clé Brevo dédiée aux e-mails système (réinitialisation de mot de passe) :
- * contrairement aux clés Brevo personnelles des admins (users.brevo_api_key,
- * utilisées pour leurs campagnes de relance), cet envoi doit fonctionner
- * même si le compte concerné — ou l'admin général — n'a configuré aucune
- * clé personnelle.
+ * distincte de la clé API Brevo unique des campagnes de relance (voir
+ * services/brevo.ts, configurée par l'admin général), cet envoi doit
+ * fonctionner même si cette dernière n'a pas encore été configurée.
  */
 export async function sendPasswordResetEmail(email: string, resetUrl: string): Promise<void> {
   const apiKey = process.env.SYSTEM_EMAIL_BREVO_API_KEY;

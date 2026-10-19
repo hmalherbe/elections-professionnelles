@@ -3,7 +3,7 @@ import { db } from "../db/index.js";
 import { requireAuth, requireRole, canAccessSpelc } from "../middleware/auth.js";
 import { renderTemplate, type TemplateFields } from "../lib/template.js";
 import { wrapEmailHtml, ensureSiteLink } from "../lib/emailLayout.js";
-import { sendBrevoEmails, sendBrevoSms, fetchAccountInfo } from "../services/brevo.js";
+import { sendBrevoEmails, sendBrevoSms, fetchAccountInfo, getBrevoApiKey } from "../services/brevo.js";
 import { currentImportIds } from "../services/stats.js";
 import { getTestContactSettings } from "../services/settings.js";
 import { getSpelcSettings, updateSpelcSettings } from "../services/spelcSettings.js";
@@ -67,42 +67,19 @@ function assertSpelcAccess(req: import("express").Request, res: import("express"
 }
 
 /**
- * Clé API Brevo : gérée par l'admin Spelc concerné pour ses campagnes, ou
- * par l'admin général pour les relances PSA (compte séparé, non rattaché à
- * un Spelc).
+ * Clé API Brevo : unique pour tous les syndicats adhérents, configurée par
+ * l'admin général (onglet "Paramètres", voir /admin/brevo-settings) — plus
+ * de clé par compte admin Spelc. Crédits mail/SMS restants sur ce compte,
+ * lus en lecture seule ici par un admin Spelc pour avertir avant l'envoi
+ * d'une campagne (voir /campaigns/preview côté frontend).
  */
-router.get("/settings", requireRole("admin_spelc", "admin_general"), (req, res) => {
-  const row = db.prepare("SELECT brevo_api_key FROM users WHERE id = ?").get(req.user!.id) as
-    | { brevo_api_key: string | null }
-    | undefined;
-  res.json({ configured: Boolean(row?.brevo_api_key), maskedKey: row?.brevo_api_key ? "••••••••" + row.brevo_api_key.slice(-4) : null });
-});
-
-router.put("/settings", requireRole("admin_spelc", "admin_general"), (req, res) => {
-  const { apiKey } = req.body ?? {};
-  // Un espace ou retour à la ligne collé par erreur avec la clé (fréquent en
-  // copier-coller depuis le tableau de bord Brevo) la rend invalide sans
-  // qu'aucun message ne le laisse deviner : on l'écarte à la saisie plutôt
-  // que de forcer l'utilisateur à le repérer lui-même dans un champ masqué.
-  const trimmedKey = typeof apiKey === "string" ? apiKey.trim() : "";
-  if (!trimmedKey) {
-    res.status(400).json({ error: "apiKey requise." });
+router.get("/account", requireRole("admin_spelc", "admin_general"), async (_req, res) => {
+  const apiKey = getBrevoApiKey();
+  if (!apiKey) {
+    res.status(400).json({ error: "Clé API Brevo non configurée (contactez l'administrateur général)." });
     return;
   }
-  db.prepare("UPDATE users SET brevo_api_key = ? WHERE id = ?").run(trimmedKey, req.user!.id);
-  res.json({ ok: true });
-});
-
-/** Crédits mail/SMS restants sur le compte Brevo configuré. */
-router.get("/account", requireRole("admin_spelc", "admin_general"), async (req, res) => {
-  const user = db.prepare("SELECT brevo_api_key FROM users WHERE id = ?").get(req.user!.id) as {
-    brevo_api_key: string | null;
-  };
-  if (!user.brevo_api_key) {
-    res.status(400).json({ error: "Clé API Brevo non configurée." });
-    return;
-  }
-  const info = await fetchAccountInfo(user.brevo_api_key);
+  const info = await fetchAccountInfo(apiKey);
   if (!info) {
     res.status(400).json({ error: "Impossible de récupérer les informations du compte Brevo (clé invalide ?)." });
     return;
@@ -296,11 +273,9 @@ router.post("/templates/email/test", requireRole("admin_spelc", "admin_general")
     res.status(400).json({ error: "Renseigner votre mail." });
     return;
   }
-  const user = db.prepare("SELECT brevo_api_key FROM users WHERE id = ?").get(req.user!.id) as {
-    brevo_api_key: string | null;
-  };
-  if (!user.brevo_api_key) {
-    res.status(400).json({ error: "Clé API Brevo non configurée." });
+  const apiKey = getBrevoApiKey();
+  if (!apiKey) {
+    res.status(400).json({ error: "Clé API Brevo non configurée (contactez l'administrateur général)." });
     return;
   }
   const recipient = firstNonVotantAdherent(spelc);
@@ -310,7 +285,7 @@ router.post("/templates/email/test", requireRole("admin_spelc", "admin_general")
   }
   const fields = templateFieldsFor(recipient, spelc);
   const result = await sendBrevoEmails({
-    apiKey: user.brevo_api_key,
+    apiKey,
     to: [{ email: testEmail, name: `${recipient.prenom} ${recipient.nom}` }],
     subject: renderTemplate(String(subject), fields),
     htmlContent: wrapEmailHtml(withDemoLogo(renderTemplate(ensureSiteLink(String(body)), fields))),
@@ -353,11 +328,9 @@ router.post("/templates/sms/test", requireRole("admin_spelc", "admin_general"), 
     res.status(400).json({ error: "Renseigner le numéro de mobile." });
     return;
   }
-  const user = db.prepare("SELECT brevo_api_key FROM users WHERE id = ?").get(req.user!.id) as {
-    brevo_api_key: string | null;
-  };
-  if (!user.brevo_api_key) {
-    res.status(400).json({ error: "Clé API Brevo non configurée." });
+  const apiKey = getBrevoApiKey();
+  if (!apiKey) {
+    res.status(400).json({ error: "Clé API Brevo non configurée (contactez l'administrateur général)." });
     return;
   }
   const recipient = firstNonVotantAdherent(spelc);
@@ -367,7 +340,7 @@ router.post("/templates/sms/test", requireRole("admin_spelc", "admin_general"), 
   }
   const fields = templateFieldsFor(recipient, spelc);
   const result = await sendBrevoSms({
-    apiKey: user.brevo_api_key,
+    apiKey,
     recipients: [normalizeFrenchMobile(testMobile)],
     content: renderTemplate(String(body), fields),
     tag: "test-modele",
@@ -427,11 +400,9 @@ router.get("/campaigns/preview", requireRole("admin_spelc"), (req, res) => {
 router.post("/campaigns/email", requireRole("admin_spelc"), async (req, res) => {
   const spelc = req.user!.spelc!;
   const { tag, onlyNonVotants = true, testMode, testLimit } = req.body ?? {};
-  const user = db.prepare("SELECT brevo_api_key FROM users WHERE id = ?").get(req.user!.id) as {
-    brevo_api_key: string | null;
-  };
-  if (!user.brevo_api_key) {
-    res.status(400).json({ error: "Clé API Brevo non configurée pour ce Spelc." });
+  const apiKey = getBrevoApiKey();
+  if (!apiKey) {
+    res.status(400).json({ error: "Clé API Brevo non configurée (contactez l'administrateur général)." });
     return;
   }
   const template = db.prepare("SELECT subject, body FROM email_templates WHERE spelc = ?").get(spelc) as
@@ -468,7 +439,7 @@ router.post("/campaigns/email", requireRole("admin_spelc"), async (req, res) => 
   let errors = 0;
   for (const item of to) {
     const result = await sendBrevoEmails({
-      apiKey: user.brevo_api_key,
+      apiKey,
       to: [{ email: item.email, name: item.name }],
       subject: item.subject,
       htmlContent: item.html,
@@ -509,11 +480,9 @@ router.post("/campaigns/email", requireRole("admin_spelc"), async (req, res) => 
 router.post("/campaigns/sms", requireRole("admin_spelc"), async (req, res) => {
   const spelc = req.user!.spelc!;
   const { tag, onlyNonVotants = true, testMode, smsLimit } = req.body ?? {};
-  const user = db.prepare("SELECT brevo_api_key FROM users WHERE id = ?").get(req.user!.id) as {
-    brevo_api_key: string | null;
-  };
-  if (!user.brevo_api_key) {
-    res.status(400).json({ error: "Clé API Brevo non configurée pour ce Spelc." });
+  const apiKey = getBrevoApiKey();
+  if (!apiKey) {
+    res.status(400).json({ error: "Clé API Brevo non configurée (contactez l'administrateur général)." });
     return;
   }
   const template = db.prepare("SELECT body FROM sms_templates WHERE spelc = ?").get(spelc) as
@@ -541,7 +510,7 @@ router.post("/campaigns/sms", requireRole("admin_spelc"), async (req, res) => {
     const content = renderTemplate(template.body, templateFieldsFor(r, spelc));
     const contact = testMode ? String(testMobile) : r.mobile!;
     const result = await sendBrevoSms({
-      apiKey: user.brevo_api_key,
+      apiKey,
       recipients: [normalizeFrenchMobile(contact)],
       content,
       tag: campagneTag,

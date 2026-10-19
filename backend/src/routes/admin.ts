@@ -9,6 +9,7 @@ import {
   clearDeptCache,
 } from "../services/reference.js";
 import { getTestContactSettings, setSetting } from "../services/settings.js";
+import { isBrevoApiKeyConfigured, maskedBrevoApiKey, saveBrevoApiKey } from "../services/brevo.js";
 import { listAllRelanceTracking, refreshPendingRelanceTracking } from "../services/relanceTracking.js";
 import { importUsersFromFile } from "../services/userImport.js";
 
@@ -147,6 +148,30 @@ router.put("/test-settings", (req, res) => {
   if (testEmail !== undefined) setSetting("test_email", String(testEmail));
   if (testMobile !== undefined) setSetting("test_mobile", String(testMobile));
   res.json(getTestContactSettings());
+});
+
+/**
+ * Clé API Brevo unique, partagée par tous les syndicats adhérents (voir
+ * services/brevo.ts) : réglée une seule fois ici plutôt qu'une clé par
+ * compte admin Spelc comme auparavant.
+ */
+router.get("/brevo-settings", (_req, res) => {
+  res.json({ configured: isBrevoApiKeyConfigured(), maskedKey: maskedBrevoApiKey() });
+});
+
+router.put("/brevo-settings", (req, res) => {
+  const { apiKey } = req.body ?? {};
+  // Un espace ou retour à la ligne collé par erreur avec la clé (fréquent en
+  // copier-coller depuis le tableau de bord Brevo) la rend invalide sans
+  // qu'aucun message ne le laisse deviner : on l'écarte à la saisie plutôt
+  // que de forcer l'admin à le repérer lui-même dans un champ masqué.
+  const trimmedKey = typeof apiKey === "string" ? apiKey.trim() : "";
+  if (!trimmedKey) {
+    res.status(400).json({ error: "apiKey requise." });
+    return;
+  }
+  saveBrevoApiKey(trimmedKey);
+  res.json({ configured: true, maskedKey: maskedBrevoApiKey() });
 });
 
 /**

@@ -1,3 +1,31 @@
+import { decrypt, encrypt } from "../lib/crypto.js";
+import { getSetting, setSetting } from "./settings.js";
+
+/**
+ * Clé API Brevo unique, partagée par tous les syndicats adhérents : réglée
+ * une seule fois par l'admin général (onglet "Paramètres"), au lieu d'une
+ * clé par compte admin Spelc comme auparavant (colonne users.brevo_api_key,
+ * désormais inutilisée). Même mécanisme que la clé Mistral (services/mistral.ts) :
+ * stockée chiffrée au repos dans app_settings via lib/crypto.ts.
+ */
+export function isBrevoApiKeyConfigured(): boolean {
+  return Boolean(getSetting("brevo_api_key"));
+}
+
+export function saveBrevoApiKey(apiKey: string): void {
+  setSetting("brevo_api_key", encrypt(apiKey));
+}
+
+export function maskedBrevoApiKey(): string | null {
+  const encrypted = getSetting("brevo_api_key");
+  return encrypted ? "••••••••" + decrypt(encrypted).slice(-4) : null;
+}
+
+export function getBrevoApiKey(): string | null {
+  const encrypted = getSetting("brevo_api_key");
+  return encrypted ? decrypt(encrypted) : null;
+}
+
 interface SendEmailPayload {
   apiKey: string;
   to: { email: string; name?: string }[];

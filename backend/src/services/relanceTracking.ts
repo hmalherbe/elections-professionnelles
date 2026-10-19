@@ -1,6 +1,6 @@
 import dayjs from "dayjs";
 import { db } from "../db/index.js";
-import { fetchEmailEvents, fetchSmsEvents, type BrevoEmailEvent, type BrevoSmsEvent } from "./brevo.js";
+import { fetchEmailEvents, fetchSmsEvents, getBrevoApiKey, type BrevoEmailEvent, type BrevoSmsEvent } from "./brevo.js";
 
 export interface RelanceTrackingInput {
   ownerUserId: number;
@@ -231,62 +231,54 @@ export async function refreshPendingRelanceTracking(
   const rows = pendingRows(filter);
   if (!rows.length) return { checked: 0, updated: 0 };
 
-  const byOwner = new Map<number, RelanceTrackingRow[]>();
+  // Clé API Brevo unique pour tous les syndicats (voir services/brevo.ts) :
+  // plus besoin de regrouper par owner_user_id pour retrouver la clé de
+  // chacun, une seule suffit pour l'ensemble des lignes en attente.
+  const apiKey = getBrevoApiKey();
+  if (!apiKey) return { checked: 0, updated: 0 };
+
+  const byTag = new Map<string, RelanceTrackingRow[]>();
   for (const r of rows) {
-    if (!byOwner.has(r.owner_user_id)) byOwner.set(r.owner_user_id, []);
-    byOwner.get(r.owner_user_id)!.push(r);
+    const key = `${r.type}::${r.campagne_tag}`;
+    if (!byTag.has(key)) byTag.set(key, []);
+    byTag.get(key)!.push(r);
   }
 
   let updated = 0;
   const endDate = dayjs().format("YYYY-MM-DD");
 
-  for (const [ownerId, ownerRows] of byOwner) {
-    const userRow = db.prepare("SELECT brevo_api_key FROM users WHERE id = ?").get(ownerId) as
-      | { brevo_api_key: string | null }
-      | undefined;
-    if (!userRow?.brevo_api_key) continue;
-    const apiKey = userRow.brevo_api_key;
+  for (const tagRows of byTag.values()) {
+    const { type, campagne_tag: tag } = tagRows[0];
+    const oldest = tagRows.reduce((min, r) => (r.created_at < min ? r.created_at : min), tagRows[0].created_at);
+    const startDate = dayjs(oldest).format("YYYY-MM-DD");
 
-    const byTag = new Map<string, RelanceTrackingRow[]>();
-    for (const r of ownerRows) {
-      const key = `${r.type}::${r.campagne_tag}`;
-      if (!byTag.has(key)) byTag.set(key, []);
-      byTag.get(key)!.push(r);
-    }
-
-    for (const tagRows of byTag.values()) {
-      const { type, campagne_tag: tag } = tagRows[0];
-      const oldest = tagRows.reduce((min, r) => (r.created_at < min ? r.created_at : min), tagRows[0].created_at);
-      const startDate = dayjs(oldest).format("YYYY-MM-DD");
-
-      if (type === "mail") {
-        const events: BrevoEmailEvent[] = await fetchEmailEvents(apiKey, { tag, startDate, endDate, limit: 500 });
-        for (const row of tagRows) {
-          const matched = events.filter((e) => e.messageId && e.messageId === row.message_id);
-          if (!matched.length) {
-            touchLastChecked(row.id);
-            continue;
-          }
-          const clicked = matched.some((e) => e.event === "clicks");
-          const opened = matched.some((e) => e.event === "opened" || e.event === "uniqueOpened");
-          const status = pickStatus(matched, EMAIL_STATUS_PRIORITY);
-          applyUpdate(row.id, status, clicked, opened);
-          updated++;
+    if (type === "mail") {
+      const events: BrevoEmailEvent[] = await fetchEmailEvents(apiKey, { tag, startDate, endDate, limit: 500 });
+      for (const row of tagRows) {
+        const matched = events.filter((e) => e.messageId && e.messageId === row.message_id);
+        if (!matched.length) {
+          touchLastChecked(row.id);
+          continue;
         }
-      } else {
-        const events: BrevoSmsEvent[] = await fetchSmsEvents(apiKey, { tag, startDate, endDate, limit: 500 });
-        for (const row of tagRows) {
-          const matched = events.filter(
-            (e) => (e.reference && e.reference === row.message_id) || e.sms === row.contact || e.phoneNumber === row.contact
-          );
-          if (!matched.length) {
-            touchLastChecked(row.id);
-            continue;
-          }
-          const status = pickStatus(matched, SMS_STATUS_PRIORITY);
-          applyUpdate(row.id, status, false);
-          updated++;
+        const clicked = matched.some((e) => e.event === "clicks");
+        const opened = matched.some((e) => e.event === "opened" || e.event === "uniqueOpened");
+        const status = pickStatus(matched, EMAIL_STATUS_PRIORITY);
+        applyUpdate(row.id, status, clicked, opened);
+        updated++;
+      }
+    } else {
+      const events: BrevoSmsEvent[] = await fetchSmsEvents(apiKey, { tag, startDate, endDate, limit: 500 });
+      for (const row of tagRows) {
+        const matched = events.filter(
+          (e) => (e.reference && e.reference === row.message_id) || e.sms === row.contact || e.phoneNumber === row.contact
+        );
+        if (!matched.length) {
+          touchLastChecked(row.id);
+          continue;
         }
+        const status = pickStatus(matched, SMS_STATUS_PRIORITY);
+        applyUpdate(row.id, status, false);
+        updated++;
       }
     }
   }
