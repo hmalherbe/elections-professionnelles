@@ -6,7 +6,7 @@ export async function loadWorkbook(buffer: Buffer): Promise<ExcelJS.Workbook> {
   return wb;
 }
 
-function normalizeCellValue(value: ExcelJS.CellValue): unknown {
+export function normalizeCellValue(value: ExcelJS.CellValue): unknown {
   if (value && typeof value === "object") {
     if ("result" in value) return (value as { result: unknown }).result;
     if ("text" in value) return (value as { text: unknown }).text;
@@ -19,8 +19,15 @@ function normalizeCellValue(value: ExcelJS.CellValue): unknown {
 
 /**
  * Convertit une feuille en tableau d'objets clé/valeur, la première ligne
- * étant traitée comme l'en-tête. L'ordre des clés reflète l'ordre des
- * colonnes, ce qui permet un accès positionnel via Object.values().
+ * étant traitée comme l'en-tête. L'ordre des clés reflète en principe l'ordre
+ * des colonnes, ce qui permet un accès positionnel via Object.values() —
+ * SAUF si une "clé" d'en-tête ressemble à un entier (ex. une valeur
+ * numérique résiduelle traînant dans la ligne d'en-tête) : JavaScript trie
+ * alors les clés qui ressemblent à des entiers en premier, avant les clés
+ * textuelles, quel que soit leur ordre d'insertion — l'accès positionnel
+ * devient alors faux pour les lignes concernées. Pour une feuille dont
+ * l'en-tête n'est pas garanti "propre", préférer un accès direct par
+ * colonne (sheet.eachRow + row.getCell(n), voir loadSmsQuotaWorkbook).
  */
 export function rowsAsObjects(sheet: ExcelJS.Worksheet): Record<string, unknown>[] {
   const headers: string[] = [];

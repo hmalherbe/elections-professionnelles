@@ -257,6 +257,22 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
   const [trackingTypeFilter, setTrackingTypeFilter] = useState<"all" | "mail" | "sms">("all");
   const [trackingClearMsg, setTrackingClearMsg] = useState<string | null>(null);
   const [preview, setPreview] = useState<{ mailRecipients: number; smsRecipients: number } | null>(null);
+  const [smsQuota, setSmsQuota] = useState<{
+    quota: number | null;
+    used: number;
+    remaining: number | null;
+    reached: boolean;
+  } | null>(null);
+
+  function refreshSmsQuota() {
+    api
+      .get<{ quota: number | null; used: number; remaining: number | null; reached: boolean }>(
+        `/brevo/sms-quota${qs({ spelc })}`
+      )
+      .then(setSmsQuota)
+      .catch(() => setSmsQuota(null));
+  }
+  useEffect(refreshSmsQuota, [spelc]);
 
   function reloadTracking() {
     api
@@ -370,6 +386,7 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
       setTestSmsBusy(false);
       reloadTracking();
       refreshCredits();
+      refreshSmsQuota();
     }
   }
 
@@ -604,6 +621,20 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
           );
         })()}
 
+        {smsQuota?.quota != null && (
+          <div
+            className={`mt-2 rounded-md border px-3 py-2 text-sm ${
+              smsQuota.reached ? "border-red-200 bg-red-50 text-red-700" : "border-slate-200 bg-slate-50 text-slate-600"
+            }`}
+          >
+            Plafond de crédits SMS de ce Spelc : {smsQuota.used.toLocaleString("fr-FR")} /{" "}
+            {smsQuota.quota.toLocaleString("fr-FR")} crédits utilisés
+            {smsQuota.reached
+              ? " — plafond atteint, plus aucun envoi SMS possible pour ce Spelc."
+              : ` (${smsQuota.remaining!.toLocaleString("fr-FR")} restant(s)).`}
+          </div>
+        )}
+
         {testMode && (
           <div className="mt-3 grid grid-cols-1 gap-3 rounded-md border border-amber-200 bg-amber-50 p-3">
             <p className="text-xs text-amber-800">
@@ -657,7 +688,8 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
             {testMailBusy ? "Envoi…" : "Mail de test"}
           </button>
           <button
-            className="rounded-md bg-slate-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-900"
+            className="rounded-md bg-slate-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-900 disabled:opacity-60"
+            disabled={Boolean(smsQuota?.reached)}
             onClick={async () => {
               try {
                 await api.put("/brevo/templates/sms", { spelc, body: smsTemplate.body });
@@ -669,6 +701,7 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
                 setMessage(`SMS : ${res.sent}/${res.total} envoyés, ${res.errors} erreurs.`);
                 reloadTracking();
                 refreshCredits();
+                refreshSmsQuota();
               } catch (err) {
                 setMessage((err as Error).message);
               }
@@ -678,7 +711,7 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
           </button>
           <button
             className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 disabled:opacity-60"
-            disabled={testSmsBusy}
+            disabled={testSmsBusy || Boolean(smsQuota?.reached)}
             onClick={sendTestSms}
           >
             {testSmsBusy ? "Envoi…" : "SMS de test"}

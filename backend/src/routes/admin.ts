@@ -6,6 +6,7 @@ import { requireAuth, requireRole } from "../middleware/auth.js";
 import {
   loadAcademieScrutinsWorkbook,
   loadDepartementsWorkbook,
+  loadSmsQuotaWorkbook,
   clearDeptCache,
 } from "../services/reference.js";
 import { getTestContactSettings, setSetting } from "../services/settings.js";
@@ -97,6 +98,26 @@ router.post("/reference/departements", upload.single("file"), async (req, res) =
   try {
     const result = await loadDepartementsWorkbook(req.file.buffer);
     clearDeptCache();
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+/**
+ * Plafond de crédits SMS par Spelc (nom en colonne B, crédits alloués en
+ * colonne D) : réparti par la fédération au prorata du nombre d'adhérents,
+ * à partir du volume total de crédits achetés en début de campagne — voir
+ * services/smsQuota.ts pour le blocage des campagnes une fois le plafond
+ * atteint.
+ */
+router.post("/reference/sms-quota", upload.single("file"), async (req, res) => {
+  if (!req.file) {
+    res.status(400).json({ error: "Fichier requis." });
+    return;
+  }
+  try {
+    const result = await loadSmsQuotaWorkbook(req.file.buffer);
     res.json(result);
   } catch (err) {
     res.status(400).json({ error: (err as Error).message });

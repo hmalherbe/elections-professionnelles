@@ -1,5 +1,5 @@
 import { db } from "../db/index.js";
-import { loadWorkbook, rowsAsObjects } from "../lib/xlsx.js";
+import { loadWorkbook, rowsAsObjects, normalizeCellValue } from "../lib/xlsx.js";
 
 function normDept(value: unknown): string {
   return String(value).trim().padStart(2, "0");
@@ -59,6 +59,43 @@ export async function loadDepartementsWorkbook(buffer: Buffer): Promise<{ depart
   }
 
   return { departements: deptCount, spelcs: spelcCount };
+}
+
+/**
+ * Plafond de crédits SMS par Spelc : nom du Spelc en colonne B, crédits
+ * alloués en colonne D (format fourni par la fédération — colonnes A/C
+ * (départements, nombre de cotisations) et le reste de la feuille, dont le
+ * récapitulatif des crédits totaux achetés, ne sont pas utilisés ici).
+ *
+ * Lecture par position de colonne directe (row.getCell), PAS via
+ * rowsAsObjects()/Object.values() : le fichier réel fourni contient des
+ * valeurs numériques résiduelles dans la ligne d'en-tête (au-delà des 4
+ * colonnes utiles), ce qui décale l'accès positionnel par Object.values()
+ * sur certaines lignes (voir le commentaire de rowsAsObjects dans lib/xlsx.ts).
+ */
+export async function loadSmsQuotaWorkbook(buffer: Buffer): Promise<{ count: number }> {
+  const wb = await loadWorkbook(buffer);
+  const sheet = wb.worksheets[0];
+
+  const insert = db.prepare(
+    `INSERT INTO ref_sms_quota (spelc, credits, updated_at) VALUES (?, ?, datetime('now'))
+     ON CONFLICT(spelc) DO UPDATE SET credits = excluded.credits, updated_at = datetime('now')`
+  );
+  let count = 0;
+  const tx = db.transaction(() => {
+    sheet.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) return; // en-tête
+      const spelc = normalizeCellValue(row.getCell(2).value); // colonne B
+      const credits = normalizeCellValue(row.getCell(4).value); // colonne D
+      if (spelc == null || String(spelc).trim() === "" || credits == null || credits === "") return;
+      const creditsNum = Number(credits);
+      if (!Number.isFinite(creditsNum)) return;
+      insert.run(String(spelc).trim(), Math.round(creditsNum));
+      count++;
+    });
+  });
+  tx();
+  return { count };
 }
 
 export async function loadAcademieScrutinsWorkbook(buffer: Buffer): Promise<{ count: number }> {

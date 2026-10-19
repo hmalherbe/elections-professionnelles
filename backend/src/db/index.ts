@@ -53,6 +53,16 @@ export function migrate(): void {
       type_2d TEXT NOT NULL
     );
 
+    -- Plafond de crédits SMS par Spelc, réparti par la fédération au prorata
+    -- du nombre d'adhérents à partir du volume total de crédits achetés en
+    -- début de campagne (fichier Excel chargé par l'admin général, onglet
+    -- Référentiels — voir services/reference.ts loadSmsQuotaWorkbook).
+    CREATE TABLE IF NOT EXISTS ref_sms_quota (
+      spelc TEXT PRIMARY KEY,
+      credits INTEGER NOT NULL,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
     CREATE TABLE IF NOT EXISTS imports (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       scope TEXT NOT NULL CHECK (scope IN ('national','academique')),

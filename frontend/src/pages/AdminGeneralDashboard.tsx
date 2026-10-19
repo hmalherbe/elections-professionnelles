@@ -654,6 +654,18 @@ function ReferentielsPanel() {
           return `${res.count} académies chargées.`;
         }}
       />
+      <FileUploadCard
+        title="Crédits SMS par Spelc"
+        subtitle="Plafond de crédits SMS réparti par Spelc (colonne B = nom du Spelc, colonne D = crédits alloués). Une fois le plafond atteint (crédits cumulés utilisés par le Spelc), ses campagnes SMS sont bloquées."
+        expectedColumns={["(A) Départements", "(B) Syndicats adhérents", "(C) Nombre de cotisation", "(D) Crédits SMS"]}
+        accept=".xlsx"
+        onUpload={async (file) => {
+          const fd = new FormData();
+          fd.append("file", file);
+          const res = await api.upload<{ count: number }>("/admin/reference/sms-quota", fd);
+          return `${res.count} Spelc(s) chargé(s).`;
+        }}
+      />
     </div>
   );
 }

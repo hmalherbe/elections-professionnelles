@@ -20,6 +20,15 @@ import {
 import { normalizeFrenchMobile } from "../lib/phone.js";
 import { isValidSmsSender, suggestSmsSender } from "../lib/smsSender.js";
 import { isRelanceOnly } from "../lib/appMode.js";
+import { smsQuotaStatus } from "../services/smsQuota.js";
+
+/** Préfixe le tag Brevo d'une campagne SMS par le nom du Spelc, pour que les
+ * envois de chaque Spelc soient identifiables à la fois dans le tableau de
+ * bord Brevo et dans le suivi interne (qui utilise déjà `scope`, indépendant
+ * du tag, pour le calcul du plafond de crédits — voir services/smsQuota.ts). */
+function smsCampagneTag(spelc: string, tag: string): string {
+  return `${spelc}-${tag}`;
+}
 
 /** Démo "relance-only" : pas de gestion de logo par l'admin (voir
  * AdminSpelcDashboard.tsx), donc le logo du Spelc fédéral est fixe, ajouté en
@@ -333,17 +342,22 @@ router.post("/templates/sms/test", requireRole("admin_spelc", "admin_general"), 
     res.status(400).json({ error: "Clé API Brevo non configurée (contactez l'administrateur général)." });
     return;
   }
+  if (smsQuotaStatus(spelc).reached) {
+    res.status(400).json({ error: "Plafond de crédits SMS atteint pour ce Spelc : plus aucun envoi SMS possible." });
+    return;
+  }
   const recipient = firstNonVotantAdherent(spelc);
   if (!recipient) {
     res.status(400).json({ error: "Aucun adhérent non-votant disponible pour prévisualiser le modèle." });
     return;
   }
   const fields = templateFieldsFor(recipient, spelc);
+  const campagneTag = smsCampagneTag(spelc, "test-modele");
   const result = await sendBrevoSms({
     apiKey,
     recipients: [normalizeFrenchMobile(testMobile)],
     content: renderTemplate(String(body), fields),
-    tag: "test-modele",
+    tag: campagneTag,
     sender: resolveSmsSender(spelc),
   });
   appendRelanceLog({
@@ -351,7 +365,7 @@ router.post("/templates/sms/test", requireRole("admin_spelc", "admin_general"), 
     type: "sms",
     provider: "Brevo",
     scope: spelc,
-    campagneTag: "test-modele",
+    campagneTag,
     nom: recipient.nom,
     prenom: recipient.prenom,
     contact: testMobile,
@@ -362,7 +376,7 @@ router.post("/templates/sms/test", requireRole("admin_spelc", "admin_general"), 
     ownerUserId: req.user!.id,
     type: "sms",
     scope: spelc,
-    campagneTag: "test-modele",
+    campagneTag,
     nom: recipient.nom,
     prenom: recipient.prenom,
     contact: normalizeFrenchMobile(testMobile),
@@ -485,6 +499,13 @@ router.post("/campaigns/sms", requireRole("admin_spelc"), async (req, res) => {
     res.status(400).json({ error: "Clé API Brevo non configurée (contactez l'administrateur général)." });
     return;
   }
+  const quotaStatus = smsQuotaStatus(spelc);
+  if (quotaStatus.reached) {
+    res.status(400).json({
+      error: `Plafond de crédits SMS atteint pour ce Spelc (${quotaStatus.used}/${quotaStatus.quota}) : plus aucune campagne SMS possible.`,
+    });
+    return;
+  }
   const template = db.prepare("SELECT body FROM sms_templates WHERE spelc = ?").get(spelc) as
     | { body: string }
     | undefined;
@@ -502,7 +523,7 @@ router.post("/campaigns/sms", requireRole("admin_spelc"), async (req, res) => {
   if (onlyNonVotants) recipients = recipients.filter(needsRelance);
   recipients = recipients.slice(0, clampSmsLimit(smsLimit));
 
-  const campagneTag = (tag ?? "relance") + (testMode ? "-test" : "");
+  const campagneTag = smsCampagneTag(spelc, (tag ?? "relance") + (testMode ? "-test" : ""));
   const smsSender = resolveSmsSender(spelc);
   let sent = 0;
   let errors = 0;
@@ -546,6 +567,17 @@ router.post("/campaigns/sms", requireRole("admin_spelc"), async (req, res) => {
   }
 
   res.status(201).json({ sent, errors, total: recipients.length });
+});
+
+/**
+ * Statut du plafond de crédits SMS de ce Spelc (quota national réparti,
+ * crédits déjà consommés, atteint ou non) — voir services/smsQuota.ts.
+ * Aucun plafond configuré pour ce Spelc : quota = null, jamais bloquant.
+ */
+router.get("/sms-quota", requireRole("admin_spelc", "admin_general"), (req, res) => {
+  const spelc = req.query.spelc as string;
+  if (!spelc || !assertSpelcAccess(req, res, spelc)) return;
+  res.json(smsQuotaStatus(spelc));
 });
 
 /** Série quotidienne pour la courbe de suivi des mails, calculée à partir du suivi par personne. */
