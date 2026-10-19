@@ -157,13 +157,16 @@ export function getSmsSeriesByScope(scope: string): SmsSeriesPoint[] {
 
 export interface RelanceDailyPoint {
   date: string;
+  spelc: string;
   mailEnvoyes: number;
   smsEnvoyes: number;
 }
 
 /**
- * Nombre de relances envoyées avec succès par jour, tous Spelc confondus
- * (vue nationale, admin général) — pour l'onglet "Statistiques relances".
+ * Nombre de relances envoyées avec succès par jour ET par Spelc (vue
+ * nationale, admin général) — pour l'onglet "Statistiques relances"
+ * (tableau hiérarchique jour/Spelc + graphiques, vue nationale agrégée ou
+ * filtrée sur un Spelc construites côté frontend à partir de ce détail).
  * Relances réelles uniquement (test_mode = 0) : les envois de test faits
  * pendant la préparation d'une campagne ne sont pas des relances aux
  * adhérents et fausseraient sinon le nombre réel par jour.
@@ -171,13 +174,13 @@ export interface RelanceDailyPoint {
 export function getRelanceDailyStatsAll(): RelanceDailyPoint[] {
   return db
     .prepare(
-      `SELECT date(created_at) AS date,
+      `SELECT date(created_at) AS date, scope AS spelc,
               SUM(CASE WHEN type = 'mail' AND send_ok = 1 THEN 1 ELSE 0 END) AS mailEnvoyes,
               SUM(CASE WHEN type = 'sms' AND send_ok = 1 THEN 1 ELSE 0 END) AS smsEnvoyes
        FROM relance_tracking
        WHERE test_mode = 0
-       GROUP BY date(created_at)
-       ORDER BY date(created_at)`
+       GROUP BY date(created_at), scope
+       ORDER BY date(created_at), scope`
     )
     .all() as RelanceDailyPoint[];
 }

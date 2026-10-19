@@ -68,6 +68,7 @@ export interface ImportRecord {
 
 export interface RelanceDailyPoint {
   date: string;
+  spelc: string;
   mailEnvoyes: number;
   smsEnvoyes: number;
 }

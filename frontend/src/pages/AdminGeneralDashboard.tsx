@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { CamembertCard } from "../components/CamembertCard";
 import { Card } from "../components/Card";
@@ -379,8 +379,16 @@ function ElecteursAcademiquesPanel() {
   );
 }
 
-interface RelanceDailyWithTotal extends RelanceDailyPoint {
+interface DaySpelcRow extends RelanceDailyPoint {
   total: number;
+}
+
+interface DayGroup {
+  date: string;
+  mailEnvoyes: number;
+  smsEnvoyes: number;
+  total: number;
+  spelcs: DaySpelcRow[];
 }
 
 interface RelanceCumulPoint {
@@ -393,21 +401,68 @@ function formatJour(date: string): string {
   return date.slice(8, 10) + "/" + date.slice(5, 7);
 }
 
+const TOUS_SPELC = "__tous__";
+
 /**
- * Nombre de relances mail/SMS envoyées par jour, tous Spelc confondus
- * (relances réelles uniquement, hors envois de test — voir
- * services/relanceTracking.ts getRelanceDailyStatsAll).
+ * Nombre de relances mail/SMS envoyées par jour et par Spelc (relances
+ * réelles uniquement, hors envois de test — voir
+ * services/relanceTracking.ts getRelanceDailyStatsAll). Le tableau est
+ * hiérarchique (jour -> détail par Spelc, cliquer pour déplier) ; les deux
+ * graphiques affichent soit le cumul national, soit un Spelc choisi dans le
+ * sélecteur — un histogramme avec une série par Spelc (40+) ne serait pas
+ * lisible.
  */
 function StatistiquesRelancesPanel() {
   const [rows, setRows] = useState<RelanceDailyPoint[]>([]);
+  const [open, setOpen] = useState<Set<string>>(new Set());
+  const [selectedSpelc, setSelectedSpelc] = useState(TOUS_SPELC);
 
   useEffect(() => {
     api.get<{ rows: RelanceDailyPoint[] }>("/admin/relance-stats").then((r) => setRows(r.rows));
   }, []);
 
-  const rowsWithTotal: RelanceDailyWithTotal[] = rows.map((r) => ({ ...r, total: r.mailEnvoyes + r.smsEnvoyes }));
+  function toggle(date: string) {
+    setOpen((prev) => {
+      const next = new Set(prev);
+      if (next.has(date)) next.delete(date);
+      else next.add(date);
+      return next;
+    });
+  }
 
-  const cumulRows: RelanceCumulPoint[] = rows.reduce<RelanceCumulPoint[]>((acc, r) => {
+  const spelcs = Array.from(new Set(rows.map((r) => r.spelc))).sort((a, b) => a.localeCompare(b));
+
+  const dayGroups: DayGroup[] = (() => {
+    const byDate = new Map<string, DaySpelcRow[]>();
+    for (const r of rows) {
+      const list = byDate.get(r.date) ?? [];
+      list.push({ ...r, total: r.mailEnvoyes + r.smsEnvoyes });
+      byDate.set(r.date, list);
+    }
+    return Array.from(byDate.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, spelcRows]) => {
+        const sorted = [...spelcRows].sort((a, b) => a.spelc.localeCompare(b.spelc));
+        const mailEnvoyes = sorted.reduce((s, r) => s + r.mailEnvoyes, 0);
+        const smsEnvoyes = sorted.reduce((s, r) => s + r.smsEnvoyes, 0);
+        return { date, mailEnvoyes, smsEnvoyes, total: mailEnvoyes + smsEnvoyes, spelcs: sorted };
+      });
+  })();
+
+  const totalMail = dayGroups.reduce((s, d) => s + d.mailEnvoyes, 0);
+  const totalSms = dayGroups.reduce((s, d) => s + d.smsEnvoyes, 0);
+
+  // Série quotidienne pour les graphiques : agrégée nationalement, ou
+  // filtrée sur le Spelc sélectionné.
+  const chartData =
+    selectedSpelc === TOUS_SPELC
+      ? dayGroups.map((d) => ({ date: d.date, mailEnvoyes: d.mailEnvoyes, smsEnvoyes: d.smsEnvoyes }))
+      : rows
+          .filter((r) => r.spelc === selectedSpelc)
+          .map((r) => ({ date: r.date, mailEnvoyes: r.mailEnvoyes, smsEnvoyes: r.smsEnvoyes }))
+          .sort((a, b) => a.date.localeCompare(b.date));
+
+  const cumulData: RelanceCumulPoint[] = chartData.reduce<RelanceCumulPoint[]>((acc, r) => {
     const prev = acc[acc.length - 1];
     acc.push({
       date: r.date,
@@ -417,51 +472,85 @@ function StatistiquesRelancesPanel() {
     return acc;
   }, []);
 
-  const totalMail = rows.reduce((s, r) => s + r.mailEnvoyes, 0);
-  const totalSms = rows.reduce((s, r) => s + r.smsEnvoyes, 0);
+  const chartSubtitle = selectedSpelc === TOUS_SPELC ? "Tous les Spelc" : selectedSpelc;
 
   return (
     <div className="space-y-4">
       <Card
-        title="Relances par jour (tous Spelc confondus)"
-        subtitle="Relances réelles uniquement (hors envois de test)."
+        title="Relances par jour et par Spelc"
+        subtitle="Relances réelles uniquement (hors envois de test). Cliquez sur un jour pour voir le détail par Spelc."
       >
-        {rows.length === 0 ? (
+        {dayGroups.length === 0 ? (
           <p className="text-sm text-slate-400">Aucune relance envoyée pour le moment.</p>
         ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-500">
-                <th className="py-2 pr-4">Jour</th>
-                <th className="px-4 py-2">Mails envoyés</th>
-                <th className="px-4 py-2">SMS envoyés</th>
-                <th className="px-4 py-2">Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rowsWithTotal.map((r) => (
-                <tr key={r.date} className="border-b border-slate-100">
-                  <td className="py-1.5 pr-4">{formatJour(r.date)}</td>
-                  <td className="px-4 py-1.5">{r.mailEnvoyes.toLocaleString("fr-FR")}</td>
-                  <td className="px-4 py-1.5">{r.smsEnvoyes.toLocaleString("fr-FR")}</td>
-                  <td className="px-4 py-1.5 font-medium text-slate-700">{r.total.toLocaleString("fr-FR")}</td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-500">
+                  <th className="py-2 pr-4">Jour / Spelc</th>
+                  <th className="px-4 py-2">Mails envoyés</th>
+                  <th className="px-4 py-2">SMS envoyés</th>
+                  <th className="px-4 py-2">Total</th>
                 </tr>
-              ))}
-              <tr className="border-t border-slate-200 bg-slate-50 font-medium text-slate-700">
-                <td className="py-1.5 pr-4">Total</td>
-                <td className="px-4 py-1.5">{totalMail.toLocaleString("fr-FR")}</td>
-                <td className="px-4 py-1.5">{totalSms.toLocaleString("fr-FR")}</td>
-                <td className="px-4 py-1.5">{(totalMail + totalSms).toLocaleString("fr-FR")}</td>
-              </tr>
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {dayGroups.map((d) => (
+                  <Fragment key={d.date}>
+                    <tr
+                      className="cursor-pointer border-b border-slate-100 hover:bg-slate-50"
+                      onClick={() => toggle(d.date)}
+                    >
+                      <td className="py-1.5 pr-4 font-medium text-slate-800">
+                        <span className="mr-1 inline-block w-3 text-slate-400">{open.has(d.date) ? "▾" : "▸"}</span>
+                        {formatJour(d.date)}
+                      </td>
+                      <td className="px-4 py-1.5">{d.mailEnvoyes.toLocaleString("fr-FR")}</td>
+                      <td className="px-4 py-1.5">{d.smsEnvoyes.toLocaleString("fr-FR")}</td>
+                      <td className="px-4 py-1.5 font-medium text-slate-700">{d.total.toLocaleString("fr-FR")}</td>
+                    </tr>
+                    {open.has(d.date) &&
+                      d.spelcs.map((s) => (
+                        <tr key={d.date + s.spelc} className="border-b border-slate-50 bg-slate-50/60">
+                          <td className="py-1 pl-8 pr-4 text-slate-600">{s.spelc}</td>
+                          <td className="px-4 py-1 text-slate-500">{s.mailEnvoyes.toLocaleString("fr-FR")}</td>
+                          <td className="px-4 py-1 text-slate-500">{s.smsEnvoyes.toLocaleString("fr-FR")}</td>
+                          <td className="px-4 py-1 text-slate-500">{s.total.toLocaleString("fr-FR")}</td>
+                        </tr>
+                      ))}
+                  </Fragment>
+                ))}
+                <tr className="border-t border-slate-200 bg-slate-50 font-medium text-slate-700">
+                  <td className="py-1.5 pr-4">Total</td>
+                  <td className="px-4 py-1.5">{totalMail.toLocaleString("fr-FR")}</td>
+                  <td className="px-4 py-1.5">{totalSms.toLocaleString("fr-FR")}</td>
+                  <td className="px-4 py-1.5">{(totalMail + totalSms).toLocaleString("fr-FR")}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         )}
       </Card>
 
-      <Card title="Histogramme des relances par jour">
+      <div>
+        <label className="text-xs font-medium text-slate-500">Graphiques pour :</label>
+        <select
+          className="ml-2 rounded-md border border-slate-300 px-2 py-1 text-sm"
+          value={selectedSpelc}
+          onChange={(e) => setSelectedSpelc(e.target.value)}
+        >
+          <option value={TOUS_SPELC}>Tous les Spelc</option>
+          {spelcs.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <Card title="Histogramme des relances par jour" subtitle={chartSubtitle}>
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={rows} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+            <BarChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
               <XAxis dataKey="date" tickFormatter={formatJour} tick={{ fontSize: 12 }} />
               <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
@@ -472,13 +561,13 @@ function StatistiquesRelancesPanel() {
             </BarChart>
           </ResponsiveContainer>
         </div>
-        {rows.length === 0 && <p className="text-sm text-slate-400">Aucune relance envoyée pour le moment.</p>}
+        {chartData.length === 0 && <p className="text-sm text-slate-400">Aucune relance envoyée pour le moment.</p>}
       </Card>
 
-      <Card title="Histogramme cumulatif des relances">
+      <Card title="Histogramme cumulatif des relances" subtitle={chartSubtitle}>
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={cumulRows} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+            <BarChart data={cumulData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
               <XAxis dataKey="date" tickFormatter={formatJour} tick={{ fontSize: 12 }} />
               <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
@@ -489,7 +578,7 @@ function StatistiquesRelancesPanel() {
             </BarChart>
           </ResponsiveContainer>
         </div>
-        {rows.length === 0 && <p className="text-sm text-slate-400">Aucune relance envoyée pour le moment.</p>}
+        {cumulData.length === 0 && <p className="text-sm text-slate-400">Aucune relance envoyée pour le moment.</p>}
       </Card>
     </div>
   );
