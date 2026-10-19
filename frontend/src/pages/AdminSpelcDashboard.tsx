@@ -168,34 +168,6 @@ interface RelanceTrackingRow {
   statusLabel: "ok" | "echec" | "en_attente";
 }
 
-const ELECTIONS_SITE_URL = "https://electionspro2026.education-superieur-recherche-jeunesse-sports.gouv.fr/";
-
-/** Mode "full" uniquement : exemple riche illustrant la syntaxe des champs
- * dynamiques et des conditions ({{#if}}, {{logo}}, {{reseaux_sociaux}}) pour
- * un Spelc qui n'a encore rien écrit — volontairement indépendant de ce qui
- * est enregistré en base (voir "Charger le modèle" pour la démo relance-only,
- * qui recharge lui le modèle réellement enregistré). */
-const DEFAULT_EMAIL_TEMPLATE = {
-  subject: "Rappel : votez aux élections professionnelles 2026",
-  body:
-    "{{logo}}" +
-    "Bonjour {{prenom}} {{nom}},\n\n" +
-    "merci de voter aux élections professionnelles" +
-    "{{#if CCMMEP_non_votant and scrutin_local_non_votant}} aux scrutins CCMMEP et {{scrutin_local}}{{/if}}" +
-    "{{#if CCMMEP_non_votant and not(scrutin_local_non_votant)}} au scrutin CCMMEP{{/if}}" +
-    "{{#if not(CCMMEP_non_votant) and scrutin_local_non_votant}} au scrutin {{scrutin_local}}{{/if}}." +
-    `\n\nPour consulter le site des élections : <a href="${ELECTIONS_SITE_URL}">${ELECTIONS_SITE_URL}</a>` +
-    "{{reseaux_sociaux}}",
-};
-
-const DEFAULT_SMS_TEMPLATE = {
-  body:
-    "Elections pro 2026 : {{prenom}}, pensez à voter" +
-    "{{#if CCMMEP_non_votant and scrutin_local_non_votant}} au CCMMEP et au {{scrutin_local}}{{/if}}" +
-    "{{#if CCMMEP_non_votant and not(scrutin_local_non_votant)}} au CCMMEP{{/if}}" +
-    "{{#if not(CCMMEP_non_votant) and scrutin_local_non_votant}} au {{scrutin_local}}{{/if}} avant le 10/12.",
-};
-
 interface BrevoPlanEntry {
   type: string;
   credits: number;
@@ -471,15 +443,15 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
       <p className="text-sm text-slate-600">
         {relanceOnly ? (
           <>
-            Pour vos mails comme pour vos SMS de relance, vous pouvez charger un modèle prêt à l'emploi (bouton
+            Pour vos mails comme pour vos SMS de relance, vous pouvez recharger votre modèle enregistré (bouton
             « Charger le modèle »), et personnaliser le contenu avec des champs dynamiques ({"{{nom}}"},{" "}
             {"{{prenom}}"}) comme dans un publipostage.
           </>
         ) : (
           <>
             Pour vos mails comme pour vos SMS de relance, vous pouvez : choisir un logo personnalisé en entête
-            (ci-dessus), charger un modèle prêt à l'emploi (bouton « Charger le modèle prégarni »), et personnaliser
-            le contenu avec des champs dynamiques ({"{{nom}}"}, {"{{prenom}}"}, statut de vote…) comme dans un
+            (ci-dessus), recharger votre modèle enregistré (bouton « Charger le modèle »), et personnaliser le
+            contenu avec des champs dynamiques ({"{{nom}}"}, {"{{prenom}}"}, statut de vote…) comme dans un
             publipostage.
           </>
         )}
@@ -501,12 +473,10 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
               type="button"
               className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
               onClick={() =>
-                relanceOnly
-                  ? api.get<{ subject: string; body: string }>(`/brevo/templates/email${qs({ spelc })}`).then(setEmailTemplate)
-                  : setEmailTemplate(DEFAULT_EMAIL_TEMPLATE)
+                api.get<{ subject: string; body: string }>(`/brevo/templates/email${qs({ spelc })}`).then(setEmailTemplate)
               }
             >
-              {relanceOnly ? "Charger le modèle" : "Charger le modèle prégarni"}
+              Charger le modèle
             </button>
             <button
               type="button"
@@ -546,13 +516,9 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
             <button
               type="button"
               className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
-              onClick={() =>
-                relanceOnly
-                  ? api.get<{ body: string }>(`/brevo/templates/sms${qs({ spelc })}`).then(setSmsTemplate)
-                  : setSmsTemplate(DEFAULT_SMS_TEMPLATE)
-              }
+              onClick={() => api.get<{ body: string }>(`/brevo/templates/sms${qs({ spelc })}`).then(setSmsTemplate)}
             >
-              {relanceOnly ? "Charger le modèle" : "Charger le modèle prégarni"}
+              Charger le modèle
             </button>
             <button
               type="button"
