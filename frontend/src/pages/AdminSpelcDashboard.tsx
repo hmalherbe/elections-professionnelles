@@ -249,6 +249,8 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
   const [ownTestSaved, setOwnTestSaved] = useState<string | null>(null);
   const [testMailMsg, setTestMailMsg] = useState<string | null>(null);
   const [testSmsMsg, setTestSmsMsg] = useState<string | null>(null);
+  const [emailTemplateMsg, setEmailTemplateMsg] = useState<string | null>(null);
+  const [smsTemplateMsg, setSmsTemplateMsg] = useState<string | null>(null);
   const [testMailBusy, setTestMailBusy] = useState(false);
   const [testSmsBusy, setTestSmsBusy] = useState(false);
   const [trackingRows, setTrackingRows] = useState<RelanceTrackingRow[]>([]);
@@ -509,10 +511,19 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
             <button
               type="button"
               className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
-              onClick={() => api.put("/brevo/templates/email", { spelc, ...emailTemplate })}
+              onClick={async () => {
+                setEmailTemplateMsg(null);
+                try {
+                  await api.put("/brevo/templates/email", { spelc, ...emailTemplate });
+                  setEmailTemplateMsg("Modèle enregistré.");
+                } catch (err) {
+                  setEmailTemplateMsg((err as Error).message);
+                }
+              }}
             >
               Enregistrer comme modèle
             </button>
+            {emailTemplateMsg && <span className="self-center text-sm text-slate-600">{emailTemplateMsg}</span>}
           </div>
           <input
             className="mb-2 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
@@ -546,10 +557,19 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
             <button
               type="button"
               className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
-              onClick={() => api.put("/brevo/templates/sms", { spelc, body: smsTemplate.body })}
+              onClick={async () => {
+                setSmsTemplateMsg(null);
+                try {
+                  await api.put("/brevo/templates/sms", { spelc, body: smsTemplate.body });
+                  setSmsTemplateMsg("Modèle enregistré.");
+                } catch (err) {
+                  setSmsTemplateMsg((err as Error).message);
+                }
+              }}
             >
               Enregistrer comme modèle
             </button>
+            {smsTemplateMsg && <span className="self-center text-sm text-slate-600">{smsTemplateMsg}</span>}
           </div>
           <textarea
             className="h-40 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
