@@ -237,4 +237,14 @@ router.get("/relance-stats", (_req, res) => {
   res.json({ rows: getRelanceDailyStatsAll() });
 });
 
+/**
+ * Tous les plafonds de crédits SMS configurés (voir services/smsQuota.ts) —
+ * pour afficher la ligne de référence "quota alloué" sur l'histogramme
+ * cumulatif des relances SMS, par Spelc ou en somme nationale.
+ */
+router.get("/sms-quotas", (_req, res) => {
+  const rows = db.prepare("SELECT spelc, credits FROM ref_sms_quota").all() as { spelc: string; credits: number }[];
+  res.json({ rows });
+});
+
 export default router;

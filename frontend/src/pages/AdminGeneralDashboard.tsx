@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useState } from "react";
-import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, Legend, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { CamembertCard } from "../components/CamembertCard";
 import { Card } from "../components/Card";
 import { Ccm2022MapPanel } from "../components/Ccm2022MapPanel";
@@ -416,9 +416,11 @@ function StatistiquesRelancesPanel() {
   const [rows, setRows] = useState<RelanceDailyPoint[]>([]);
   const [open, setOpen] = useState<Set<string>>(new Set());
   const [selectedSpelc, setSelectedSpelc] = useState(TOUS_SPELC);
+  const [smsQuotas, setSmsQuotas] = useState<{ spelc: string; credits: number }[]>([]);
 
   useEffect(() => {
     api.get<{ rows: RelanceDailyPoint[] }>("/admin/relance-stats").then((r) => setRows(r.rows));
+    api.get<{ rows: { spelc: string; credits: number }[] }>("/admin/sms-quotas").then((r) => setSmsQuotas(r.rows));
   }, []);
 
   function toggle(date: string) {
@@ -473,6 +475,17 @@ function StatistiquesRelancesPanel() {
   }, []);
 
   const chartSubtitle = selectedSpelc === TOUS_SPELC ? "Tous les Spelc" : selectedSpelc;
+
+  // Plafond de crédits SMS à afficher en ligne de référence sur l'histogramme
+  // cumulatif : celui du Spelc sélectionné, ou la somme de tous les plafonds
+  // configurés pour "Tous les Spelc" (quota national réparti). null si aucun
+  // plafond n'est configuré pour la sélection courante — pas de ligne alors.
+  const smsQuotaLine =
+    selectedSpelc === TOUS_SPELC
+      ? smsQuotas.length > 0
+        ? smsQuotas.reduce((s, q) => s + q.credits, 0)
+        : null
+      : (smsQuotas.find((q) => q.spelc === selectedSpelc)?.credits ?? null);
 
   return (
     <div className="space-y-4">
@@ -575,6 +588,20 @@ function StatistiquesRelancesPanel() {
               <Legend />
               <Bar dataKey="mailCumul" name="Mails (cumul)" fill={CATEGORICAL[0]} />
               <Bar dataKey="smsCumul" name="SMS (cumul)" fill={CATEGORICAL[2]} />
+              {smsQuotaLine !== null && (
+                <ReferenceLine
+                  y={smsQuotaLine}
+                  stroke={CATEGORICAL[3]}
+                  strokeDasharray="6 3"
+                  strokeWidth={2}
+                  label={{
+                    value: `Quota SMS : ${smsQuotaLine.toLocaleString("fr-FR")}`,
+                    position: "insideTopRight",
+                    fontSize: 11,
+                    fill: CATEGORICAL[3],
+                  }}
+                />
+              )}
             </BarChart>
           </ResponsiveContainer>
         </div>
