@@ -120,8 +120,13 @@ async function selectScrutinAndCapture(page: Page, config: ScrapingConfig, optio
   );
 }
 
+// Pour un endpoint JSON (pas une page HTML), "networkidle" peut ne jamais se
+// déclencher (requêtes périodiques en arrière-plan côté portail) et bloquer
+// la navigation indéfiniment malgré le timeout par défaut de Playwright :
+// "load" suffit ici, la réponse elle-même nous intéresse, pas les éventuelles
+// requêtes annexes que la page continuerait à faire après son chargement.
 async function fetchAuthenticated(page: Page, url: string, loginHint: string): Promise<string> {
-  const response = await page.goto(url, { waitUntil: "networkidle" });
+  const response = await page.goto(url, { waitUntil: "load", timeout: GOTO_TIMEOUT_MS });
   if (!response || !response.ok()) {
     throw new Error(`Échec du téléchargement de ${url} (statut ${response?.status() ?? "inconnu"}).`);
   }
@@ -136,6 +141,25 @@ async function fetchAuthenticated(page: Page, url: string, loginHint: string): P
   return text;
 }
 
+const GOTO_TIMEOUT_MS = 20_000;
+const LAUNCH_TIMEOUT_MS = 20_000;
+const SCRAPE_SESSION_TIMEOUT_MS = 45_000;
+
+/**
+ * Borne une promesse dans le temps, quoi qu'il se passe en dessous (y
+ * compris un blocage hors du contrôle de Playwright : mémoire serveur
+ * saturée, réseau qui ne répond ni n'échoue franchement...). Sans ce filet,
+ * un tel blocage laisse la requête HTTP — et le bouton côté interface —
+ * figés indéfiniment plutôt que d'échouer proprement avec un message clair.
+ */
+function withHardTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout>;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(message)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
 /**
  * Récupère un fichier à une URL protégée par authentification, en réutilisant
  * une session déjà ouverte (cookies/stockage sauvegardés via
@@ -148,12 +172,27 @@ export async function scrapeWithSession(sessionState: BrowserContextOptions["sto
   const browser = await chromium.launch({
     headless: true,
     executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH || undefined,
+    timeout: LAUNCH_TIMEOUT_MS,
   });
   try {
-    const context = await browser.newContext({ storageState: sessionState });
-    const page = await context.newPage();
-    return await fetchAuthenticated(page, fileUrl, "la session a probablement expiré : reconnectez-vous via le script local et importez une nouvelle session.");
+    return await withHardTimeout(
+      (async () => {
+        const context = await browser.newContext({ storageState: sessionState });
+        const page = await context.newPage();
+        return await fetchAuthenticated(
+          page,
+          fileUrl,
+          "la session a probablement expiré : reconnectez-vous via le script local et importez une nouvelle session."
+        );
+      })(),
+      SCRAPE_SESSION_TIMEOUT_MS,
+      `Délai dépassé (${SCRAPE_SESSION_TIMEOUT_MS / 1000} s) lors de la récupération — le serveur manque peut-être de ` +
+        "mémoire, ou le portail/la session ne répond pas. Réessayez ; si ça persiste, vérifiez la mémoire du serveur."
+    );
   } finally {
-    await browser.close();
+    // Ferme le navigateur même si withHardTimeout a déjà rendu la main via le
+    // timeout (l'opération interne continue sinon en arrière-plan et
+    // accumulerait des processus Chromium orphelins à chaque échec).
+    await browser.close().catch(() => {});
   }
 }
