@@ -178,6 +178,15 @@ function withHardTimeout<T>(promise: Promise<T>, ms: number, message: string): P
  * le script local fourni) plutôt qu'en rejouant un formulaire de connexion.
  * Headless comme le reste du scraping : l'étape manuelle (résolution du
  * captcha) a déjà eu lieu en amont, hors de ce processus.
+ *
+ * Appel "AJAX" (context.request, mêmes cookies que le navigateur) plutôt
+ * qu'une navigation de page (page.goto) : sur un portail construit en
+ * application monopage (SPA), l'URL de la liste des électeurs renvoie
+ * systématiquement le squelette HTML de l'appli (connecté ou non) à une
+ * navigation complète — seul le JavaScript de la page, une fois exécuté,
+ * récupère le JSON via son propre appel interne avec des en-têtes signalant
+ * une requête de données plutôt qu'une navigation. On reproduit cet appel
+ * directement plutôt que de charger et exécuter toute la page.
  */
 export async function scrapeWithSession(sessionState: BrowserContextOptions["storageState"], fileUrl: string): Promise<string> {
   const browser = await chromium.launch({
@@ -189,8 +198,14 @@ export async function scrapeWithSession(sessionState: BrowserContextOptions["sto
     return await withHardTimeout(
       (async () => {
         const context = await browser.newContext({ storageState: sessionState });
-        const page = await context.newPage();
-        return await fetchAuthenticated(page, fileUrl);
+        const response = await context.request.get(fileUrl, {
+          headers: { Accept: "application/json, text/plain, */*", "X-Requested-With": "XMLHttpRequest" },
+          timeout: GOTO_TIMEOUT_MS,
+        });
+        if (!response.ok()) {
+          throw new Error(`Échec de la récupération de ${fileUrl} (statut ${response.status()}).`);
+        }
+        return response.text();
       })(),
       SCRAPE_SESSION_TIMEOUT_MS,
       `Délai dépassé (${SCRAPE_SESSION_TIMEOUT_MS / 1000} s) lors de la récupération — le serveur manque peut-être de ` +
