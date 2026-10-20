@@ -493,25 +493,32 @@ function FichierElecteurPanel() {
           </div>
           <div className="sm:col-span-2">
             <label className="block text-xs font-medium text-slate-500">
-              Fichier de session (exporté par le script local)
+              1. Choisir le fichier <code>session-electeurs.json</code> exporté par le script local
             </label>
             <input
               type="file"
               accept="application/json"
-              className="mt-1 w-full text-sm"
+              className="mt-1 w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm"
               onChange={(e) => {
                 const file = e.target.files?.[0];
                 if (file) handleSessionFile(file);
               }}
             />
-            {sessionFileName && <p className="mt-1 text-xs text-emerald-700">Fichier chargé : {sessionFileName}</p>}
+            {sessionFileName && (
+              <p className="mt-1 text-xs font-medium text-emerald-700">
+                ✓ Fichier chargé : {sessionFileName} — cliquez maintenant sur « Enregistrer la configuration »
+                ci-dessous pour l'envoyer au serveur.
+              </p>
+            )}
           </div>
         </div>
         <button
-          className="mt-3 rounded-md bg-slate-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-900"
+          className={`mt-3 rounded-md px-3 py-1.5 text-sm font-medium text-white ${
+            sessionState ? "animate-pulse bg-emerald-600 hover:bg-emerald-700" : "bg-slate-800 hover:bg-slate-900"
+          }`}
           onClick={saveConfig}
         >
-          Enregistrer la configuration
+          2. Enregistrer la configuration
         </button>
         {saveMsg && <p className="mt-2 text-sm text-slate-600">{saveMsg}</p>}
       </Card>
