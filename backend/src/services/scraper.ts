@@ -179,18 +179,15 @@ function withHardTimeout<T>(promise: Promise<T>, ms: number, message: string): P
  * Headless comme le reste du scraping : l'étape manuelle (résolution du
  * captcha) a déjà eu lieu en amont, hors de ce processus.
  *
- * Appel "AJAX" fait depuis l'intérieur d'une page réellement chargée
- * (page.evaluate + fetch), pas une navigation de page (page.goto) ni un
- * appel hors-page (context.request) : sur un portail construit en
- * application monopage (SPA), l'URL de la liste des électeurs renvoie
- * systématiquement le squelette HTML de l'appli (connecté ou non) à une
- * navigation complète — seul le JavaScript de la page, une fois exécuté,
- * récupère le JSON via son propre appel interne. Un appel hors-page
- * (context.request) envoie les bons en-têtes Accept/X-Requested-With mais
- * pas l'Origin/Referer qu'un vrai navigateur ajoute automatiquement à un
- * fetch() déclenché depuis une page chargée — absence qui peut suffire à
- * faire échouer le serveur (statut 500 observé). On charge donc d'abord une
- * page de ce même site, puis on déclenche le fetch depuis l'intérieur.
+ * Sur un portail construit en application monopage (SPA), charger l'URL de
+ * la liste des électeurs renvoie systématiquement le squelette HTML de
+ * l'appli (connecté ou non) — essayé en reproduisant nous-mêmes l'appel
+ * interne (en-têtes Accept/X-Requested-With hors-page : toujours le
+ * squelette, voire une erreur 500 une fois l'Origin/Referer ajoutés). Plutôt
+ * que de continuer à deviner l'appel exact (en-têtes, jeton CSRF...), on
+ * laisse la page se charger normalement — c'est alors SON PROPRE JavaScript
+ * qui déclenche sa requête interne pour récupérer les données — et on
+ * intercepte cette réponse JSON plutôt que de chercher à la reproduire.
  */
 export async function scrapeWithSession(sessionState: BrowserContextOptions["storageState"], fileUrl: string): Promise<string> {
   const browser = await chromium.launch({
@@ -203,15 +200,26 @@ export async function scrapeWithSession(sessionState: BrowserContextOptions["sto
       (async () => {
         const context = await browser.newContext({ storageState: sessionState });
         const page = await context.newPage();
-        const origin = new URL(fileUrl).origin;
-        await page.goto(origin, { waitUntil: "load", timeout: GOTO_TIMEOUT_MS });
-        return await page.evaluate(async (url) => {
-          const res = await fetch(url, {
-            headers: { Accept: "application/json, text/plain, */*", "X-Requested-With": "XMLHttpRequest" },
-            credentials: "include",
-          });
-          return res.text();
-        }, fileUrl);
+
+        // Armée AVANT la navigation, pour ne pas rater la requête interne si
+        // elle part dès le tout début du chargement de la page.
+        const apiResponsePromise = page
+          .waitForResponse(
+            (r) => r.request().resourceType() !== "document" && /json/i.test(r.headers()["content-type"] ?? ""),
+            { timeout: GOTO_TIMEOUT_MS }
+          )
+          .catch(() => null);
+
+        await page.goto(fileUrl, { waitUntil: "load", timeout: GOTO_TIMEOUT_MS });
+        const apiResponse = await apiResponsePromise;
+        if (apiResponse) return await apiResponse.text();
+
+        // Repli : aucune requête JSON interne détectée avant expiration —
+        // on renvoie le contenu de la page telle que rendue (après exécution
+        // du JavaScript, donc potentiellement plus parlant que le squelette
+        // initial : un formulaire de connexion affiché, un message d'erreur
+        // rendu dans la page, etc.) plutôt que de perdre cette information.
+        return await page.content();
       })(),
       SCRAPE_SESSION_TIMEOUT_MS,
       `Délai dépassé (${SCRAPE_SESSION_TIMEOUT_MS / 1000} s) lors de la récupération — le serveur manque peut-être de ` +
