@@ -70,8 +70,10 @@ export async function scrapePortalFiles(config: ScrapingConfig): Promise<{ file1
     }
 
     const loginHint = "vérifiez l'identifiant/mot de passe et les sélecteurs de connexion.";
-    const file1 = await fetchAuthenticated(page, config.fileUrl1, loginHint);
-    const file2 = config.fileUrl2 ? await fetchAuthenticated(page, config.fileUrl2, loginHint) : null;
+    const file1 = await fetchAuthenticated(page, config.fileUrl1);
+    assertJsonLike(file1, config.fileUrl1, loginHint);
+    const file2 = config.fileUrl2 ? await fetchAuthenticated(page, config.fileUrl2) : null;
+    if (file2) assertJsonLike(file2, config.fileUrl2!, loginHint);
 
     return { file1, file2 };
   } finally {
@@ -125,20 +127,29 @@ async function selectScrutinAndCapture(page: Page, config: ScrapingConfig, optio
 // la navigation indéfiniment malgré le timeout par défaut de Playwright :
 // "load" suffit ici, la réponse elle-même nous intéresse, pas les éventuelles
 // requêtes annexes que la page continuerait à faire après son chargement.
-async function fetchAuthenticated(page: Page, url: string, loginHint: string): Promise<string> {
+async function fetchAuthenticated(page: Page, url: string): Promise<string> {
   const response = await page.goto(url, { waitUntil: "load", timeout: GOTO_TIMEOUT_MS });
   if (!response || !response.ok()) {
     throw new Error(`Échec du téléchargement de ${url} (statut ${response?.status() ?? "inconnu"}).`);
   }
-  const text = await response.text();
-  // Un contenu qui commence par "<" indique le plus souvent une page HTML
-  // (ex. renvoyé vers la page de connexion) plutôt que le fichier attendu —
-  // signe quasi certain d'une session invalide/expirée ou d'un identifiant
-  // incorrect, plutôt qu'une erreur réseau franche.
+  return response.text();
+}
+
+/**
+ * Un contenu qui commence par "<" indique le plus souvent une page HTML (ex.
+ * renvoyé vers la page de connexion) plutôt que le fichier JSON attendu —
+ * signe quasi certain d'une session invalide/expirée ou d'un identifiant
+ * incorrect, plutôt qu'une erreur réseau franche. Utilisé uniquement pour le
+ * pipeline d'import automatisé (scrapePortalFiles) où un échec net est
+ * préférable à un contenu inexploitable silencieusement accepté ;
+ * scrapeWithSession, lui, laisse volontairement passer un tel contenu tel
+ * quel (voir previewScrapedFile côté route) pour que l'admin puisse lire le
+ * texte réel renvoyé par le portail plutôt qu'une simple supposition.
+ */
+function assertJsonLike(text: string, url: string, loginHint: string): void {
   if (text.trimStart().startsWith("<")) {
     throw new Error(`Le contenu récupéré à ${url} n'est pas du JSON (probablement une page de connexion) — ${loginHint}`);
   }
-  return text;
 }
 
 const GOTO_TIMEOUT_MS = 20_000;
@@ -179,11 +190,7 @@ export async function scrapeWithSession(sessionState: BrowserContextOptions["sto
       (async () => {
         const context = await browser.newContext({ storageState: sessionState });
         const page = await context.newPage();
-        return await fetchAuthenticated(
-          page,
-          fileUrl,
-          "la session a probablement expiré : reconnectez-vous via le script local et importez une nouvelle session."
-        );
+        return await fetchAuthenticated(page, fileUrl);
       })(),
       SCRAPE_SESSION_TIMEOUT_MS,
       `Délai dépassé (${SCRAPE_SESSION_TIMEOUT_MS / 1000} s) lors de la récupération — le serveur manque peut-être de ` +
