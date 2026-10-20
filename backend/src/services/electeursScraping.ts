@@ -15,10 +15,17 @@ export function isElecteursSessionConfigured(): boolean {
   return Boolean(getSetting("electeurs_session_state"));
 }
 
-export function saveElecteursConfig(fileUrl: string, sessionState: unknown): void {
-  setSetting("electeurs_file_url", fileUrl);
-  setSetting("electeurs_session_state", encrypt(JSON.stringify(sessionState)));
-  setSetting("electeurs_session_updated_at", new Date().toISOString());
+/**
+ * fileUrl et sessionState s'enregistrent indépendamment l'un de l'autre :
+ * changer l'URL du fichier ne doit pas obliger à ré-uploader une session
+ * encore valide, et inversement.
+ */
+export function saveElecteursConfig(fileUrl?: string, sessionState?: unknown): void {
+  if (fileUrl !== undefined) setSetting("electeurs_file_url", fileUrl);
+  if (sessionState !== undefined) {
+    setSetting("electeurs_session_state", encrypt(JSON.stringify(sessionState)));
+    setSetting("electeurs_session_updated_at", new Date().toISOString());
+  }
 }
 
 export interface ElecteursConfigStatus {

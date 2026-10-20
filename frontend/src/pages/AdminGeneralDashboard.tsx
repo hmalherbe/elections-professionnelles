@@ -434,12 +434,17 @@ function FichierElecteurPanel() {
 
   async function saveConfig() {
     setSaveMsg(null);
-    if (!fileUrl || !sessionState) {
-      setSaveMsg("URL du fichier et fichier de session requis.");
+    if (!fileUrl && !sessionState) {
+      setSaveMsg("Renseignez l'URL du fichier et/ou importez un fichier de session.");
       return;
     }
     try {
-      await api.put("/scraping/electeurs/config", { fileUrl, sessionState });
+      // L'URL et la session s'enregistrent indépendamment : changer l'une ne
+      // doit pas obliger à ré-uploader l'autre si elle est encore valide.
+      await api.put("/scraping/electeurs/config", {
+        fileUrl: fileUrl || undefined,
+        sessionState: sessionState ?? undefined,
+      });
       setSaveMsg("Configuration enregistrée.");
       setSessionFileName(null);
       setSessionState(null);

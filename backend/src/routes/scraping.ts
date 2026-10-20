@@ -239,12 +239,12 @@ router.get("/electeurs/config", requireRole("admin_general"), (_req, res) => {
 
 router.put("/electeurs/config", requireRole("admin_general"), (req, res) => {
   const { fileUrl, sessionState } = req.body ?? {};
-  if (!fileUrl || !sessionState) {
-    res.status(400).json({ error: "fileUrl et sessionState sont requis." });
+  if (fileUrl === undefined && sessionState === undefined) {
+    res.status(400).json({ error: "fileUrl ou sessionState requis." });
     return;
   }
   try {
-    saveElecteursConfig(String(fileUrl).trim(), sessionState);
+    saveElecteursConfig(typeof fileUrl === "string" ? fileUrl.trim() : undefined, sessionState);
     res.json({ ok: true });
   } catch (err) {
     res.status(400).json({ error: `Fichier de session invalide : ${(err as Error).message}` });
