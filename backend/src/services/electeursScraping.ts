@@ -1,6 +1,6 @@
 import { decrypt, encrypt } from "../lib/crypto.js";
 import { getSetting, setSetting } from "./settings.js";
-import { scrapeWithSession } from "./scraper.js";
+import { scrapeWithSession, type ScrapedWithSession } from "./scraper.js";
 
 /**
  * Config du scraping "portail électeurs" : URL du fichier des électeurs et
@@ -42,7 +42,7 @@ export function getElecteursConfigStatus(): ElecteursConfigStatus {
   };
 }
 
-export async function fetchElecteursFile(): Promise<string> {
+export async function fetchElecteursFile(): Promise<ScrapedWithSession> {
   const encrypted = getSetting("electeurs_session_state");
   const fileUrl = getSetting("electeurs_file_url");
   if (!encrypted || !fileUrl) {

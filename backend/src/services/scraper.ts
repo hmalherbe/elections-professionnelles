@@ -189,7 +189,18 @@ function withHardTimeout<T>(promise: Promise<T>, ms: number, message: string): P
  * qui déclenche sa requête interne pour récupérer les données — et on
  * intercepte cette réponse JSON plutôt que de chercher à la reproduire.
  */
-export async function scrapeWithSession(sessionState: BrowserContextOptions["storageState"], fileUrl: string): Promise<string> {
+export interface ScrapedWithSession {
+  text: string;
+  /** URL réellement interceptée (requête JSON interne de la page) si elle a
+   * été trouvée, sinon fileUrl lui-même (repli sur le contenu de la page) —
+   * utile pour reproduire l'appel exact ailleurs (ex. script local de test). */
+  sourceUrl: string;
+}
+
+export async function scrapeWithSession(
+  sessionState: BrowserContextOptions["storageState"],
+  fileUrl: string
+): Promise<ScrapedWithSession> {
   const browser = await chromium.launch({
     headless: true,
     executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH || undefined,
@@ -212,14 +223,14 @@ export async function scrapeWithSession(sessionState: BrowserContextOptions["sto
 
         await page.goto(fileUrl, { waitUntil: "load", timeout: GOTO_TIMEOUT_MS });
         const apiResponse = await apiResponsePromise;
-        if (apiResponse) return await apiResponse.text();
+        if (apiResponse) return { text: await apiResponse.text(), sourceUrl: apiResponse.url() };
 
         // Repli : aucune requête JSON interne détectée avant expiration —
         // on renvoie le contenu de la page telle que rendue (après exécution
         // du JavaScript, donc potentiellement plus parlant que le squelette
         // initial : un formulaire de connexion affiché, un message d'erreur
         // rendu dans la page, etc.) plutôt que de perdre cette information.
-        return await page.content();
+        return { text: await page.content(), sourceUrl: fileUrl };
       })(),
       SCRAPE_SESSION_TIMEOUT_MS,
       `Délai dépassé (${SCRAPE_SESSION_TIMEOUT_MS / 1000} s) lors de la récupération — le serveur manque peut-être de ` +

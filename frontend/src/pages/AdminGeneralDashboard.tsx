@@ -388,6 +388,9 @@ interface ScrapingPreview {
   sample?: unknown;
   length?: number;
   preview?: string;
+  /** URL réellement interceptée (requête JSON interne de la page du
+   * portail), utile pour reproduire l'appel exact ailleurs en cas de souci. */
+  sourceUrl?: string;
 }
 
 /**
@@ -533,6 +536,11 @@ function FichierElecteurPanel() {
         </button>
         {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
 
+        {preview?.sourceUrl && (
+          <p className="mt-3 text-xs text-slate-500">
+            URL réellement interceptée : <code className="break-all">{preview.sourceUrl}</code>
+          </p>
+        )}
         {preview && preview.format === "json" && (
           <div className="mt-4 space-y-2">
             {preview.itemCount !== undefined && (

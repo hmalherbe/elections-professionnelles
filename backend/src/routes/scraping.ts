@@ -253,8 +253,8 @@ router.put("/electeurs/config", requireRole("admin_general"), (req, res) => {
 
 router.post("/electeurs/run", requireRole("admin_general"), async (_req, res) => {
   try {
-    const file = await fetchElecteursFile();
-    res.json(previewScrapedFile(file));
+    const { text, sourceUrl } = await fetchElecteursFile();
+    res.json({ ...previewScrapedFile(text), sourceUrl });
   } catch (err) {
     res.status(502).json({ error: `Échec de la récupération : ${(err as Error).message}` });
   }
