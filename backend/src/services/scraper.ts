@@ -179,14 +179,18 @@ function withHardTimeout<T>(promise: Promise<T>, ms: number, message: string): P
  * Headless comme le reste du scraping : l'étape manuelle (résolution du
  * captcha) a déjà eu lieu en amont, hors de ce processus.
  *
- * Appel "AJAX" (context.request, mêmes cookies que le navigateur) plutôt
- * qu'une navigation de page (page.goto) : sur un portail construit en
+ * Appel "AJAX" fait depuis l'intérieur d'une page réellement chargée
+ * (page.evaluate + fetch), pas une navigation de page (page.goto) ni un
+ * appel hors-page (context.request) : sur un portail construit en
  * application monopage (SPA), l'URL de la liste des électeurs renvoie
  * systématiquement le squelette HTML de l'appli (connecté ou non) à une
  * navigation complète — seul le JavaScript de la page, une fois exécuté,
- * récupère le JSON via son propre appel interne avec des en-têtes signalant
- * une requête de données plutôt qu'une navigation. On reproduit cet appel
- * directement plutôt que de charger et exécuter toute la page.
+ * récupère le JSON via son propre appel interne. Un appel hors-page
+ * (context.request) envoie les bons en-têtes Accept/X-Requested-With mais
+ * pas l'Origin/Referer qu'un vrai navigateur ajoute automatiquement à un
+ * fetch() déclenché depuis une page chargée — absence qui peut suffire à
+ * faire échouer le serveur (statut 500 observé). On charge donc d'abord une
+ * page de ce même site, puis on déclenche le fetch depuis l'intérieur.
  */
 export async function scrapeWithSession(sessionState: BrowserContextOptions["storageState"], fileUrl: string): Promise<string> {
   const browser = await chromium.launch({
@@ -198,14 +202,16 @@ export async function scrapeWithSession(sessionState: BrowserContextOptions["sto
     return await withHardTimeout(
       (async () => {
         const context = await browser.newContext({ storageState: sessionState });
-        const response = await context.request.get(fileUrl, {
-          headers: { Accept: "application/json, text/plain, */*", "X-Requested-With": "XMLHttpRequest" },
-          timeout: GOTO_TIMEOUT_MS,
-        });
-        if (!response.ok()) {
-          throw new Error(`Échec de la récupération de ${fileUrl} (statut ${response.status()}).`);
-        }
-        return response.text();
+        const page = await context.newPage();
+        const origin = new URL(fileUrl).origin;
+        await page.goto(origin, { waitUntil: "load", timeout: GOTO_TIMEOUT_MS });
+        return await page.evaluate(async (url) => {
+          const res = await fetch(url, {
+            headers: { Accept: "application/json, text/plain, */*", "X-Requested-With": "XMLHttpRequest" },
+            credentials: "include",
+          });
+          return res.text();
+        }, fileUrl);
       })(),
       SCRAPE_SESSION_TIMEOUT_MS,
       `Délai dépassé (${SCRAPE_SESSION_TIMEOUT_MS / 1000} s) lors de la récupération — le serveur manque peut-être de ` +
