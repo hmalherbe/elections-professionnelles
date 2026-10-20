@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { chromium, type Page } from "playwright";
+import { chromium, type Page, type BrowserContextOptions } from "playwright";
 
 export interface ScrapingConfig {
   portalUrl: string;
@@ -69,8 +69,9 @@ export async function scrapePortalFiles(config: ScrapingConfig): Promise<{ file1
       return { file1, file2 };
     }
 
-    const file1 = await fetchAuthenticated(page, config.fileUrl1);
-    const file2 = config.fileUrl2 ? await fetchAuthenticated(page, config.fileUrl2) : null;
+    const loginHint = "vérifiez l'identifiant/mot de passe et les sélecteurs de connexion.";
+    const file1 = await fetchAuthenticated(page, config.fileUrl1, loginHint);
+    const file2 = config.fileUrl2 ? await fetchAuthenticated(page, config.fileUrl2, loginHint) : null;
 
     return { file1, file2 };
   } finally {
@@ -119,7 +120,7 @@ async function selectScrutinAndCapture(page: Page, config: ScrapingConfig, optio
   );
 }
 
-async function fetchAuthenticated(page: Page, url: string): Promise<string> {
+async function fetchAuthenticated(page: Page, url: string, loginHint: string): Promise<string> {
   const response = await page.goto(url, { waitUntil: "networkidle" });
   if (!response || !response.ok()) {
     throw new Error(`Échec du téléchargement de ${url} (statut ${response?.status() ?? "inconnu"}).`);
@@ -127,13 +128,32 @@ async function fetchAuthenticated(page: Page, url: string): Promise<string> {
   const text = await response.text();
   // Un contenu qui commence par "<" indique le plus souvent une page HTML
   // (ex. renvoyé vers la page de connexion) plutôt que le fichier attendu —
-  // signe quasi certain d'un identifiant/mot de passe ou d'un sélecteur
-  // de connexion incorrect, plutôt qu'une erreur réseau franche.
+  // signe quasi certain d'une session invalide/expirée ou d'un identifiant
+  // incorrect, plutôt qu'une erreur réseau franche.
   if (text.trimStart().startsWith("<")) {
-    throw new Error(
-      `Le contenu récupéré à ${url} n'est pas du JSON (probablement une page de connexion) — ` +
-        `vérifiez l'identifiant/mot de passe et les sélecteurs de connexion.`
-    );
+    throw new Error(`Le contenu récupéré à ${url} n'est pas du JSON (probablement une page de connexion) — ${loginHint}`);
   }
   return text;
+}
+
+/**
+ * Récupère un fichier à une URL protégée par authentification, en réutilisant
+ * une session déjà ouverte (cookies/stockage sauvegardés via
+ * context.storageState() après une connexion manuelle — captcha compris, voir
+ * le script local fourni) plutôt qu'en rejouant un formulaire de connexion.
+ * Headless comme le reste du scraping : l'étape manuelle (résolution du
+ * captcha) a déjà eu lieu en amont, hors de ce processus.
+ */
+export async function scrapeWithSession(sessionState: BrowserContextOptions["storageState"], fileUrl: string): Promise<string> {
+  const browser = await chromium.launch({
+    headless: true,
+    executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH || undefined,
+  });
+  try {
+    const context = await browser.newContext({ storageState: sessionState });
+    const page = await context.newPage();
+    return await fetchAuthenticated(page, fileUrl, "la session a probablement expiré : reconnectez-vous via le script local et importez une nouvelle session.");
+  } finally {
+    await browser.close();
+  }
 }

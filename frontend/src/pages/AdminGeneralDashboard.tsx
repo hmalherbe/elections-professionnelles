@@ -21,6 +21,7 @@ const TABS = [
   "Scrutins",
   "Imports",
   "Electeurs académiques",
+  "Fichier électeur",
   "Statistiques relances",
   "Utilisateurs",
   "Adhérents",
@@ -56,6 +57,7 @@ export function AdminGeneralDashboard() {
       {tab === "Scrutins" && <ScrutinsTab scope="national" />}
       {tab === "Imports" && <ImportsPanel />}
       {tab === "Electeurs académiques" && <ElecteursAcademiquesPanel />}
+      {tab === "Fichier électeur" && <FichierElecteurPanel />}
       {tab === "Statistiques relances" && <StatistiquesRelancesPanel />}
       {tab === "Utilisateurs" && <UsersPanel />}
       {tab === "Adhérents" && <AdherentsAdminPanel />}
@@ -372,6 +374,182 @@ function ElecteursAcademiquesPanel() {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+interface ScrapingPreview {
+  format: "json" | "text";
+  itemCount?: number;
+  fields?: string[];
+  sample?: unknown;
+  length?: number;
+  preview?: string;
+}
+
+/**
+ * Portail ÉLECTEURS (distinct des portails de gestion CCMMEP/académiques,
+ * onglet Imports) : protégé par un captcha à chaque connexion, donc pas de
+ * login automatisé possible ici. La session (cookies/stockage) est obtenue
+ * hors ligne via le script local fourni (connexion manuelle, captcha
+ * résolu à la main), puis importée ci-dessous pour que la récupération du
+ * fichier, elle, reste automatisable (voir services/electeursScraping.ts).
+ */
+function FichierElecteurPanel() {
+  const [configured, setConfigured] = useState(false);
+  const [updatedAt, setUpdatedAt] = useState<string | null>(null);
+  const [fileUrl, setFileUrl] = useState("");
+  const [sessionFileName, setSessionFileName] = useState<string | null>(null);
+  const [sessionState, setSessionState] = useState<unknown>(null);
+  const [saveMsg, setSaveMsg] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [preview, setPreview] = useState<ScrapingPreview | null>(null);
+
+  function refresh() {
+    api
+      .get<{ configured: boolean; fileUrl: string | null; updatedAt: string | null }>("/scraping/electeurs/config")
+      .then((r) => {
+        setConfigured(r.configured);
+        setUpdatedAt(r.updatedAt);
+        if (r.fileUrl) setFileUrl(r.fileUrl);
+      });
+  }
+  useEffect(refresh, []);
+
+  async function handleSessionFile(file: File) {
+    setSaveMsg(null);
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      setSessionState(parsed);
+      setSessionFileName(file.name);
+    } catch (err) {
+      setSaveMsg(`Fichier de session invalide (JSON attendu) : ${(err as Error).message}`);
+    }
+  }
+
+  async function saveConfig() {
+    setSaveMsg(null);
+    if (!fileUrl || !sessionState) {
+      setSaveMsg("URL du fichier et fichier de session requis.");
+      return;
+    }
+    try {
+      await api.put("/scraping/electeurs/config", { fileUrl, sessionState });
+      setSaveMsg("Configuration enregistrée.");
+      setSessionFileName(null);
+      setSessionState(null);
+      refresh();
+    } catch (err) {
+      setSaveMsg((err as Error).message);
+    }
+  }
+
+  async function runFetch() {
+    setBusy(true);
+    setError(null);
+    setPreview(null);
+    try {
+      const res = await api.post<ScrapingPreview>("/scraping/electeurs/run", {});
+      setPreview(res);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+        Le portail électeurs impose un captcha à chaque connexion : aucun login automatisé n'est possible ici. La
+        session doit être obtenue une fois (ou à chaque expiration) via le script local fourni — vous vous
+        connectez normalement dans un vrai navigateur, captcha compris, puis le script exporte la session dans un
+        fichier à importer ci-dessous. La récupération du fichier des électeurs, elle, reste ensuite automatisable
+        tant que la session est valide.
+      </div>
+      <Card
+        title="Session du portail électeurs"
+        subtitle={configured ? `Configurée${updatedAt ? ` (mise à jour le ${new Date(updatedAt).toLocaleString("fr-FR")})` : ""}.` : "Non configurée."}
+      >
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <label className="block text-xs font-medium text-slate-500">URL du fichier des électeurs</label>
+            <input
+              className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+              placeholder="https://portail-electeurs-exemple.fr/electeurs.json"
+              value={fileUrl}
+              onChange={(e) => setFileUrl(e.target.value)}
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="block text-xs font-medium text-slate-500">
+              Fichier de session (exporté par le script local)
+            </label>
+            <input
+              type="file"
+              accept="application/json"
+              className="mt-1 w-full text-sm"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleSessionFile(file);
+              }}
+            />
+            {sessionFileName && <p className="mt-1 text-xs text-emerald-700">Fichier chargé : {sessionFileName}</p>}
+          </div>
+        </div>
+        <button
+          className="mt-3 rounded-md bg-slate-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-900"
+          onClick={saveConfig}
+        >
+          Enregistrer la configuration
+        </button>
+        {saveMsg && <p className="mt-2 text-sm text-slate-600">{saveMsg}</p>}
+      </Card>
+
+      <Card title="Récupération du fichier">
+        <button
+          disabled={!configured || busy}
+          onClick={runFetch}
+          className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
+        >
+          {busy ? "Récupération en cours…" : "Récupérer le fichier"}
+        </button>
+        {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+
+        {preview && preview.format === "json" && (
+          <div className="mt-4 space-y-2">
+            {preview.itemCount !== undefined && (
+              <p className="text-sm text-slate-700">
+                Fichier JSON reconnu : <strong>{preview.itemCount}</strong> ligne(s).
+              </p>
+            )}
+            {preview.fields && (
+              <p className="text-sm text-slate-700">
+                Champs détectés : <code className="text-xs">{preview.fields.join(", ") || "(aucun)"}</code>
+              </p>
+            )}
+            <div>
+              <p className="text-xs font-medium text-slate-500">Aperçu (3 premières lignes) :</p>
+              <pre className="mt-1 max-h-96 overflow-auto rounded-md bg-slate-900 p-3 text-xs text-slate-100">
+                {JSON.stringify(preview.sample, null, 2)}
+              </pre>
+            </div>
+          </div>
+        )}
+        {preview && preview.format === "text" && (
+          <div className="mt-4 space-y-2">
+            <p className="text-sm text-amber-700">
+              Le contenu récupéré n'est pas du JSON reconnu ({preview.length} caractères) — extrait ci-dessous. Si ça
+              ressemble à une page de connexion, la session a probablement expiré : relancez le script local.
+            </p>
+            <pre className="mt-1 max-h-96 overflow-auto rounded-md bg-slate-900 p-3 text-xs text-slate-100">
+              {preview.preview}
+            </pre>
           </div>
         )}
       </Card>
