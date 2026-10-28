@@ -8,7 +8,6 @@ import { DocumentsPanel } from "../components/DocumentsPanel";
 import { EtablissementsTab } from "../components/EtablissementsTab";
 import { FileUploadCard } from "../components/FileUploadCard";
 import { ScopeToggle } from "../components/ScopeToggle";
-import { ScrapingPanel } from "../components/ScrapingPanel";
 import { ScrutinsTab } from "../components/ScrutinsTab";
 import { api, qs } from "../lib/api";
 import { useAuth } from "../lib/auth";
@@ -111,7 +110,6 @@ function ImportsPanel({ academie }: { academie: string }) {
 
   return (
     <div className="space-y-4">
-      <ScrapingPanel mode="academique" imports={imports} onImported={refresh} />
       <FileUploadCard
         title={`Import quotidien — scrutin académique (${academie})`}
         subtitle="Fichier JSON des émargements du scrutin 1er ou 2nd degré (mêmes champs que le fichier CCMMEP : nom, prenom, dateEmargement, corps, affectation). Choisissez le bon degré ci-dessous avant de sélectionner le fichier."

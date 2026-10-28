@@ -150,22 +150,6 @@ export function migrate(): void {
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
-    -- Configuration du scraping Playwright des portails de gestion CCMMEP
-    -- (academie = '' pour le national) / académiques. Mot de passe chiffré
-    -- au repos (voir lib/crypto.ts), jamais stocké ni renvoyé en clair.
-    CREATE TABLE IF NOT EXISTS scraping_config (
-      academie TEXT PRIMARY KEY,
-      portal_url TEXT NOT NULL,
-      username TEXT NOT NULL,
-      password_encrypted TEXT NOT NULL,
-      file_url_1 TEXT NOT NULL,
-      file_url_2 TEXT,
-      username_selector TEXT,
-      password_selector TEXT,
-      submit_selector TEXT,
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-
     -- Suivi par personne d'un envoi de relance (mail ou SMS) : une ligne par
     -- destinataire, mise à jour au fil du temps par le sondage périodique de
     -- l'API Brevo (le statut de livraison final et les clics n'arrivent
@@ -238,12 +222,6 @@ export function migrate(): void {
   addColumnIfMissing("relance_tracking", "opened", "INTEGER NOT NULL DEFAULT 0");
   addColumnIfMissing("relance_tracking", "opened_at", "TEXT");
   addColumnIfMissing("spelc_settings", "sms_sender", "TEXT");
-  addColumnIfMissing("scraping_config", "schedule_times", "TEXT");
-  addColumnIfMissing("scraping_config", "scrutin_page_url", "TEXT");
-  addColumnIfMissing("scraping_config", "scrutin_selector", "TEXT");
-  addColumnIfMissing("scraping_config", "scrutin_value_1d", "TEXT");
-  addColumnIfMissing("scraping_config", "scrutin_value_2d", "TEXT");
-  addColumnIfMissing("scraping_config", "download_trigger_selector", "TEXT");
   addColumnIfMissing("documents", "extracted_text", "TEXT");
   addColumnIfMissing("documents", "extraction_status", "TEXT");
   addColumnIfMissing("documents", "folder_id", "INTEGER REFERENCES document_folders(id)");

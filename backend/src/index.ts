@@ -14,7 +14,6 @@ import { migrate } from "./db/index.js";
  */
 dns.setDefaultResultOrder("ipv4first");
 import { refreshPendingRelanceTracking } from "./services/relanceTracking.js";
-import { startScrapingScheduler } from "./services/scrapingScheduler.js";
 import authRoutes from "./routes/auth.js";
 import adminRoutes from "./routes/admin.js";
 import importsRoutes from "./routes/imports.js";
@@ -105,5 +104,3 @@ setInterval(() => {
     console.error("Échec du sondage périodique des statuts de relance:", err);
   });
 }, RELANCE_POLL_INTERVAL_MS);
-
-startScrapingScheduler();

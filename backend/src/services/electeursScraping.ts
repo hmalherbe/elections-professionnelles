@@ -7,8 +7,7 @@ import { scrapeWithSession, type ScrapedWithSession } from "./scraper.js";
  * session (cookies/stockage) déjà authentifiée, obtenue hors ligne via le
  * script local (connexion manuelle, captcha compris) puis importée ici —
  * voir scraper.ts scrapeWithSession(). Un seul portail, pas de scoping par
- * académie contrairement à scraping_config (CCMMEP/académique) : stockée
- * dans app_settings comme la clé API Brevo ou Mistral.
+ * académie : stockée dans app_settings comme la clé API Brevo ou Mistral.
  */
 
 export function isElecteursSessionConfigured(): boolean {
