@@ -10,6 +10,11 @@ function normDept(value: unknown): string {
  * contient les 3 colonnes (Département, Spelc de rattachement, Académie).
  * Une feuille annexe (accord du Spelc pour traiter les données) est
  * chargée dans ref_spelc si présente.
+ *
+ * Remplacement intégral à chaque chargement (table vidée avant réinsertion,
+ * dans la même transaction) : ce fichier est la source de vérité unique, et
+ * un simple upsert laisserait vivre indéfiniment une ligne retirée du
+ * fichier (ou saisie par erreur lors d'un test).
  */
 export async function loadDepartementsWorkbook(buffer: Buffer): Promise<{ departements: number; spelcs: number }> {
   const wb = await loadWorkbook(buffer);
@@ -18,12 +23,10 @@ export async function loadDepartementsWorkbook(buffer: Buffer): Promise<{ depart
     wb.worksheets.find((s) => /d[ée]partement/i.test(s.name) && /spelc/i.test(s.name)) ?? wb.worksheets[0];
   const deptRows = rowsAsObjects(deptSheet);
 
-  const insertDept = db.prepare(
-    `INSERT INTO ref_departements (departement, spelc, academie) VALUES (?, ?, ?)
-     ON CONFLICT(departement) DO UPDATE SET spelc = excluded.spelc, academie = excluded.academie`
-  );
+  const insertDept = db.prepare("INSERT INTO ref_departements (departement, spelc, academie) VALUES (?, ?, ?)");
   let deptCount = 0;
   const txDept = db.transaction((rows: Record<string, unknown>[]) => {
+    db.prepare("DELETE FROM ref_departements").run();
     for (const row of rows) {
       const values = Object.values(row);
       const dept = values[0];
@@ -40,11 +43,9 @@ export async function loadDepartementsWorkbook(buffer: Buffer): Promise<{ depart
   const accordSheet = wb.worksheets.find((s) => /accord/i.test(s.name) || /feuil1/i.test(s.name));
   if (accordSheet) {
     const rows = rowsAsObjects(accordSheet);
-    const insertSpelc = db.prepare(
-      `INSERT INTO ref_spelc (spelc, accord, academie) VALUES (?, ?, ?)
-       ON CONFLICT(spelc) DO UPDATE SET accord = excluded.accord, academie = excluded.academie`
-    );
+    const insertSpelc = db.prepare("INSERT INTO ref_spelc (spelc, accord, academie) VALUES (?, ?, ?)");
     const txSpelc = db.transaction((r: Record<string, unknown>[]) => {
+      db.prepare("DELETE FROM ref_spelc").run();
       for (const row of r) {
         const values = Object.values(row);
         const spelc = values[0];
@@ -72,17 +73,17 @@ export async function loadDepartementsWorkbook(buffer: Buffer): Promise<{ depart
  * valeurs numériques résiduelles dans la ligne d'en-tête (au-delà des 4
  * colonnes utiles), ce qui décale l'accès positionnel par Object.values()
  * sur certaines lignes (voir le commentaire de rowsAsObjects dans lib/xlsx.ts).
+ *
+ * Remplacement intégral à chaque chargement, voir loadDepartementsWorkbook.
  */
 export async function loadSmsQuotaWorkbook(buffer: Buffer): Promise<{ count: number }> {
   const wb = await loadWorkbook(buffer);
   const sheet = wb.worksheets[0];
 
-  const insert = db.prepare(
-    `INSERT INTO ref_sms_quota (spelc, credits, updated_at) VALUES (?, ?, datetime('now'))
-     ON CONFLICT(spelc) DO UPDATE SET credits = excluded.credits, updated_at = datetime('now')`
-  );
+  const insert = db.prepare("INSERT INTO ref_sms_quota (spelc, credits, updated_at) VALUES (?, ?, datetime('now'))");
   let count = 0;
   const tx = db.transaction(() => {
+    db.prepare("DELETE FROM ref_sms_quota").run();
     sheet.eachRow((row, rowNumber) => {
       if (rowNumber === 1) return; // en-tête
       const spelc = normalizeCellValue(row.getCell(2).value); // colonne B
@@ -98,16 +99,15 @@ export async function loadSmsQuotaWorkbook(buffer: Buffer): Promise<{ count: num
   return { count };
 }
 
+/** Remplacement intégral à chaque chargement, voir loadDepartementsWorkbook. */
 export async function loadAcademieScrutinsWorkbook(buffer: Buffer): Promise<{ count: number }> {
   const wb = await loadWorkbook(buffer);
   const rows = rowsAsObjects(wb.worksheets[0]);
 
-  const insert = db.prepare(
-    `INSERT INTO ref_academie_scrutins (academie, type_1d, type_2d) VALUES (?, ?, ?)
-     ON CONFLICT(academie) DO UPDATE SET type_1d = excluded.type_1d, type_2d = excluded.type_2d`
-  );
+  const insert = db.prepare("INSERT INTO ref_academie_scrutins (academie, type_1d, type_2d) VALUES (?, ?, ?)");
   let count = 0;
   const tx = db.transaction((r: Record<string, unknown>[]) => {
+    db.prepare("DELETE FROM ref_academie_scrutins").run();
     for (const row of r) {
       const values = Object.values(row);
       const academie = values[0];
