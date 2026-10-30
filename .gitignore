@@ -2,6 +2,7 @@ node_modules/
 dist/
 build/
 backend/data/
+agricole/backend/data/
 *.sqlite
 *.sqlite-journal
 *.sqlite-wal

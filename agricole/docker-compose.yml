@@ -1,0 +1,35 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: infra/Dockerfile.backend
+    restart: unless-stopped
+    environment:
+      JWT_SECRET: ${JWT_SECRET}
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD}
+      # Clé de chiffrement au repos (voir backend/src/lib/crypto.ts) pour la
+      # clé API Brevo stockée en base.
+      SECRET_KEY: ${SECRET_KEY}
+      SYSTEM_EMAIL_BREVO_API_KEY: ${SYSTEM_EMAIL_BREVO_API_KEY}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL}
+    volumes:
+      - agricole_backend_data:/app/data
+    expose:
+      - "4000"
+
+  frontend:
+    build:
+      context: .
+      dockerfile: infra/Dockerfile.frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      # Port hôte exposé — 8081 par défaut sur ce déploiement, en attendant
+      # le nom de domaine commun (sous-domaine dédié) avec la sandbox
+      # "relance-only" de l'application éducation nationale (port 8080).
+      - "${FRONTEND_PORT:-8081}:80"
+
+volumes:
+  agricole_backend_data:
