@@ -66,6 +66,12 @@ export interface ImportRecord {
   votants: number | null;
 }
 
+export interface AcademieScrutin {
+  academie: string;
+  type1d: string;
+  type2d: string;
+}
+
 export interface RelanceDailyPoint {
   date: string;
   spelc: string;

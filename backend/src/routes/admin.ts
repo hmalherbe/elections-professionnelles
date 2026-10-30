@@ -147,6 +147,19 @@ router.get("/reference/academies", (_req, res) => {
   res.json({ academies: rows.map((r) => r.academie) });
 });
 
+/**
+ * Libellés CCMA/CCMI/CCMD... du scrutin 1er/2nd degré par académie — sert à
+ * étiqueter correctement les boutons d'import académique de l'admin général
+ * (onglet Imports), qui peut déposer ces fichiers pour n'importe quelle
+ * académie sans passer par le compte de son admin académique.
+ */
+router.get("/reference/academie-scrutins", (_req, res) => {
+  const rows = db
+    .prepare("SELECT academie, type_1d AS type1d, type_2d AS type2d FROM ref_academie_scrutins ORDER BY academie")
+    .all();
+  res.json({ academieScrutins: rows });
+});
+
 router.get("/reference/spelcs", (req, res) => {
   const academie = req.query.academie as string | undefined;
   const rows = academie

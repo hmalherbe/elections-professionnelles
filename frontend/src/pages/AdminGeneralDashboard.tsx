@@ -11,7 +11,7 @@ import { PivotTree } from "../components/PivotTree";
 import { ScrutinsTab } from "../components/ScrutinsTab";
 import { api } from "../lib/api";
 import { CATEGORICAL } from "../lib/colors";
-import type { AcademieNode, CourbePoint, ImportRecord, ManagedUser, RelanceDailyPoint } from "../lib/types";
+import type { AcademieNode, AcademieScrutin, CourbePoint, ImportRecord, ManagedUser, RelanceDailyPoint } from "../lib/types";
 
 const TABS = [
   "Descriptif applicatif",
@@ -236,11 +236,12 @@ function ImportsPanel() {
         }}
       />
       <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-        Les fichiers JSON <strong>1er et 2nd degré des scrutins académiques</strong> ne s'importent pas ici : chaque
-        admin académique les dépose depuis son propre tableau de bord, onglet « Imports ». Cet onglet-ci est
-        réservé au scrutin national CCMMEP. L'historique ci-dessous liste toutefois tous les imports, nationaux et
-        académiques confondus.
+        Les fichiers JSON <strong>1er et 2nd degré des scrutins académiques</strong> se déposent normalement depuis le
+        tableau de bord de l'admin académique concerné, onglet « Imports ». Le tableau ci-dessous permet de le faire
+        ici aussi, académie par académie, en cas de besoin (admin académique indisponible, dépôt centralisé...).
+        L'historique plus bas liste tous les imports, nationaux et académiques confondus.
       </div>
+      <AcademiqueImportsPanel />
       <Card title="Historique des imports">
         <table className="w-full text-sm">
           <thead>
@@ -275,6 +276,134 @@ function ImportsPanel() {
           </tbody>
         </table>
       </Card>
+    </div>
+  );
+}
+
+type ImportStatus = { type: "ok" | "error"; message: string };
+
+/**
+ * Permet à l'admin général de déposer, pour n'importe quelle académie, les
+ * fichiers JSON d'émargements académiques (1er/2nd degré), sans passer par
+ * le compte de l'admin académique concerné. Les boutons sont étiquetés avec
+ * le vrai nom du scrutin (CCMA/CCMI/CCMD...) de chaque académie — voir
+ * ref_academie_scrutins.
+ */
+function AcademiqueImportsPanel() {
+  const [rows, setRows] = useState<AcademieScrutin[]>([]);
+  const [busy, setBusy] = useState<Record<string, boolean>>({});
+  const [status, setStatus] = useState<Record<string, ImportStatus>>({});
+
+  useEffect(() => {
+    api.get<{ academieScrutins: AcademieScrutin[] }>("/admin/reference/academie-scrutins").then((r) => setRows(r.academieScrutins));
+  }, []);
+
+  async function handleUpload(academie: string, degre: "1D" | "2D", file: File) {
+    const key = `${academie}-${degre}`;
+    setBusy((b) => ({ ...b, [key]: true }));
+    setStatus((s) => {
+      const next = { ...s };
+      delete next[key];
+      return next;
+    });
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("degre", degre);
+      fd.append("academie", academie);
+      const res = await api.upload<{
+        rowCount: number;
+        votants: number;
+        crossDegreDuplicates?: { nom: string; prenom: string }[];
+      }>("/imports/academique", fd);
+      let message = `${res.rowCount} lignes importées, ${res.votants} votants.`;
+      if (res.crossDegreDuplicates?.length) {
+        message += ` Attention : ${res.crossDegreDuplicates.length} doublon(s) 1er/2nd degré.`;
+      }
+      setStatus((s) => ({ ...s, [key]: { type: "ok", message } }));
+    } catch (err) {
+      setStatus((s) => ({ ...s, [key]: { type: "error", message: (err as Error).message } }));
+    } finally {
+      setBusy((b) => ({ ...b, [key]: false }));
+    }
+  }
+
+  if (rows.length === 0) return null;
+
+  return (
+    <Card
+      title="Import académique, académie par académie"
+      subtitle="Fichier JSON des émargements du scrutin 1er ou 2nd degré (mêmes champs que le fichier CCMMEP), journée du jour."
+    >
+      <div className="max-h-96 overflow-auto">
+        <table className="w-full text-sm">
+          <thead className="sticky top-0 bg-white">
+            <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-500">
+              <th className="py-2 pr-4">Académie</th>
+              <th className="px-4 py-2">1er degré</th>
+              <th className="px-4 py-2">2nd degré</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.academie} className="border-b border-slate-100 align-top">
+                <td className="py-2 pr-4 font-medium text-slate-700">{r.academie}</td>
+                <td className="px-4 py-2">
+                  <ImportCell
+                    label={r.type1d || "1er degré"}
+                    busy={!!busy[`${r.academie}-1D`]}
+                    status={status[`${r.academie}-1D`]}
+                    onFile={(file) => handleUpload(r.academie, "1D", file)}
+                  />
+                </td>
+                <td className="px-4 py-2">
+                  <ImportCell
+                    label={r.type2d || "2nd degré"}
+                    busy={!!busy[`${r.academie}-2D`]}
+                    status={status[`${r.academie}-2D`]}
+                    onFile={(file) => handleUpload(r.academie, "2D", file)}
+                  />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Card>
+  );
+}
+
+function ImportCell({
+  label,
+  busy,
+  status,
+  onFile,
+}: {
+  label: string;
+  busy: boolean;
+  status?: ImportStatus;
+  onFile: (file: File) => void;
+}) {
+  return (
+    <div className="min-w-[180px] space-y-1">
+      <label className="block text-xs font-medium text-slate-500">{label}</label>
+      <input
+        type="file"
+        accept="application/json"
+        disabled={busy}
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) onFile(file);
+          e.target.value = "";
+        }}
+        className="block w-full text-xs text-slate-600 file:mr-2 file:rounded-md file:border-0 file:bg-emerald-600 file:px-2 file:py-1 file:text-xs file:font-medium file:text-white hover:file:bg-emerald-700"
+      />
+      {busy && <p className="text-xs text-slate-400">Import en cours…</p>}
+      {status && (
+        <p className={`whitespace-pre-line text-xs ${status.type === "ok" ? "text-emerald-600" : "text-red-600"}`}>
+          {status.message}
+        </p>
+      )}
     </div>
   );
 }
