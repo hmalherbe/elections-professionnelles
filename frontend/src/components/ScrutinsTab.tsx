@@ -47,6 +47,7 @@ export function ScrutinsTab({ scope, academie, spelc, allowAdherentFilter, group
             academie,
             spelc,
             votant: votant || undefined,
+            adherent: allowAdherentFilter ? adherent || undefined : undefined,
             scrutinType: scrutinType || undefined,
             affectation: etablissement || undefined,
           })}`
@@ -123,7 +124,7 @@ export function ScrutinsTab({ scope, academie, spelc, allowAdherentFilter, group
             <option value="non_votant">Non votants</option>
           </select>
         </div>
-        {allowAdherentFilter && !groupByEtablissement && (
+        {allowAdherentFilter && (
           <div>
             <label className="block text-xs font-medium text-slate-500">Adhérent</label>
             <select

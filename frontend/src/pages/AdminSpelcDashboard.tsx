@@ -50,7 +50,9 @@ export function AdminSpelcDashboard() {
 
       {tab === "Vue Spelc" && <VueSpelc spelc={spelc} scope={scope} />}
       {tab === "Résultats 2022" && <Ccm2022ResultsTab mode="spelc" value={spelc} />}
-      {tab === "Scrutins" && <ScrutinsTab scope={scope} spelc={spelc} allowAdherentFilter={scope === "academique"} />}
+      {tab === "Scrutins" && (
+        <ScrutinsTab scope={scope} spelc={spelc} allowAdherentFilter={scope === "academique"} groupByEtablissement />
+      )}
       {tab === "Participation par établissement" && <EtablissementsTab scope={scope} spelc={spelc} />}
       {tab === "Adhérents" && <AdherentsPanel spelc={spelc} />}
       {tab === "Relances adhérents" && <BrevoPanel spelc={spelc} />}
