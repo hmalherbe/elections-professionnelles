@@ -6,6 +6,7 @@ import {
   courbeCumulative,
   participationParEtablissement,
   participationTreeNational,
+  scrutinsByEtablissement,
   scrutinsTab,
   type Scope,
 } from "../services/stats.js";
@@ -80,6 +81,18 @@ router.get("/scrutins", (req, res) => {
   const limit = Math.min(Number(req.query.limit) || 200, 1000);
   const offset = Number(req.query.offset) || 0;
   res.json(scrutinsTab({ scope, academie, spelc, scrutinType, votant, adherent }, limit, offset));
+});
+
+router.get("/scrutins-par-etablissement", (req, res) => {
+  const scope = (req.query.scope as Scope) ?? "national";
+  const academie = (req.query.academie as string) || null;
+  const spelc = (req.query.spelc as string) || null;
+  if (!checkScopeAccess(req, res, scope, academie, spelc)) return;
+  const scrutinType = (req.query.scrutinType as string) || null;
+  const votant = (req.query.votant as "votant" | "non_votant") || null;
+  const adherent = (req.query.adherent as "oui" | "non") || null;
+  const affectation = (req.query.affectation as string) || null;
+  res.json(scrutinsByEtablissement({ scope, academie, spelc, scrutinType, votant, adherent, affectation }));
 });
 
 router.get("/etablissements", (req, res) => {

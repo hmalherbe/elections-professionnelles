@@ -181,6 +181,8 @@ export interface ScrutinsFilter extends ScopeFilter {
   scrutinType?: string | null;
   votant?: "votant" | "non_votant" | null;
   adherent?: "oui" | "non" | null;
+  /** Nom de l'établissement (valeur de "affectation"), filtre exact. */
+  affectation?: string | null;
 }
 
 export interface ScrutinsResult {
@@ -246,6 +248,108 @@ export function scrutinsTab(filter: ScrutinsFilter, limit = 200, offset = 0): Sc
     .all(...params, limit, offset) as Record<string, unknown>[];
 
   return { groups, rows, totalRows: totalRow.c };
+}
+
+export interface ScrutinsByEtablissementGroup {
+  etablissement: string;
+  rows: Record<string, unknown>[];
+}
+
+export interface ScrutinsByEtablissementResult {
+  groups: { scrutinType: string; total: number; votants: number }[];
+  /** Établissements disponibles sous les mêmes filtres, hors le filtre établissement
+   * lui-même — pour pouvoir toujours en choisir un autre sans repasser par "Tous". */
+  etablissementOptions: string[];
+  etablissements: ScrutinsByEtablissementGroup[];
+  totalRows: number;
+}
+
+/**
+ * Même détail que scrutinsTab, mais groupé par établissement (trié par ordre
+ * alphabétique), chaque établissement listant ses électeurs également triés
+ * par ordre alphabétique — pas de pagination : le périmètre académique reste
+ * d'une taille raisonnable à charger en une fois côté serveur.
+ */
+export function scrutinsByEtablissement(filter: ScrutinsFilter): ScrutinsByEtablissementResult {
+  const ids = currentImportIds(filter.scope, effectiveAcademie(filter));
+  if (ids.length === 0) return { groups: [], etablissementOptions: [], etablissements: [], totalRows: 0 };
+
+  const baseParts = [`e.import_id IN (${idsPlaceholder(ids)})`];
+  const baseParams: unknown[] = [...ids];
+  if (filter.spelc) {
+    baseParts.push("e.spelc = ?");
+    baseParams.push(filter.spelc);
+  } else if (filter.academie) {
+    baseParts.push("e.academie = ?");
+    baseParams.push(filter.academie);
+  }
+  if (filter.scrutinType) {
+    baseParts.push("e.scrutin_type = ?");
+    baseParams.push(filter.scrutinType);
+  }
+  if (filter.votant === "votant") baseParts.push("e.votant = 1");
+  if (filter.votant === "non_votant") baseParts.push("e.votant = 0");
+
+  const adherentExists = `EXISTS (
+    SELECT 1 FROM adherents ad
+    WHERE ad.spelc = e.spelc AND ad.nom_norm = e.nom_norm AND ad.prenom_norm = e.prenom_norm
+  )`;
+  const showAdherentStatus = Boolean(filter.spelc);
+  if (filter.spelc && filter.adherent === "oui") baseParts.push(adherentExists);
+  else if (filter.spelc && filter.adherent === "non") baseParts.push(`NOT ${adherentExists}`);
+
+  const whereForOptions = baseParts.join(" AND ");
+  const etablissementOptions = (
+    db
+      .prepare(
+        `SELECT DISTINCT COALESCE(e.affectation, 'Non renseigné') AS etab
+         FROM emargements e WHERE ${whereForOptions} ORDER BY etab`
+      )
+      .all(...baseParams) as { etab: string }[]
+  ).map((r) => r.etab);
+
+  const parts = [...baseParts];
+  const params = [...baseParams];
+  if (filter.affectation) {
+    parts.push("COALESCE(e.affectation, 'Non renseigné') = ?");
+    params.push(filter.affectation);
+  }
+  const where = parts.join(" AND ");
+
+  const groups = db
+    .prepare(
+      `SELECT COALESCE(e.scrutin_type, 'Non défini') AS scrutinType, COUNT(*) AS total, SUM(e.votant) AS votants
+       FROM emargements e WHERE ${where} GROUP BY scrutinType ORDER BY scrutinType`
+    )
+    .all(...params) as { scrutinType: string; total: number; votants: number }[];
+
+  const allRows = db
+    .prepare(
+      `SELECT e.nom, e.prenom, COALESCE(e.affectation, 'Non renseigné') AS affectation, e.scrutin_type AS scrutinType,
+              e.votant, e.date_emargement AS dateEmargement, e.spelc, e.academie, e.degre
+              ${showAdherentStatus ? `, CASE WHEN ${adherentExists} THEN 1 ELSE 0 END AS isAdherent` : ""}
+       FROM emargements e WHERE ${where}`
+    )
+    .all(...params) as (Record<string, unknown> & { nom: string; prenom: string; affectation: string })[];
+
+  const byEtab = new Map<string, typeof allRows>();
+  for (const row of allRows) {
+    const list = byEtab.get(row.affectation);
+    if (list) list.push(row);
+    else byEtab.set(row.affectation, [row]);
+  }
+
+  const etablissements = [...byEtab.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0], "fr"))
+    .map(([etablissement, rows]) => ({
+      etablissement,
+      rows: rows.sort((a, b) => {
+        const byNom = a.nom.localeCompare(b.nom, "fr");
+        return byNom !== 0 ? byNom : a.prenom.localeCompare(b.prenom, "fr");
+      }),
+    }));
+
+  return { groups, etablissementOptions, etablissements, totalRows: allRows.length };
 }
 
 export interface EtablissementRow {

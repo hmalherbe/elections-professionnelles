@@ -43,7 +43,7 @@ export function AdminAcademiqueDashboard() {
 
       {tab === "Vue académie" && <VueAcademie academie={academie} scope={scope} />}
       {tab === "Résultats 2022" && <Ccm2022ResultsTab mode="academie" value={academie} />}
-      {tab === "Scrutins" && <ScrutinsTab scope={scope} academie={academie} />}
+      {tab === "Scrutins" && <ScrutinsTab scope={scope} academie={academie} groupByEtablissement />}
       {tab === "Participation par établissement" && <EtablissementsTab scope={scope} academie={academie} />}
       {tab === "Imports" && <ImportsPanel academie={academie} />}
       {tab === "Documents" && <DocumentsTab academie={academie} />}

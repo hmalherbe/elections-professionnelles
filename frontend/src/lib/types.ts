@@ -47,6 +47,18 @@ export interface ScrutinsResult {
   totalRows: number;
 }
 
+export interface ScrutinsByEtablissementGroup {
+  etablissement: string;
+  rows: ScrutinsRow[];
+}
+
+export interface ScrutinsByEtablissementResult {
+  groups: { scrutinType: string; total: number; votants: number }[];
+  etablissementOptions: string[];
+  etablissements: ScrutinsByEtablissementGroup[];
+  totalRows: number;
+}
+
 export interface EtablissementRow {
   affectation: string;
   inscrits: number;
