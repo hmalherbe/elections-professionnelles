@@ -13,7 +13,7 @@ import { api, qs } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import type { CourbePoint, ImportRecord } from "../lib/types";
 
-const TABS = ["Vue académie", "Résultats 2022", "Scrutins", "Participation par établissement", "Imports", "Documents", "Assistant IA"] as const;
+const TABS = ["Vue académie", "Résultats 2022", "Participation par établissement", "Scrutins", "Imports", "Documents", "Assistant IA"] as const;
 type Tab = (typeof TABS)[number];
 
 export function AdminAcademiqueDashboard() {
