@@ -14,6 +14,7 @@ import { isBrevoApiKeyConfigured, maskedBrevoApiKey, saveBrevoApiKey } from "../
 import { getFuzzyMatchThreshold, setFuzzyMatchThreshold } from "../services/fuzzyMatching.js";
 import { listAllRelanceTracking, refreshPendingRelanceTracking, getRelanceDailyStatsAll } from "../services/relanceTracking.js";
 import { importUsersFromFile } from "../services/userImport.js";
+import { resetImportedData } from "../services/imports.js";
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } });
@@ -254,6 +255,18 @@ router.put("/fuzzy-threshold", (req, res) => {
   }
   setFuzzyMatchThreshold(n);
   res.json({ threshold: getFuzzyMatchThreshold() });
+});
+
+/**
+ * Réinitialise l'application : supprime le fichier national CCMMEP, tous
+ * les fichiers académiques (1er/2nd degré) et tous les fichiers d'adhérents
+ * de chaque Spelc — voir services/imports.ts resetImportedData(). Conserve
+ * les référentiels (départements/Spelc/académies, scrutins académiques,
+ * crédits SMS) et les résultats 2022 (données statiques, non stockées en
+ * base).
+ */
+router.post("/reset-imported-data", (_req, res) => {
+  res.json(resetImportedData());
 });
 
 /**

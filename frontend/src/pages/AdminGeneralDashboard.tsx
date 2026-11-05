@@ -168,7 +168,74 @@ function ParametresPanel() {
         </div>
         {thresholdMsg && <p className="mt-2 text-sm text-slate-600">{thresholdMsg}</p>}
       </Card>
+
+      <ReinitialiserPanel />
     </div>
+  );
+}
+
+const RESET_CONFIRM_WORD = "RÉINITIALISER";
+
+/**
+ * Remet l'application à zéro avant le début des élections (ou pour repartir
+ * d'un test propre) : supprime le fichier national CCMMEP, tous les
+ * fichiers académiques et tous les fichiers d'adhérents. Conserve les 3
+ * référentiels (départements/Spelc/académies, scrutins académiques, crédits
+ * SMS) et les résultats 2022 (données statiques, non stockées en base) —
+ * donc jamais touchés par ce bouton.
+ */
+function ReinitialiserPanel() {
+  const [confirmText, setConfirmText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+
+  async function reset() {
+    if (!window.confirm("Dernière confirmation : supprimer toutes les données importées ? Cette action est irréversible.")) return;
+    setBusy(true);
+    setMessage(null);
+    try {
+      const res = await api.post<{ importsDeleted: number; emargementsDeleted: number; adherentsDeleted: number }>(
+        "/admin/reset-imported-data",
+        {}
+      );
+      setMessage(
+        `Réinitialisation effectuée : ${res.importsDeleted} import(s) (${res.emargementsDeleted} émargement(s)) et ${res.adherentsDeleted} adhérent(s) supprimés.`
+      );
+      setConfirmText("");
+    } catch (err) {
+      setMessage((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card title="Zone de danger — Réinitialiser l'application">
+      <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+        Supprime <strong>le fichier national CCMMEP</strong>, <strong>tous les fichiers académiques</strong> (1er et
+        2nd degré, toutes académies) et <strong>tous les fichiers d'adhérents</strong> (tous les Spelcs). Conserve les
+        3 référentiels (départements/Spelc/académies, scrutins académiques, crédits SMS) et les résultats 2022.
+        Action irréversible.
+      </div>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <label className="text-xs font-medium text-slate-500">
+          Tapez « {RESET_CONFIRM_WORD} » pour activer le bouton :
+        </label>
+        <input
+          className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+          value={confirmText}
+          onChange={(e) => setConfirmText(e.target.value)}
+        />
+        <button
+          disabled={confirmText !== RESET_CONFIRM_WORD || busy}
+          onClick={reset}
+          className="rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-40"
+        >
+          {busy ? "Réinitialisation en cours…" : "Réinitialiser l'application"}
+        </button>
+      </div>
+      {message && <p className="mt-2 text-sm text-slate-600">{message}</p>}
+    </Card>
   );
 }
 
