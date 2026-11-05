@@ -79,6 +79,8 @@ function ParametresPanel() {
   const [maskedKey, setMaskedKey] = useState<string | null>(null);
   const [apiKey, setApiKey] = useState("");
   const [message, setMessage] = useState<string | null>(null);
+  const [threshold, setThreshold] = useState(1);
+  const [thresholdMsg, setThresholdMsg] = useState<string | null>(null);
 
   function refresh() {
     api
@@ -87,6 +89,7 @@ function ParametresPanel() {
         setConfigured(r.configured);
         setMaskedKey(r.maskedKey);
       });
+    api.get<{ threshold: number }>("/admin/fuzzy-threshold").then((r) => setThreshold(r.threshold));
   }
   useEffect(refresh, []);
 
@@ -99,6 +102,17 @@ function ParametresPanel() {
       refresh();
     } catch (err) {
       setMessage((err as Error).message);
+    }
+  }
+
+  async function saveThreshold() {
+    setThresholdMsg(null);
+    try {
+      const res = await api.put<{ threshold: number }>("/admin/fuzzy-threshold", { threshold });
+      setThreshold(res.threshold);
+      setThresholdMsg("Seuil enregistré.");
+    } catch (err) {
+      setThresholdMsg((err as Error).message);
     }
   }
 
@@ -128,6 +142,31 @@ function ParametresPanel() {
           </button>
         </div>
         {message && <p className="mt-2 text-sm text-slate-600">{message}</p>}
+      </Card>
+
+      <Card
+        title="Rapprochement approximatif adhérents"
+        subtitle="Nombre de caractères de différence toléré (nom ET prénom, nom de naissance inclus) pour suggérer un rapprochement entre un adhérent et une personne des émargements, lorsque la correspondance exacte échoue. Un seuil plus élevé retrouve davantage de cas mais augmente le risque de rapprochement ambigu (donc jamais appliqué automatiquement)."
+      >
+        <div className="flex items-center gap-2">
+          <select
+            className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+            value={threshold}
+            onChange={(e) => setThreshold(Number(e.target.value))}
+          >
+            <option value={0}>0 — correspondance exacte uniquement</option>
+            <option value={1}>1 caractère (recommandé)</option>
+            <option value={2}>2 caractères</option>
+            <option value={3}>3 caractères</option>
+          </select>
+          <button
+            className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700"
+            onClick={saveThreshold}
+          >
+            Enregistrer
+          </button>
+        </div>
+        {thresholdMsg && <p className="mt-2 text-sm text-slate-600">{thresholdMsg}</p>}
       </Card>
     </div>
   );
@@ -1141,8 +1180,8 @@ function AdherentsAdminPanel() {
     <div className="space-y-4">
       <FileUploadCard
         title="Importer tous les adhérents (tous les Spelcs)"
-        subtitle="Remplace entièrement la liste de chaque Spelc mentionné dans le fichier (les Spelcs absents du fichier ne sont pas touchés)."
-        expectedColumns={["spelc", "nom", "prenom", "mail", "mobile"]}
+        subtitle="Remplace entièrement la liste de chaque Spelc mentionné dans le fichier (les Spelcs absents du fichier ne sont pas touchés). Le nom de naissance est facultatif (sert uniquement au rapprochement approximatif)."
+        expectedColumns={["spelc", "nom", "prenom", "mail", "mobile", "nom de naissance (facultatif)"]}
         accept=".csv,.xlsx"
         onUpload={async (file) => {
           const fd = new FormData();

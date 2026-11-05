@@ -82,8 +82,22 @@ interface Adherent {
   id: number;
   nom: string;
   prenom: string;
+  nom_naissance: string | null;
   mail: string | null;
   mobile: string | null;
+}
+
+interface FuzzyMatch {
+  id: number;
+  adherentId: number;
+  adherentNom: string;
+  adherentPrenom: string;
+  adherentNomNaissance: string | null;
+  candidateNom: string;
+  candidatePrenom: string;
+  status: "en_attente" | "valide" | "rejete";
+  createdAt: string;
+  reviewedAt: string | null;
 }
 
 function AdherentsPanel({ spelc }: { spelc: string }) {
@@ -98,8 +112,8 @@ function AdherentsPanel({ spelc }: { spelc: string }) {
     <div className="space-y-4">
       <FileUploadCard
         title="Import des adhérents"
-        subtitle="Fichier CSV ou Excel, 1re ligne = en-têtes. Remplace entièrement la liste précédente pour ce Spelc."
-        expectedColumns={["Nom", "Prénom", "Mail", "Numéro de mobile"]}
+        subtitle="Fichier CSV ou Excel, 1re ligne = en-têtes. Remplace entièrement la liste précédente pour ce Spelc. Le nom de naissance est facultatif : il sert uniquement au rapprochement approximatif si le nom actuel ne suffit pas à retrouver la personne dans les émargements (ex. nom d'épouse)."
+        expectedColumns={["Nom", "Prénom", "Mail", "Numéro de mobile", "Nom de naissance (facultatif)"]}
         accept=".csv,.xlsx"
         onUpload={async (file) => {
           const fd = new FormData();
@@ -115,6 +129,7 @@ function AdherentsPanel({ spelc }: { spelc: string }) {
             <thead className="sticky top-0 bg-white">
               <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-500">
                 <th className="py-2 pr-4">Nom</th>
+                <th className="px-4 py-2">Nom de naissance</th>
                 <th className="px-4 py-2">Prénom</th>
                 <th className="px-4 py-2">Mail</th>
                 <th className="px-4 py-2">Mobile</th>
@@ -124,6 +139,7 @@ function AdherentsPanel({ spelc }: { spelc: string }) {
               {adherents.map((a) => (
                 <tr key={a.id} className="border-b border-slate-100">
                   <td className="py-1.5 pr-4">{a.nom}</td>
+                  <td className="px-4 py-1.5 text-slate-500">{a.nom_naissance ?? "—"}</td>
                   <td className="px-4 py-1.5">{a.prenom}</td>
                   <td className="px-4 py-1.5 text-slate-500">{a.mail ?? "—"}</td>
                   <td className="px-4 py-1.5 text-slate-500">{a.mobile ?? "—"}</td>
@@ -133,7 +149,109 @@ function AdherentsPanel({ spelc }: { spelc: string }) {
           </table>
         </div>
       </Card>
+      <FuzzyMatchQueuePanel spelc={spelc} />
     </div>
+  );
+}
+
+/**
+ * File de validation des rapprochements approximatifs (nom/prénom proches
+ * mais pas identiques) proposés entre un adhérent et une identité des
+ * émargements — voir services/fuzzyMatching.ts côté serveur. Une suggestion
+ * n'est jamais appliquée toute seule : il faut la valider ou la rejeter
+ * explicitement ici.
+ */
+function FuzzyMatchQueuePanel({ spelc }: { spelc: string }) {
+  const [matches, setMatches] = useState<FuzzyMatch[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+
+  function refresh() {
+    api.get<{ matches: FuzzyMatch[] }>(`/adherents/fuzzy-matches${qs({ spelc, status: "en_attente" })}`).then((r) => setMatches(r.matches));
+  }
+  useEffect(refresh, [spelc]);
+
+  async function search() {
+    setBusy(true);
+    setMessage(null);
+    try {
+      const res = await api.post<{ created: number; unmatchedExamined: number }>("/adherents/fuzzy-matches/refresh", { spelc });
+      setMessage(
+        res.created > 0
+          ? `${res.created} nouvelle(s) suggestion(s) trouvée(s) (sur ${res.unmatchedExamined} adhérent(s) non retrouvé(s) examiné(s)).`
+          : `Aucune nouvelle suggestion (sur ${res.unmatchedExamined} adhérent(s) non retrouvé(s) examiné(s)).`
+      );
+      refresh();
+    } catch (err) {
+      setMessage((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function review(id: number, status: "valide" | "rejete") {
+    await api.put(`/adherents/fuzzy-matches/${id}`, { status });
+    refresh();
+  }
+
+  return (
+    <Card
+      title={`Rapprochements approximatifs à valider (${matches.length})`}
+      subtitle="Adhérents non retrouvés par correspondance exacte, mais dont le nom (ou nom de naissance) et le prénom sont très proches d'une personne des émargements — à valider ou rejeter explicitement."
+    >
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <button
+          className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 disabled:opacity-60"
+          disabled={busy}
+          onClick={search}
+        >
+          {busy ? "Recherche en cours…" : "Rechercher des rapprochements"}
+        </button>
+        {message && <span className="text-sm text-slate-600">{message}</span>}
+      </div>
+      <div className="max-h-96 overflow-auto">
+        <table className="w-full text-sm">
+          <thead className="sticky top-0 bg-white">
+            <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-500">
+              <th className="py-2 pr-4">Adhérent</th>
+              <th className="px-4 py-2">Nom de naissance</th>
+              <th className="px-4 py-2">Trouvé dans les émargements</th>
+              <th className="px-4 py-2"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {matches.map((m) => (
+              <tr key={m.id} className="border-b border-slate-100">
+                <td className="py-1.5 pr-4">
+                  {m.adherentPrenom} {m.adherentNom}
+                </td>
+                <td className="px-4 py-1.5 text-slate-500">{m.adherentNomNaissance ?? "—"}</td>
+                <td className="px-4 py-1.5 font-medium text-amber-700">
+                  {m.candidatePrenom} {m.candidateNom}
+                </td>
+                <td className="px-4 py-1.5 text-right">
+                  <button
+                    className="mr-2 rounded-md bg-emerald-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-emerald-700"
+                    onClick={() => review(m.id, "valide")}
+                  >
+                    Valider
+                  </button>
+                  <button
+                    className="rounded-md border border-slate-300 px-2.5 py-1 text-xs text-slate-600 hover:bg-slate-100"
+                    onClick={() => review(m.id, "rejete")}
+                  >
+                    Rejeter
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {matches.length === 0 && (
+          <p className="py-4 text-sm text-slate-400">Aucun rapprochement en attente. Cliquez sur « Rechercher des rapprochements » pour en chercher.</p>
+        )}
+      </div>
+    </Card>
   );
 }
 

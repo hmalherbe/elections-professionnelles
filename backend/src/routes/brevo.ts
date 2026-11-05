@@ -5,6 +5,7 @@ import { renderTemplate, type TemplateFields } from "../lib/template.js";
 import { wrapEmailHtml, ensureSiteLink } from "../lib/emailLayout.js";
 import { sendBrevoEmails, sendBrevoSms, fetchAccountInfo, getBrevoApiKey } from "../services/brevo.js";
 import { currentImportIds } from "../services/stats.js";
+import { fuzzyValidatedJoinExtra } from "../services/fuzzyMatching.js";
 import { getTestContactSettings } from "../services/settings.js";
 import { getSpelcSettings, updateSpelcSettings } from "../services/spelcSettings.js";
 import { buildLogoHtml, buildSocialLinksHtml, type SocialLinks } from "../lib/socialLinks.js";
@@ -209,10 +210,10 @@ function matchedAdherents(spelc: string): Recipient[] {
               MAX(CASE WHEN el.id IS NOT NULL THEN 1 ELSE 0 END) AS localMatched,
               MAX(CASE WHEN en.id IS NOT NULL THEN 1 ELSE 0 END) AS nationalMatched
        FROM adherents a
-       LEFT JOIN emargements el ON el.spelc = a.spelc AND el.nom_norm = a.nom_norm AND el.prenom_norm = a.prenom_norm
-         AND el.import_id IN (${localPlaceholders})
-       LEFT JOIN emargements en ON en.spelc = a.spelc AND en.nom_norm = a.nom_norm AND en.prenom_norm = a.prenom_norm
-         AND en.import_id IN (${nationalPlaceholders})
+       LEFT JOIN emargements el ON el.spelc = a.spelc AND el.import_id IN (${localPlaceholders})
+         AND ((el.nom_norm = a.nom_norm AND el.prenom_norm = a.prenom_norm) ${fuzzyValidatedJoinExtra("el")})
+       LEFT JOIN emargements en ON en.spelc = a.spelc AND en.import_id IN (${nationalPlaceholders})
+         AND ((en.nom_norm = a.nom_norm AND en.prenom_norm = a.prenom_norm) ${fuzzyValidatedJoinExtra("en")})
        WHERE a.spelc = ?
        GROUP BY a.id`
     )

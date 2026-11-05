@@ -5,6 +5,12 @@ import { requireAuth, requireRole, canAccessSpelc } from "../middleware/auth.js"
 import { normalizeName } from "../lib/normalize.js";
 import { loadWorkbook, rowsAsObjects } from "../lib/xlsx.js";
 import { parseCsvBuffer } from "../lib/csv.js";
+import {
+  fuzzyMatchSpelc,
+  listFuzzyMatches,
+  refreshFuzzyCandidates,
+  reviewFuzzyMatch,
+} from "../services/fuzzyMatching.js";
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } });
@@ -41,14 +47,14 @@ router.post("/upload", requireRole("admin_spelc", "admin_general"), upload.singl
 
     const del = db.prepare("DELETE FROM adherents WHERE spelc = ?");
     const insert = db.prepare(
-      `INSERT INTO adherents (spelc, nom, prenom, nom_norm, prenom_norm, mail, mobile, uploaded_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO adherents (spelc, nom, prenom, nom_norm, prenom_norm, nom_naissance, nom_naissance_norm, mail, mobile, uploaded_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     );
     let count = 0;
     const tx = db.transaction(() => {
       del.run(spelc);
       for (const row of rows) {
-        // colonnes attendues : nom, prenom, mail, numéro de mobile (ordre positionnel toléré)
+        // colonnes attendues : nom, prenom, mail, numéro de mobile, nom de naissance (facultatif) — ordre positionnel toléré
         const keys = Object.keys(row).reduce<Record<string, unknown>>((acc, k) => {
           acc[k.toLowerCase().trim()] = row[k];
           return acc;
@@ -57,6 +63,7 @@ router.post("/upload", requireRole("admin_spelc", "admin_general"), upload.singl
         const prenom = keys["prenom"] ?? Object.values(row)[1];
         const mail = keys["mail"] ?? keys["email"] ?? Object.values(row)[2];
         const mobile = keys["mobile"] ?? keys["numero de mobile"] ?? keys["numéro de mobile"] ?? Object.values(row)[3];
+        const nomNaissance = keys["nom de naissance"] ?? keys["nom_naissance"] ?? Object.values(row)[4];
         if (!nom || !prenom) continue;
         insert.run(
           spelc,
@@ -64,6 +71,8 @@ router.post("/upload", requireRole("admin_spelc", "admin_general"), upload.singl
           String(prenom).trim(),
           normalizeName(String(nom)),
           normalizeName(String(prenom)),
+          nomNaissance ? String(nomNaissance).trim() : null,
+          nomNaissance ? normalizeName(String(nomNaissance)) : null,
           mail ? String(mail).trim() : null,
           mobile ? String(mobile).trim() : null,
           req.user!.id
@@ -101,8 +110,8 @@ router.post("/import-all", requireRole("admin_general"), upload.single("file"), 
 
     const del = db.prepare("DELETE FROM adherents WHERE spelc = ?");
     const insert = db.prepare(
-      `INSERT INTO adherents (spelc, nom, prenom, nom_norm, prenom_norm, mail, mobile, uploaded_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO adherents (spelc, nom, prenom, nom_norm, prenom_norm, nom_naissance, nom_naissance_norm, mail, mobile, uploaded_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     );
 
     const bySpelc = new Map<string, Record<string, unknown>[]>();
@@ -142,6 +151,7 @@ router.post("/import-all", requireRole("admin_general"), upload.single("file"), 
           const prenom = keys["prenom"];
           const mail = keys["mail"] ?? keys["email"];
           const mobile = keys["mobile"] ?? keys["numero de mobile"] ?? keys["numéro de mobile"];
+          const nomNaissance = keys["nom de naissance"] ?? keys["nom_naissance"];
           if (!nom || !prenom) continue;
           insert.run(
             spelc,
@@ -149,6 +159,8 @@ router.post("/import-all", requireRole("admin_general"), upload.single("file"), 
             String(prenom).trim(),
             normalizeName(String(nom)),
             normalizeName(String(prenom)),
+            nomNaissance ? String(nomNaissance).trim() : null,
+            nomNaissance ? normalizeName(String(nomNaissance)) : null,
             mail ? String(mail).trim() : null,
             mobile ? String(mobile).trim() : null,
             req.user!.id
@@ -186,8 +198,68 @@ router.get("/", requireRole("admin_spelc", "admin_general"), (req, res) => {
     res.status(403).json({ error: "Accès non autorisé à ce Spelc." });
     return;
   }
-  const rows = db.prepare("SELECT id, nom, prenom, mail, mobile FROM adherents WHERE spelc = ? ORDER BY nom").all(spelc);
+  const rows = db
+    .prepare("SELECT id, nom, prenom, nom_naissance, mail, mobile FROM adherents WHERE spelc = ? ORDER BY nom")
+    .all(spelc);
   res.json({ adherents: rows });
+});
+
+/**
+ * Rapprochement approximatif (nom/prénom proches, pas identiques) entre
+ * adhérents et émargements — voir services/fuzzyMatching.ts. Une suggestion
+ * n'est jamais appliquée automatiquement : elle doit être validée ici par un
+ * admin Spelc (son propre Spelc) ou l'admin général (n'importe lequel).
+ */
+router.get("/fuzzy-matches", requireRole("admin_spelc", "admin_general"), (req, res) => {
+  const spelc = req.query.spelc as string;
+  if (!spelc) {
+    res.status(400).json({ error: "Paramètre spelc requis." });
+    return;
+  }
+  if (!canAccessSpelc(req.user!, spelcAcademie(spelc), spelc)) {
+    res.status(403).json({ error: "Accès non autorisé à ce Spelc." });
+    return;
+  }
+  const status = (req.query.status as "en_attente" | "valide" | "rejete" | undefined) || undefined;
+  res.json({ matches: listFuzzyMatches(spelc, status) });
+});
+
+/** Recherche de nouveaux candidats approximatifs pour ce Spelc (bouton "Rechercher des rapprochements"). */
+router.post("/fuzzy-matches/refresh", requireRole("admin_spelc", "admin_general"), (req, res) => {
+  const spelc = (req.body?.spelc as string) || req.user!.spelc || "";
+  if (!spelc) {
+    res.status(400).json({ error: "Spelc requis." });
+    return;
+  }
+  if (!canAccessSpelc(req.user!, spelcAcademie(spelc), spelc)) {
+    res.status(403).json({ error: "Accès non autorisé à ce Spelc." });
+    return;
+  }
+  res.json(refreshFuzzyCandidates(spelc));
+});
+
+router.put("/fuzzy-matches/:id", requireRole("admin_spelc", "admin_general"), (req, res) => {
+  const id = Number(req.params.id);
+  const { status } = req.body ?? {};
+  if (status !== "valide" && status !== "rejete") {
+    res.status(400).json({ error: "Statut invalide (attendu : valide ou rejete)." });
+    return;
+  }
+  const spelc = fuzzyMatchSpelc(id);
+  if (!spelc) {
+    res.status(404).json({ error: "Suggestion introuvable." });
+    return;
+  }
+  if (!canAccessSpelc(req.user!, spelcAcademie(spelc), spelc)) {
+    res.status(403).json({ error: "Accès non autorisé à ce Spelc." });
+    return;
+  }
+  const ok = reviewFuzzyMatch(id, status, req.user!.id);
+  if (!ok) {
+    res.status(404).json({ error: "Suggestion introuvable." });
+    return;
+  }
+  res.json({ ok: true });
 });
 
 export default router;

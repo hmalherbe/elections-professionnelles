@@ -116,6 +116,29 @@ export function migrate(): void {
     CREATE INDEX IF NOT EXISTS idx_adherents_spelc ON adherents(spelc);
     CREATE INDEX IF NOT EXISTS idx_adherents_name ON adherents(nom_norm, prenom_norm);
 
+    -- Suggestions de rapprochement approximatif (nom/prénom proches mais pas
+    -- identiques) entre un adhérent et une identité rencontrée dans les
+    -- émargements, pour les cas non retrouvés par correspondance exacte —
+    -- voir services/fuzzyMatching.ts. Validée, une suggestion est traitée
+    -- comme un rapprochement exact dans tous les calculs (adhérentExists,
+    -- ciblage des relances). Une seule suggestion par couple
+    -- (adhérent, identité candidate), quel que soit son statut.
+    CREATE TABLE IF NOT EXISTS adherent_fuzzy_matches (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      adherent_id INTEGER NOT NULL REFERENCES adherents(id) ON DELETE CASCADE,
+      candidate_nom TEXT NOT NULL,
+      candidate_prenom TEXT NOT NULL,
+      candidate_nom_norm TEXT NOT NULL,
+      candidate_prenom_norm TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'en_attente' CHECK (status IN ('en_attente','valide','rejete')),
+      reviewed_by INTEGER REFERENCES users(id),
+      reviewed_at TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_fuzzy_matches_adherent ON adherent_fuzzy_matches(adherent_id);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_fuzzy_matches_unique
+      ON adherent_fuzzy_matches(adherent_id, candidate_nom_norm, candidate_prenom_norm);
+
     CREATE TABLE IF NOT EXISTS email_templates (
       spelc TEXT PRIMARY KEY,
       subject TEXT NOT NULL DEFAULT '',
@@ -225,6 +248,8 @@ export function migrate(): void {
   addColumnIfMissing("documents", "extracted_text", "TEXT");
   addColumnIfMissing("documents", "extraction_status", "TEXT");
   addColumnIfMissing("documents", "folder_id", "INTEGER REFERENCES document_folders(id)");
+  addColumnIfMissing("adherents", "nom_naissance", "TEXT");
+  addColumnIfMissing("adherents", "nom_naissance_norm", "TEXT");
 
   migrateScopeIncludesGeneral();
   dropPsaTables();

@@ -1,4 +1,5 @@
 import { db } from "../db/index.js";
+import { adherentExistsClause } from "./fuzzyMatching.js";
 
 export type Scope = "national" | "academique";
 
@@ -217,10 +218,7 @@ export function scrutinsTab(filter: ScrutinsFilter, limit = 200, offset = 0): Sc
   // (les adhérents sont déclarés par Spelc). On l'exprime en EXISTS (plutôt
   // qu'un JOIN) pour ne jamais risquer de dupliquer une ligne si plusieurs
   // adhérents partagent le même nom/prénom au sein d'un Spelc.
-  const adherentExists = `EXISTS (
-    SELECT 1 FROM adherents ad
-    WHERE ad.spelc = e.spelc AND ad.nom_norm = e.nom_norm AND ad.prenom_norm = e.prenom_norm
-  )`;
+  const adherentExists = adherentExistsClause();
   const showAdherentStatus = Boolean(filter.spelc);
   if (filter.spelc && filter.adherent === "oui") parts.push(adherentExists);
   else if (filter.spelc && filter.adherent === "non") parts.push(`NOT ${adherentExists}`);
@@ -290,10 +288,7 @@ export function scrutinsByEtablissement(filter: ScrutinsFilter): ScrutinsByEtabl
   if (filter.votant === "votant") baseParts.push("e.votant = 1");
   if (filter.votant === "non_votant") baseParts.push("e.votant = 0");
 
-  const adherentExists = `EXISTS (
-    SELECT 1 FROM adherents ad
-    WHERE ad.spelc = e.spelc AND ad.nom_norm = e.nom_norm AND ad.prenom_norm = e.prenom_norm
-  )`;
+  const adherentExists = adherentExistsClause();
   const showAdherentStatus = Boolean(filter.spelc);
   if (filter.spelc && filter.adherent === "oui") baseParts.push(adherentExists);
   else if (filter.spelc && filter.adherent === "non") baseParts.push(`NOT ${adherentExists}`);

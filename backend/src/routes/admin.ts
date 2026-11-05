@@ -11,6 +11,7 @@ import {
 } from "../services/reference.js";
 import { getTestContactSettings, setSetting } from "../services/settings.js";
 import { isBrevoApiKeyConfigured, maskedBrevoApiKey, saveBrevoApiKey } from "../services/brevo.js";
+import { getFuzzyMatchThreshold, setFuzzyMatchThreshold } from "../services/fuzzyMatching.js";
 import { listAllRelanceTracking, refreshPendingRelanceTracking, getRelanceDailyStatsAll } from "../services/relanceTracking.js";
 import { importUsersFromFile } from "../services/userImport.js";
 
@@ -206,6 +207,27 @@ router.put("/brevo-settings", (req, res) => {
   }
   saveBrevoApiKey(trimmedKey);
   res.json({ configured: true, maskedKey: maskedBrevoApiKey() });
+});
+
+/**
+ * Seuil de tolérance (en nombre de caractères de différence) pour le
+ * rapprochement approximatif adhérent/émargement — voir
+ * services/fuzzyMatching.ts. Un seul réglage global, partagé par tous les
+ * Spelcs.
+ */
+router.get("/fuzzy-threshold", (_req, res) => {
+  res.json({ threshold: getFuzzyMatchThreshold() });
+});
+
+router.put("/fuzzy-threshold", (req, res) => {
+  const { threshold } = req.body ?? {};
+  const n = Number(threshold);
+  if (!Number.isFinite(n) || n < 0) {
+    res.status(400).json({ error: "Seuil invalide." });
+    return;
+  }
+  setFuzzyMatchThreshold(n);
+  res.json({ threshold: getFuzzyMatchThreshold() });
 });
 
 /**
