@@ -20,7 +20,6 @@ import importsRoutes from "./routes/imports.js";
 import adherentsRoutes from "./routes/adherents.js";
 import statsRoutes from "./routes/stats.js";
 import brevoRoutes from "./routes/brevo.js";
-import scrapingRoutes from "./routes/scraping.js";
 import chatRoutes from "./routes/chat.js";
 import documentsRoutes from "./routes/documents.js";
 import documentFoldersRoutes from "./routes/documentFolders.js";
@@ -74,7 +73,6 @@ app.use("/api/imports", importsRoutes);
 app.use("/api/adherents", adherentsRoutes);
 app.use("/api/stats", statsRoutes);
 app.use("/api/brevo", brevoRoutes);
-app.use("/api/scraping", scrapingRoutes);
 app.use("/api/chat", chatRoutes);
 // Monté avant documentsRoutes : /folders, /zip et /zip-import sont des chemins
 // littéraux plus spécifiques que /:id de documentsRoutes, mais on garde cet

@@ -9,9 +9,9 @@ services:
       SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL}
       SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD}
       # Clé de chiffrement au repos partagée (voir backend/src/lib/crypto.ts)
-      # : session du portail électeurs, clés API Brevo/Mistral. Le nom date
-      # du scraping CCMMEP/académique (retiré), gardé pour ne pas invalider
-      # les secrets déjà chiffrés avec sur les déploiements existants.
+      # : clés API Brevo/Mistral. Le nom date du scraping CCMMEP/académique
+      # (retiré), gardé pour ne pas invalider les secrets déjà chiffrés avec
+      # sur les déploiements existants.
       SCRAPING_SECRET_KEY: ${SCRAPING_SECRET_KEY}
       SYSTEM_EMAIL_BREVO_API_KEY: ${SYSTEM_EMAIL_BREVO_API_KEY}
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL}
