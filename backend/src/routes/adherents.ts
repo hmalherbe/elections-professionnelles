@@ -54,7 +54,9 @@ router.post("/upload", requireRole("admin_spelc", "admin_general"), upload.singl
     const tx = db.transaction(() => {
       del.run(spelc);
       for (const row of rows) {
-        // colonnes attendues : nom, prenom, mail, numéro de mobile, nom de naissance (facultatif) — ordre positionnel toléré
+        // colonnes attendues : nom, prenom, mail, numéro de mobile (ordre positionnel
+        // toléré) puis, en option, nom de naissance — reconnue uniquement par son
+        // en-tête, jamais par position (voir plus bas).
         const keys = Object.keys(row).reduce<Record<string, unknown>>((acc, k) => {
           acc[k.toLowerCase().trim()] = row[k];
           return acc;
@@ -63,7 +65,10 @@ router.post("/upload", requireRole("admin_spelc", "admin_general"), upload.singl
         const prenom = keys["prenom"] ?? Object.values(row)[1];
         const mail = keys["mail"] ?? keys["email"] ?? Object.values(row)[2];
         const mobile = keys["mobile"] ?? keys["numero de mobile"] ?? keys["numéro de mobile"] ?? Object.values(row)[3];
-        const nomNaissance = keys["nom de naissance"] ?? keys["nom_naissance"] ?? Object.values(row)[4];
+        // Pas de repli positionnel pour nom_naissance (champ facultatif récent, sans
+        // convention d'ordre établie) : une colonne supplémentaire non reconnue dans
+        // un fichier sans "Nom de naissance" ne doit jamais être prise pour ce champ.
+        const nomNaissance = keys["nom de naissance"] ?? keys["nom_naissance"];
         if (!nom || !prenom) continue;
         insert.run(
           spelc,
