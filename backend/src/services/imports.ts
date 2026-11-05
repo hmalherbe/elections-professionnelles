@@ -4,6 +4,8 @@ import {
   parseEmargementsJson,
   type RawEmargementItem,
 } from "../parsers/emargements.js";
+import { extractDepartement, extractDepartementFromRne } from "../lib/departement.js";
+import { lookupDepartement } from "./reference.js";
 import type { Degre } from "../lib/degre.js";
 import dayjs from "dayjs";
 
@@ -30,6 +32,25 @@ export function getAcademieScrutins(academie: string | null): { type1d: string |
     .prepare("SELECT type_1d, type_2d FROM ref_academie_scrutins WHERE academie = ?")
     .get(academie) as { type_1d: string; type_2d: string } | undefined;
   return { type1d: row?.type_1d ?? null, type2d: row?.type_2d ?? null };
+}
+
+/**
+ * Vérifie que le premier électeur du fichier correspond bien à l'académie
+ * visée par cet import académique, via le code postal de son champ
+ * "affectation" (même résolution département -> académie qu'à l'import
+ * réel, voir buildEmargementRow) — garde-fou contre un fichier de la
+ * mauvaise académie importé par erreur. Retourne l'académie détectée si
+ * elle diffère de celle attendue ; null si elle correspond, ou si elle n'a
+ * pas pu être déterminée (aucun code postal reconnu, ou département absent
+ * du référentiel) — dans ce cas on laisse passer, faute de pouvoir se
+ * prononcer sur un seul enregistrement.
+ */
+export function detectAcademieMismatch(items: RawEmargementItem[], expectedAcademie: string): string | null {
+  if (items.length === 0) return null;
+  const first = items[0];
+  const departement = extractDepartementFromRne(first.rne) ?? extractDepartement(first.affectation);
+  const detected = departement ? lookupDepartement(departement)?.academie ?? null : null;
+  return detected && detected !== expectedAcademie ? detected : null;
 }
 
 export function runImport(raw: unknown, ctx: ImportContext): ImportResult {

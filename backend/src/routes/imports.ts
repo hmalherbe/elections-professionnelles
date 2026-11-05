@@ -2,7 +2,8 @@ import { Router } from "express";
 import multer from "multer";
 import { db } from "../db/index.js";
 import { requireAuth, requireRole, canAccessAcademie } from "../middleware/auth.js";
-import { runImport, defaultSnapshotDate, findCrossDegreDuplicates } from "../services/imports.js";
+import { runImport, defaultSnapshotDate, findCrossDegreDuplicates, detectAcademieMismatch } from "../services/imports.js";
+import { parseEmargementsJson } from "../parsers/emargements.js";
 import { buildElecteursAcademiques, deleteElecteursAcademiques } from "../services/electeursAcademiques.js";
 
 const router = Router();
@@ -59,6 +60,14 @@ router.post(
     }
     try {
       const raw = JSON.parse(req.file.buffer.toString("utf-8"));
+      const items = parseEmargementsJson(raw);
+      const detectedAcademie = detectAcademieMismatch(items, academie);
+      if (detectedAcademie) {
+        res.status(400).json({
+          error: `Ce fichier semble correspondre à l'académie de ${detectedAcademie} (d'après le code postal du premier électeur), pas à ${academie}. Vérifiez le fichier importé.`,
+        });
+        return;
+      }
       const snapshotDate = (req.body?.snapshotDate as string) || defaultSnapshotDate();
       const result = runImport(raw, {
         scope: "academique",
