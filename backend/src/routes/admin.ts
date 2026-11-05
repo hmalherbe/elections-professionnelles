@@ -86,6 +86,32 @@ router.post("/users/import", upload.single("file"), async (req, res) => {
   }
 });
 
+/**
+ * Modifie uniquement l'email d'un compte existant — utile pour corriger une
+ * adresse de convention non joignable (ex. créée sous un domaine fictif) par
+ * la vraie adresse de la personne, sans avoir à supprimer/recréer le compte
+ * (impossible pour l'admin général, dont la suppression est bloquée).
+ */
+router.put("/users/:id", (req, res) => {
+  const { email } = req.body ?? {};
+  if (!email || typeof email !== "string" || !email.trim()) {
+    res.status(400).json({ error: "Email requis." });
+    return;
+  }
+  try {
+    const info = db
+      .prepare("UPDATE users SET email = ? WHERE id = ?")
+      .run(String(email).toLowerCase().trim(), req.params.id);
+    if (info.changes === 0) {
+      res.status(404).json({ error: "Compte introuvable." });
+      return;
+    }
+    res.json({ ok: true });
+  } catch {
+    res.status(409).json({ error: "Un compte existe déjà avec cet email." });
+  }
+});
+
 router.delete("/users/:id", (req, res) => {
   db.prepare("DELETE FROM users WHERE id = ? AND role != 'admin_general'").run(req.params.id);
   res.status(204).end();

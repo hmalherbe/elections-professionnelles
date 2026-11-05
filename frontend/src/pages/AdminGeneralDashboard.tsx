@@ -989,9 +989,29 @@ function UsersPanel() {
     prenom: "",
   });
   const [error, setError] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editEmail, setEditEmail] = useState("");
+  const [editError, setEditError] = useState<string | null>(null);
 
   function refresh() {
     api.get<{ users: ManagedUser[] }>("/admin/users").then((r) => setUsers(r.users));
+  }
+
+  function startEditEmail(u: ManagedUser) {
+    setEditingId(u.id);
+    setEditEmail(u.email);
+    setEditError(null);
+  }
+
+  async function saveEmail(id: number) {
+    setEditError(null);
+    try {
+      await api.put(`/admin/users/${id}`, { email: editEmail });
+      setEditingId(null);
+      refresh();
+    } catch (err) {
+      setEditError((err as Error).message);
+    }
   }
   useEffect(() => {
     refresh();
@@ -1113,7 +1133,46 @@ function UsersPanel() {
               <tr key={u.id} className="border-b border-slate-100">
                 <td className="py-1.5 pr-4">{u.nom ?? "—"}</td>
                 <td className="px-4 py-1.5">{u.prenom ?? "—"}</td>
-                <td className="px-4 py-1.5">{u.email}</td>
+                <td className="px-4 py-1.5">
+                  {editingId === u.id ? (
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="email"
+                        autoFocus
+                        className="w-48 rounded-md border border-slate-300 px-1.5 py-1 text-sm"
+                        value={editEmail}
+                        onChange={(e) => setEditEmail(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") saveEmail(u.id);
+                          if (e.key === "Escape") setEditingId(null);
+                        }}
+                      />
+                      <button
+                        className="rounded-md bg-emerald-600 px-2 py-1 text-xs font-medium text-white hover:bg-emerald-700"
+                        onClick={() => saveEmail(u.id)}
+                      >
+                        Enregistrer
+                      </button>
+                      <button
+                        className="rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-100"
+                        onClick={() => setEditingId(null)}
+                      >
+                        Annuler
+                      </button>
+                      {editError && <span className="text-xs text-red-600">{editError}</span>}
+                    </div>
+                  ) : (
+                    <span className="inline-flex items-center gap-2">
+                      {u.email}
+                      <button
+                        className="text-xs text-slate-400 hover:text-slate-600 hover:underline"
+                        onClick={() => startEditEmail(u)}
+                      >
+                        Modifier
+                      </button>
+                    </span>
+                  )}
+                </td>
                 <td className="px-4 py-1.5">{u.role}</td>
                 <td className="px-4 py-1.5 text-slate-500">{u.academie ?? u.spelc ?? "—"}</td>
                 <td className="px-4 py-1.5">
