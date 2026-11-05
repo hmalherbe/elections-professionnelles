@@ -36,6 +36,17 @@ describe("extractDepartement", () => {
     expect(extractDepartement("SANS CODE POSTAL")).toBeNull();
     expect(extractDepartement(null)).toBeNull();
   });
+
+  it("reconstitue le zéro initial d'un code postal à 4 chiffres (départements 01 à 09)", () => {
+    expect(extractDepartement("COLLEGE SAINTE MARIE 1500 AMBERIEU EN BUGEY")).toBe("01");
+    expect(extractDepartement("LYCEE SAINT JOSEPH 2140 FONTAINE LES VERVINS")).toBe("02");
+    expect(extractDepartement("LYCEE FENELON 6130 GRASSE")).toBe("06");
+    expect(extractDepartement("LYCEE LPO SAINT PAUL 8000 CHARLEVILLE MEZIERES")).toBe("08");
+  });
+
+  it("privilégie un vrai code à 5 chiffres même si un nombre à 4 chiffres apparaît aussi", () => {
+    expect(extractDepartement("LYCEE MONTPENSIER 64051 PAU CEDEX 9")).toBe("64");
+  });
 });
 
 describe("extractDepartementFromRne", () => {

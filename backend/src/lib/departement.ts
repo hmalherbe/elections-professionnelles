@@ -5,12 +5,25 @@ const DOM_PREFIXES = ["971", "972", "973", "974", "976", "978"];
  * "COLLEGE X 97404 ST DENIS CEDEX"). On repère le code postal (5 chiffres)
  * dans la chaîne, puis on prend les 3 premiers caractères pour les DOM
  * (971, 972, 973, 974, 976, 978) et les 2 premiers sinon.
+ *
+ * Repli sur un nombre à 4 chiffres (zéro initial reconstitué) si aucun code
+ * à 5 chiffres n'est trouvé : pour les départements métropolitains 01 à 09,
+ * le zéro initial du code postal est parfois perdu en amont (valeur
+ * numérique, ex. "1500" pour "01500" dans le fichier source CCMMEP) — ne
+ * s'applique qu'en l'absence de code à 5 chiffres, pour ne jamais prendre un
+ * autre nombre à 4 chiffres de l'adresse à la place d'un vrai code postal.
  */
 export function extractDepartement(affectation: string | null | undefined): string | null {
   if (!affectation) return null;
-  const match = affectation.match(/\b(\d{5})\b/);
-  if (!match) return null;
-  const postal = match[1];
+  const match5 = affectation.match(/\b(\d{5})\b/);
+  let postal: string | null = null;
+  if (match5) {
+    postal = match5[1];
+  } else {
+    const match4 = affectation.match(/\b(\d{4})\b/);
+    postal = match4 ? `0${match4[1]}` : null;
+  }
+  if (!postal) return null;
   const prefix3 = postal.slice(0, 3);
   if (DOM_PREFIXES.includes(prefix3)) return prefix3;
   return postal.slice(0, 2);
