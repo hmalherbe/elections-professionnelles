@@ -26,7 +26,7 @@ interface NationalRow {
  * (école) ; faute de règle plus précise pour les autres cas (services
  * académiques, administration...), le degré est tiré au hasard.
  */
-function classifyDegreFromEtablissement(affectation: string | null): "1D" | "2D" {
+export function classifyDegreFromEtablissement(affectation: string | null): "1D" | "2D" {
   const normalized = stripAccents(affectation ?? "").toUpperCase();
   if (normalized.includes("COLLEGE") || normalized.includes("LYCEE")) return "2D";
   if (normalized.includes("ECOLE")) return "1D";
