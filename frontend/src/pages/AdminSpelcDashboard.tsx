@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { CamembertCard } from "../components/CamembertCard";
 import { CATEGORICAL } from "../lib/colors";
@@ -283,16 +283,46 @@ const UNMATCHED_STATUS_LABELS: Record<UnmatchedAdherent["status"], string> = {
  */
 function UnmatchedAdherentsPanel({ spelc }: { spelc: string }) {
   const [adherents, setAdherents] = useState<UnmatchedAdherent[] | null>(null);
+  const [electeurs, setElecteurs] = useState<{ nom: string; prenom: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<"tous" | UnmatchedAdherent["status"]>("tous");
+  const [selection, setSelection] = useState<Record<number, string>>({});
+  const [associating, setAssociating] = useState<number | null>(null);
 
   async function load() {
     setLoading(true);
     try {
-      const res = await api.get<{ adherents: UnmatchedAdherent[] }>(`/adherents/fuzzy-matches/unmatched${qs({ spelc })}`);
-      setAdherents(res.adherents);
+      const [adherentsRes, electeursRes] = await Promise.all([
+        api.get<{ adherents: UnmatchedAdherent[] }>(`/adherents/fuzzy-matches/unmatched${qs({ spelc })}`),
+        api.get<{ electeurs: { nom: string; prenom: string }[] }>(`/adherents/electeurs${qs({ spelc })}`),
+      ]);
+      setAdherents(adherentsRes.adherents);
+      setElecteurs(electeursRes.electeurs);
     } finally {
       setLoading(false);
+    }
+  }
+
+  const electeurByLabel = useMemo(() => {
+    const map = new Map<string, { nom: string; prenom: string }>();
+    for (const e of electeurs) map.set(`${e.prenom} ${e.nom}`, e);
+    return map;
+  }, [electeurs]);
+
+  async function associer(adherentId: number) {
+    const electeur = electeurByLabel.get(selection[adherentId] ?? "");
+    if (!electeur) return;
+    setAssociating(adherentId);
+    try {
+      await api.post("/adherents/fuzzy-matches/manual", {
+        adherentId,
+        candidateNom: electeur.nom,
+        candidatePrenom: electeur.prenom,
+      });
+      await load();
+      setSelection((prev) => ({ ...prev, [adherentId]: "" }));
+    } finally {
+      setAssociating(null);
     }
   }
 
@@ -356,13 +386,36 @@ function UnmatchedAdherentsPanel({ spelc }: { spelc: string }) {
                     </td>
                     <td className="px-4 py-1.5 text-slate-500">{a.nomNaissance ?? "—"}</td>
                     <td className="px-4 py-1.5">{UNMATCHED_STATUS_LABELS[a.status]}</td>
-                    <td className="px-4 py-1.5 text-slate-500">{a.candidats.join(", ") || "—"}</td>
+                    <td className="px-4 py-1.5">
+                      <div className="text-slate-500">{a.candidats.join(", ") || "—"}</div>
+                      <div className="mt-1 flex items-center gap-1.5">
+                        <input
+                          list="electeurs-datalist"
+                          className="w-48 rounded-md border border-slate-300 px-2 py-1 text-xs"
+                          placeholder="Rapprocher manuellement…"
+                          value={selection[a.id] ?? ""}
+                          onChange={(e) => setSelection((prev) => ({ ...prev, [a.id]: e.target.value }))}
+                        />
+                        <button
+                          className="rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-100 disabled:opacity-40"
+                          disabled={associating === a.id || !electeurByLabel.has(selection[a.id] ?? "")}
+                          onClick={() => associer(a.id)}
+                        >
+                          {associating === a.id ? "…" : "Associer"}
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
             {filtered.length === 0 && <p className="py-4 text-sm text-slate-400">Aucun adhérent pour ce filtre.</p>}
           </div>
+          <datalist id="electeurs-datalist">
+            {electeurs.map((e) => (
+              <option key={`${e.nom}|${e.prenom}`} value={`${e.prenom} ${e.nom}`} />
+            ))}
+          </datalist>
         </>
       )}
     </Card>

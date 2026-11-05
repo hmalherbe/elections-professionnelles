@@ -6,9 +6,12 @@ import { normalizeName } from "../lib/normalize.js";
 import { loadWorkbook, rowsAsObjects } from "../lib/xlsx.js";
 import { parseCsvBuffer } from "../lib/csv.js";
 import {
+  adherentSpelc,
   fuzzyMatchSpelc,
+  listCurrentElecteurs,
   listFuzzyMatches,
   listUnmatchedAdherents,
+  manuallyMatchAdherent,
   refreshFuzzyCandidates,
   reviewFuzzyMatch,
 } from "../services/fuzzyMatching.js";
@@ -260,6 +263,45 @@ router.get("/fuzzy-matches/unmatched", requireRole("admin_spelc", "admin_general
     return;
   }
   res.json({ adherents: listUnmatchedAdherents(spelc) });
+});
+
+/** Liste complète des électeurs des scrutins courants de ce Spelc, triée
+ * alphabétiquement — peuple la liste déroulante de rapprochement manuel. */
+router.get("/electeurs", requireRole("admin_spelc", "admin_general"), (req, res) => {
+  const spelc = req.query.spelc as string;
+  if (!spelc) {
+    res.status(400).json({ error: "Paramètre spelc requis." });
+    return;
+  }
+  if (!canAccessSpelc(req.user!, spelcAcademie(spelc), spelc)) {
+    res.status(403).json({ error: "Accès non autorisé à ce Spelc." });
+    return;
+  }
+  res.json({ electeurs: listCurrentElecteurs(spelc) });
+});
+
+/**
+ * Rapprochement manuel explicite d'un adhérent avec un électeur choisi dans
+ * la liste complète (UnmatchedAdherentsPanel) — toujours enregistré
+ * "valide" directement, voir manuallyMatchAdherent().
+ */
+router.post("/fuzzy-matches/manual", requireRole("admin_spelc", "admin_general"), (req, res) => {
+  const { adherentId, candidateNom, candidatePrenom } = req.body ?? {};
+  if (!Number.isInteger(adherentId) || !candidateNom || !candidatePrenom) {
+    res.status(400).json({ error: "adherentId, candidateNom et candidatePrenom requis." });
+    return;
+  }
+  const spelc = adherentSpelc(adherentId);
+  if (!spelc) {
+    res.status(404).json({ error: "Adhérent introuvable." });
+    return;
+  }
+  if (!canAccessSpelc(req.user!, spelcAcademie(spelc), spelc)) {
+    res.status(403).json({ error: "Accès non autorisé à ce Spelc." });
+    return;
+  }
+  manuallyMatchAdherent(adherentId, String(candidateNom), String(candidatePrenom), req.user!.id);
+  res.json({ ok: true });
 });
 
 router.put("/fuzzy-matches/:id", requireRole("admin_spelc", "admin_general"), (req, res) => {

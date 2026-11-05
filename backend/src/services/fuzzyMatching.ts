@@ -1,6 +1,7 @@
 import { db } from "../db/index.js";
 import { getSetting, setSetting } from "./settings.js";
 import { currentImportIds } from "./stats.js";
+import { normalizeName } from "../lib/normalize.js";
 
 const DEFAULT_THRESHOLD = 1;
 const MAX_THRESHOLD = 3;
@@ -95,18 +96,7 @@ interface EmargementIdentity {
 }
 
 /**
- * Recherche, pour les adhérents de ce Spelc non déjà retrouvés par
- * correspondance exacte, les candidats approximatifs parmi les émargements
- * des scrutins courants (national + local) — nom OU nom de naissance, ET
- * prénom, tous les deux à une distance <= seuil courant. N'enregistre une
- * suggestion que s'il y a EXACTEMENT un candidat : par sécurité, une
- * ambiguïté (plusieurs identités différentes également proches) ne propose
- * personne plutôt que de risquer un mauvais rapprochement (voir
- * ADR implicite validé avec le client). Idempotent : une suggestion déjà
- * proposée, quel que soit son statut, n'est jamais recréée (index unique).
- */
-/**
- * Charge le contexte commun aux deux fonctions ci-dessous : les émargements
+ * Charge le contexte commun aux fonctions ci-dessous : les émargements
  * courants (national + local de l'académie du Spelc), dédoublonnés par
  * identité, et les adhérents du Spelc — rien de spécifique au calcul des
  * candidats approximatifs lui-même.
@@ -270,6 +260,54 @@ export function listUnmatchedAdherents(spelc: string): UnmatchedAdherentRow[] {
   }
 
   return result;
+}
+
+/**
+ * Liste des électeurs distincts (nom, prénom) des scrutins courants
+ * (national + local) de ce Spelc, triée alphabétiquement — sert à peupler
+ * la liste déroulante de rapprochement manuel (UnmatchedAdherentsPanel),
+ * pour associer un adhérent non retrouvé à n'importe quel électeur et pas
+ * seulement aux candidats proches détectés automatiquement.
+ */
+export function listCurrentElecteurs(spelc: string): { nom: string; prenom: string }[] {
+  const { uniqueEmargs } = loadMatchingContext(spelc);
+  return uniqueEmargs
+    .map((e) => ({ nom: e.nom, prenom: e.prenom }))
+    .sort((a, b) => a.nom.localeCompare(b.nom, "fr") || a.prenom.localeCompare(b.prenom, "fr"));
+}
+
+/** Spelc d'un adhérent, pour vérifier les droits d'accès avant un rapprochement manuel. */
+export function adherentSpelc(adherentId: number): string | null {
+  const row = db.prepare("SELECT spelc FROM adherents WHERE id = ?").get(adherentId) as { spelc: string } | undefined;
+  return row?.spelc ?? null;
+}
+
+/**
+ * Rapprochement manuel explicite d'un adhérent avec un électeur choisi dans
+ * la liste complète (pas seulement les candidats proches suggérés) — admin
+ * Spelc ou admin général, depuis UnmatchedAdherentsPanel. Contrairement aux
+ * suggestions automatiques (toujours en_attente tant que non validées), un
+ * choix manuel est directement enregistré "valide" : c'est l'admin
+ * lui-même qui vient de faire l'identification, pas un rapprochement
+ * approximatif à vérifier. Upsert (ON CONFLICT) : si une ligne existe déjà
+ * pour ce couple adhérent/candidat (ex. rejetée puis reconsidérée), elle
+ * est simplement validée plutôt que dupliquée.
+ */
+export function manuallyMatchAdherent(
+  adherentId: number,
+  candidateNom: string,
+  candidatePrenom: string,
+  reviewedBy: number
+): void {
+  const nomNorm = normalizeName(candidateNom);
+  const prenomNorm = normalizeName(candidatePrenom);
+  db.prepare(
+    `INSERT INTO adherent_fuzzy_matches
+       (adherent_id, candidate_nom, candidate_prenom, candidate_nom_norm, candidate_prenom_norm, status, reviewed_by, reviewed_at)
+     VALUES (?, ?, ?, ?, ?, 'valide', ?, datetime('now'))
+     ON CONFLICT(adherent_id, candidate_nom_norm, candidate_prenom_norm)
+     DO UPDATE SET status = 'valide', reviewed_by = excluded.reviewed_by, reviewed_at = datetime('now')`
+  ).run(adherentId, candidateNom, candidatePrenom, nomNorm, prenomNorm, reviewedBy);
 }
 
 export interface FuzzyMatchRow {
