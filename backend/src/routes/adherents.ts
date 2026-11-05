@@ -8,6 +8,7 @@ import { parseCsvBuffer } from "../lib/csv.js";
 import {
   fuzzyMatchSpelc,
   listFuzzyMatches,
+  listUnmatchedAdherents,
   refreshFuzzyCandidates,
   reviewFuzzyMatch,
 } from "../services/fuzzyMatching.js";
@@ -241,6 +242,24 @@ router.post("/fuzzy-matches/refresh", requireRole("admin_spelc", "admin_general"
     return;
   }
   res.json(refreshFuzzyCandidates(spelc));
+});
+
+/**
+ * Détail nommé des adhérents non retrouvés par correspondance exacte (le
+ * compteur affiché après "Rechercher des rapprochements") : statut
+ * ambigu/aucun candidat/déjà en file, pour comprendre qui ils sont.
+ */
+router.get("/fuzzy-matches/unmatched", requireRole("admin_spelc", "admin_general"), (req, res) => {
+  const spelc = req.query.spelc as string;
+  if (!spelc) {
+    res.status(400).json({ error: "Paramètre spelc requis." });
+    return;
+  }
+  if (!canAccessSpelc(req.user!, spelcAcademie(spelc), spelc)) {
+    res.status(403).json({ error: "Accès non autorisé à ce Spelc." });
+    return;
+  }
+  res.json({ adherents: listUnmatchedAdherents(spelc) });
 });
 
 router.put("/fuzzy-matches/:id", requireRole("admin_spelc", "admin_general"), (req, res) => {

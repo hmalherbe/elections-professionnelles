@@ -105,15 +105,24 @@ interface EmargementIdentity {
  * ADR implicite validé avec le client). Idempotent : une suggestion déjà
  * proposée, quel que soit son statut, n'est jamais recréée (index unique).
  */
-export function refreshFuzzyCandidates(spelc: string): { created: number; unmatchedExamined: number } {
+/**
+ * Charge le contexte commun aux deux fonctions ci-dessous : les émargements
+ * courants (national + local de l'académie du Spelc), dédoublonnés par
+ * identité, et les adhérents du Spelc — rien de spécifique au calcul des
+ * candidats approximatifs lui-même.
+ */
+function loadMatchingContext(spelc: string): {
+  uniqueEmargs: EmargementIdentity[];
+  emargIdentitySet: Set<string>;
+  adherents: (AdherentForMatching & { nom: string; prenom: string; nom_naissance: string | null })[];
+} {
   const academie = spelcAcademie(spelc);
-  if (!academie) return { created: 0, unmatchedExamined: 0 };
-  const threshold = getFuzzyMatchThreshold();
+  if (!academie) return { uniqueEmargs: [], emargIdentitySet: new Set(), adherents: [] };
 
   const localIds = currentImportIds("academique", academie);
   const nationalIds = currentImportIds("national", null);
   const allIds = [...localIds, ...nationalIds];
-  if (allIds.length === 0) return { created: 0, unmatchedExamined: 0 };
+  if (allIds.length === 0) return { uniqueEmargs: [], emargIdentitySet: new Set(), adherents: [] };
 
   const placeholders = allIds.map(() => "?").join(",");
   const emargs = db
@@ -123,8 +132,46 @@ export function refreshFuzzyCandidates(spelc: string): { created: number; unmatc
   const emargIdentitySet = new Set(uniqueEmargs.map((e) => `${e.nom_norm}|${e.prenom_norm}`));
 
   const adherents = db
-    .prepare("SELECT id, nom_norm, prenom_norm, nom_naissance_norm FROM adherents WHERE spelc = ?")
-    .all(spelc) as AdherentForMatching[];
+    .prepare("SELECT id, nom, prenom, nom_naissance, nom_norm, prenom_norm, nom_naissance_norm FROM adherents WHERE spelc = ?")
+    .all(spelc) as (AdherentForMatching & { nom: string; prenom: string; nom_naissance: string | null })[];
+
+  return { uniqueEmargs, emargIdentitySet, adherents };
+}
+
+/** Candidats approximatifs d'un adhérent (nom OU nom de naissance, ET prénom,
+ * tous deux à une distance <= seuil), dédoublonnés par identité — une même
+ * personne peut apparaître dans le scrutin national ET le scrutin local. */
+function findCandidates(
+  a: AdherentForMatching,
+  uniqueEmargs: EmargementIdentity[],
+  threshold: number
+): EmargementIdentity[] {
+  const candidates: EmargementIdentity[] = [];
+  for (const e of uniqueEmargs) {
+    const nomProche =
+      withinDistance(a.nom_norm, e.nom_norm, threshold) ||
+      (Boolean(a.nom_naissance_norm) && withinDistance(a.nom_naissance_norm!, e.nom_norm, threshold));
+    if (!nomProche) continue;
+    if (!withinDistance(a.prenom_norm, e.prenom_norm, threshold)) continue;
+    candidates.push(e);
+  }
+  return [...new Map(candidates.map((c) => [`${c.nom_norm}|${c.prenom_norm}`, c])).values()];
+}
+
+/**
+ * Recherche, pour les adhérents de ce Spelc non déjà retrouvés par
+ * correspondance exacte, les candidats approximatifs parmi les émargements
+ * des scrutins courants (national + local) — nom OU nom de naissance, ET
+ * prénom, tous les deux à une distance <= seuil courant. N'enregistre une
+ * suggestion que s'il y a EXACTEMENT un candidat : par sécurité, une
+ * ambiguïté (plusieurs identités différentes également proches) ne propose
+ * personne plutôt que de risquer un mauvais rapprochement (voir
+ * ADR implicite validé avec le client). Idempotent : une suggestion déjà
+ * proposée, quel que soit son statut, n'est jamais recréée (index unique).
+ */
+export function refreshFuzzyCandidates(spelc: string): { created: number; unmatchedExamined: number } {
+  const threshold = getFuzzyMatchThreshold();
+  const { uniqueEmargs, emargIdentitySet, adherents } = loadMatchingContext(spelc);
 
   const insert = db.prepare(
     `INSERT OR IGNORE INTO adherent_fuzzy_matches
@@ -139,18 +186,7 @@ export function refreshFuzzyCandidates(spelc: string): { created: number; unmatc
       if (emargIdentitySet.has(`${a.nom_norm}|${a.prenom_norm}`)) continue; // déjà trouvé exactement
       unmatchedExamined++;
 
-      const candidates: EmargementIdentity[] = [];
-      for (const e of uniqueEmargs) {
-        const nomProche =
-          withinDistance(a.nom_norm, e.nom_norm, threshold) ||
-          (Boolean(a.nom_naissance_norm) && withinDistance(a.nom_naissance_norm!, e.nom_norm, threshold));
-        if (!nomProche) continue;
-        if (!withinDistance(a.prenom_norm, e.prenom_norm, threshold)) continue;
-        candidates.push(e);
-      }
-      // Dédoublonne par identité (une même personne peut apparaître dans le
-      // scrutin national ET le scrutin local) avant de juger de l'ambiguïté.
-      const uniqueCandidates = [...new Map(candidates.map((c) => [`${c.nom_norm}|${c.prenom_norm}`, c])).values()];
+      const uniqueCandidates = findCandidates(a, uniqueEmargs, threshold);
       if (uniqueCandidates.length !== 1) continue;
 
       const cand = uniqueCandidates[0];
@@ -160,6 +196,80 @@ export function refreshFuzzyCandidates(spelc: string): { created: number; unmatc
   });
   tx();
   return { created, unmatchedExamined };
+}
+
+export interface UnmatchedAdherentRow {
+  id: number;
+  nom: string;
+  prenom: string;
+  nomNaissance: string | null;
+  /** aucun_candidat/ambigu/a_rafraichir : pas (encore) de suggestion en file
+   * — en_attente/valide/rejete : déjà traité, statut de la ligne en file. */
+  status: "aucun_candidat" | "ambigu" | "a_rafraichir" | "en_attente" | "valide" | "rejete";
+  /** Nom(s) prénom(s) des candidats trouvés (0, 1 ou plusieurs selon le statut). */
+  candidats: string[];
+}
+
+/**
+ * Liste nommément, pour ce Spelc, tous les adhérents non retrouvés par
+ * correspondance exacte (le détail derrière le compteur "adhérent(s) non
+ * retrouvé(s) examiné(s)" affiché après un rafraîchissement des
+ * rapprochements) — avec leur statut : déjà en file de validation (quel
+ * que soit son état), ambigu (plusieurs candidats, jamais proposé), ou sans
+ * aucun candidat proche.
+ */
+export function listUnmatchedAdherents(spelc: string): UnmatchedAdherentRow[] {
+  const threshold = getFuzzyMatchThreshold();
+  const { uniqueEmargs, emargIdentitySet, adherents } = loadMatchingContext(spelc);
+
+  const existingRows = db
+    .prepare(
+      `SELECT fm.adherent_id AS adherentId, fm.status, fm.candidate_nom AS candidateNom, fm.candidate_prenom AS candidatePrenom
+       FROM adherent_fuzzy_matches fm
+       INNER JOIN adherents a ON a.id = fm.adherent_id
+       WHERE a.spelc = ?`
+    )
+    .all(spelc) as { adherentId: number; status: "en_attente" | "valide" | "rejete"; candidateNom: string; candidatePrenom: string }[];
+  const existingByAdherent = new Map<number, typeof existingRows>();
+  for (const row of existingRows) {
+    const arr = existingByAdherent.get(row.adherentId) ?? [];
+    arr.push(row);
+    existingByAdherent.set(row.adherentId, arr);
+  }
+
+  const result: UnmatchedAdherentRow[] = [];
+  for (const a of adherents) {
+    if (emargIdentitySet.has(`${a.nom_norm}|${a.prenom_norm}`)) continue; // déjà trouvé exactement
+
+    const existing = existingByAdherent.get(a.id) ?? [];
+    if (existing.length > 0) {
+      // Priorité au statut le plus avancé si plusieurs lignes existent.
+      const chosen = existing.find((e) => e.status === "valide") ?? existing.find((e) => e.status === "en_attente") ?? existing[0];
+      result.push({
+        id: a.id,
+        nom: a.nom,
+        prenom: a.prenom,
+        nomNaissance: a.nom_naissance,
+        status: chosen.status,
+        candidats: existing.map((e) => `${e.candidateNom} ${e.candidatePrenom}`),
+      });
+      continue;
+    }
+
+    const uniqueCandidates = findCandidates(a, uniqueEmargs, threshold);
+    const status =
+      uniqueCandidates.length === 0 ? "aucun_candidat" : uniqueCandidates.length === 1 ? "a_rafraichir" : "ambigu";
+    result.push({
+      id: a.id,
+      nom: a.nom,
+      prenom: a.prenom,
+      nomNaissance: a.nom_naissance,
+      status,
+      candidats: uniqueCandidates.map((c) => `${c.nom} ${c.prenom}`),
+    });
+  }
+
+  return result;
 }
 
 export interface FuzzyMatchRow {
