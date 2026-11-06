@@ -1,10 +1,23 @@
 const DOM_PREFIXES = ["971", "972", "973", "974", "976", "978"];
 
 /**
+ * Dérive le département d'un code postal déjà isolé (5 chiffres, zéro
+ * initial inclus, ex. "97404" ou "30100") : les 3 premiers caractères pour
+ * les DOM (971, 972, 973, 974, 976, 978), les 2 premiers sinon. Partagée
+ * entre extractDepartement() (code postal à repérer dans un texte libre) et
+ * tout appelant qui dispose déjà d'un champ code postal dédié et propre
+ * (ex. le fichier des électeurs CCMMEP, qui a un champ codePostal séparé).
+ */
+export function departementFromPostalCode(postal: string): string {
+  const prefix3 = postal.slice(0, 3);
+  return DOM_PREFIXES.includes(prefix3) ? prefix3 : postal.slice(0, 2);
+}
+
+/**
  * Extrait le département à partir du champ "affectation" (ex :
  * "COLLEGE X 97404 ST DENIS CEDEX"). On repère le code postal (5 chiffres)
- * dans la chaîne, puis on prend les 3 premiers caractères pour les DOM
- * (971, 972, 973, 974, 976, 978) et les 2 premiers sinon.
+ * dans la chaîne, puis on en dérive le département (voir
+ * departementFromPostalCode()).
  *
  * Repli sur un nombre à 4 chiffres (zéro initial reconstitué) si aucun code
  * à 5 chiffres n'est trouvé : pour les départements métropolitains 01 à 09,
@@ -24,9 +37,7 @@ export function extractDepartement(affectation: string | null | undefined): stri
     postal = match4 ? `0${match4[1]}` : null;
   }
   if (!postal) return null;
-  const prefix3 = postal.slice(0, 3);
-  if (DOM_PREFIXES.includes(prefix3)) return prefix3;
-  return postal.slice(0, 2);
+  return departementFromPostalCode(postal);
 }
 
 /**

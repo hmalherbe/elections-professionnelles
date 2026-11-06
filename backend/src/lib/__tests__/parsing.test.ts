@@ -17,7 +17,29 @@ describe("classifyDegre", () => {
 
   it("laisse indéterminé les autres corps", () => {
     expect(classifyDegre("Maîtres auxiliaires enseignement privé")).toBe("INDETERMINE");
+    expect(classifyDegre("Maître délégué")).toBe("INDETERMINE");
+    expect(classifyDegre("Adj ens ens privé")).toBe("INDETERMINE");
+    expect(classifyDegre("Non Applicable")).toBe("INDETERMINE");
     expect(classifyDegre(null)).toBe("INDETERMINE");
+  });
+
+  it("classe le 1er degré via le vocabulaire réel du fichier électeurs CCMMEP 2026", () => {
+    expect(classifyDegre("Professeurs écoles ens privé EN")).toBe("1D");
+    expect(classifyDegre("Professeurs écoles éducation nationale")).toBe("1D");
+    expect(classifyDegre("Enseignant contractuel alternant 1er degré privé")).toBe("1D");
+    expect(classifyDegre("Instituteurs ens privé")).toBe("1D");
+    expect(classifyDegre("instituteur suppléant")).toBe("1D");
+    expect(classifyDegre("instituteur breveté")).toBe("1D");
+  });
+
+  it("classe le 2nd degré via le vocabulaire réel du fichier électeurs CCMMEP 2026", () => {
+    expect(classifyDegre("Professeurs lycée professionnel ens privé EN")).toBe("2D");
+    expect(classifyDegre("Professeurs EPS ens privé EN")).toBe("2D");
+    expect(classifyDegre("Professeurs éducation physique sportive EN")).toBe("2D");
+    expect(classifyDegre("Professeurs chaires supes ens privé EN")).toBe("2D");
+    expect(classifyDegre("Professeurs chaires sup étab class mod tech EN")).toBe("2D");
+    expect(classifyDegre("agent contractuel second degré")).toBe("2D");
+    expect(classifyDegre("Enseignant contractuel alternant 2d degré privé")).toBe("2D");
   });
 });
 

@@ -1,5 +1,6 @@
 import { db } from "../db/index.js";
 import { stripAccents } from "../lib/normalize.js";
+import { classifyDegre } from "../lib/degre.js";
 import { currentImportIds } from "./stats.js";
 import { defaultSnapshotDate, getAcademieScrutins } from "./imports.js";
 
@@ -31,6 +32,20 @@ export function classifyDegreFromEtablissement(affectation: string | null): "1D"
   if (normalized.includes("COLLEGE") || normalized.includes("LYCEE")) return "2D";
   if (normalized.includes("ECOLE")) return "1D";
   return Math.random() < 0.5 ? "1D" : "2D";
+}
+
+/**
+ * Classification combinée pour un électeur dont on connaît à la fois le
+ * corps et l'établissement (ex. fichier des électeurs CCMMEP, qui a un
+ * champ établissement dédié, distinct du corps) : le corps d'abord
+ * (classifyDegre, plus fiable quand il tranche), l'établissement en repli
+ * seulement si le corps ne permet pas de conclure (ex. "maître délégué",
+ * utilisé indifféremment dans les deux degrés — voir classifyDegre).
+ */
+export function classifyDegreForElecteur(corps: string | null, etablissement: string | null): "1D" | "2D" {
+  const viaCorps = classifyDegre(corps);
+  if (viaCorps !== "INDETERMINE") return viaCorps;
+  return classifyDegreFromEtablissement(etablissement);
 }
 
 export interface ElecteursAcademiquesResult {
