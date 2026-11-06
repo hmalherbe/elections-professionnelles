@@ -19,6 +19,20 @@ import {
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } });
 
+/**
+ * Une adresse mail récupérée par erreur (en-tête "Mobile" absent et repli
+ * positionnel tombant sur une colonne mail dupliquée, ou simplement une
+ * valeur mal saisie dans le fichier source) ne doit jamais être stockée
+ * comme numéro de mobile : un vrai numéro ne contient jamais "@". Mieux
+ * vaut un mobile vide qu'une adresse mail à sa place (confond l'utilisateur
+ * et casse l'envoi de SMS).
+ */
+function sanitizeMobile(value: unknown): string | null {
+  if (!value) return null;
+  const str = String(value).trim();
+  return str && !str.includes("@") ? str : null;
+}
+
 router.use(requireAuth);
 
 function spelcAcademie(spelc: string): string | null {
@@ -68,7 +82,9 @@ router.post("/upload", requireRole("admin_spelc", "admin_general"), upload.singl
         const nom = keys["nom"] ?? Object.values(row)[0];
         const prenom = keys["prenom"] ?? Object.values(row)[1];
         const mail = keys["mail"] ?? keys["email"] ?? Object.values(row)[2];
-        const mobile = keys["mobile"] ?? keys["numero de mobile"] ?? keys["numéro de mobile"] ?? Object.values(row)[3];
+        const mobile = sanitizeMobile(
+          keys["mobile"] ?? keys["numero de mobile"] ?? keys["numéro de mobile"] ?? Object.values(row)[3]
+        );
         // Pas de repli positionnel pour nom_naissance (champ facultatif récent, sans
         // convention d'ordre établie) : une colonne supplémentaire non reconnue dans
         // un fichier sans "Nom de naissance" ne doit jamais être prise pour ce champ.
@@ -83,7 +99,7 @@ router.post("/upload", requireRole("admin_spelc", "admin_general"), upload.singl
           nomNaissance ? String(nomNaissance).trim() : null,
           nomNaissance ? normalizeName(String(nomNaissance)) : null,
           mail ? String(mail).trim() : null,
-          mobile ? String(mobile).trim() : null,
+          mobile,
           req.user!.id
         );
         count++;
@@ -159,7 +175,7 @@ router.post("/import-all", requireRole("admin_general"), upload.single("file"), 
           const nom = keys["nom"];
           const prenom = keys["prenom"];
           const mail = keys["mail"] ?? keys["email"];
-          const mobile = keys["mobile"] ?? keys["numero de mobile"] ?? keys["numéro de mobile"];
+          const mobile = sanitizeMobile(keys["mobile"] ?? keys["numero de mobile"] ?? keys["numéro de mobile"]);
           const nomNaissance = keys["nom de naissance"] ?? keys["nom_naissance"];
           if (!nom || !prenom) continue;
           insert.run(
@@ -171,7 +187,7 @@ router.post("/import-all", requireRole("admin_general"), upload.single("file"), 
             nomNaissance ? String(nomNaissance).trim() : null,
             nomNaissance ? normalizeName(String(nomNaissance)) : null,
             mail ? String(mail).trim() : null,
-            mobile ? String(mobile).trim() : null,
+            mobile,
             req.user!.id
           );
           totalAdherents++;
