@@ -31,6 +31,7 @@ export function ScrutinsTab({ scope, academie, spelc, allowAdherentFilter, group
   const [flatData, setFlatData] = useState<ScrutinsResult | null>(null);
   const [groupedData, setGroupedData] = useState<ScrutinsByEtablissementResult | null>(null);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
 
   // Toute modification de filtre revient à la première page.
   useEffect(() => {
@@ -76,6 +77,26 @@ export function ScrutinsTab({ scope, academie, spelc, allowAdherentFilter, group
   const data = groupByEtablissement ? groupedData : flatData;
   const scrutinTypes = data?.groups.map((g) => g.scrutinType) ?? [];
   const totalPages = Math.max(1, Math.ceil((flatData?.totalRows ?? 0) / PAGE_SIZE));
+
+  async function exportExcel() {
+    setExporting(true);
+    try {
+      await api.download(
+        `/stats/scrutins-par-etablissement/export${qs({
+          scope,
+          academie,
+          spelc,
+          votant: votant || undefined,
+          adherent: allowAdherentFilter ? adherent || undefined : undefined,
+          scrutinType: scrutinType || undefined,
+          affectation: etablissement || undefined,
+        })}`,
+        "detail-par-etablissement.xlsx"
+      );
+    } finally {
+      setExporting(false);
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -137,6 +158,15 @@ export function ScrutinsTab({ scope, academie, spelc, allowAdherentFilter, group
               <option value="non">Non adhérents</option>
             </select>
           </div>
+        )}
+        {groupByEtablissement && (
+          <button
+            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 disabled:opacity-60"
+            disabled={exporting}
+            onClick={exportExcel}
+          >
+            {exporting ? "Export…" : "Export Excel"}
+          </button>
         )}
       </div>
 
