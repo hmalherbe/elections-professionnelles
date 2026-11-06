@@ -270,9 +270,26 @@ function ScrutinsByEtablissementTable({
 
   const groups = data?.etablissements ?? [];
   const columnCount = allowAdherentFilter ? 5 : 4;
+  const allOpen = groups.length > 0 && groups.every((g) => open.has(g.etablissement));
+
+  function toggleAll() {
+    setOpen(allOpen ? new Set() : new Set(groups.map((g) => g.etablissement)));
+  }
 
   return (
-    <Card title={`Détail par établissement (${data?.totalRows ?? 0} résultats, ${groups.length} établissements)`}>
+    <Card
+      title={`Détail par établissement (${data?.totalRows ?? 0} résultats, ${groups.length} établissements)`}
+      action={
+        groups.length > 0 && (
+          <button
+            className="rounded-md border border-slate-300 px-2.5 py-1 text-xs text-slate-600 hover:bg-slate-100"
+            onClick={toggleAll}
+          >
+            {allOpen ? "Tout replier" : "Tout déplier"}
+          </button>
+        )
+      }
+    >
       <div className="max-h-[32rem] overflow-auto">
         <table className="w-full text-sm">
           <thead className="sticky top-0 bg-white">
