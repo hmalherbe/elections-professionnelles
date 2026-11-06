@@ -4,7 +4,6 @@ import path from "node:path";
 import { db } from "../db/index.js";
 import { requireAuth, requireRole, canAccessAcademie, canAccessSpelc } from "../middleware/auth.js";
 import { saveDocumentUpload, deleteDocumentFile, DOCUMENTS_DIR } from "../lib/documentStorage.js";
-import { extractDocumentText } from "../lib/documentText.js";
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } });
@@ -15,9 +14,6 @@ function spelcAcademie(spelc: string): string | null {
   return row?.academie ?? null;
 }
 
-// Colonnes exposées sur la surface HTTP : jamais extracted_text, potentiellement
-// volumineux (jusqu'à 20 000 caractères) et réservé à l'Assistant IA, qui le lit
-// directement en base (voir services/chatTools.ts).
 const LIST_COLUMNS =
   "id, scope, academie, spelc, folder_id, filename, original_name, mime_type, size_bytes, uploaded_by, uploaded_at";
 
@@ -103,11 +99,10 @@ router.post("/", requireRole("admin_general"), upload.single("file"), async (req
     // Copie physique unique, jamais dupliquée par académie : c'est tout
     // l'intérêt du scope "general" par rapport à un dépôt par académie.
     const filename = saveDocumentUpload(req.file.buffer, req.file.originalname);
-    const { text, status } = await extractDocumentText(req.file.buffer, req.file.originalname, req.file.mimetype);
     db.prepare(
-      `INSERT INTO documents (scope, folder_id, filename, original_name, mime_type, size_bytes, uploaded_by, extracted_text, extraction_status)
-       VALUES ('general', ?, ?, ?, ?, ?, ?, ?, ?)`
-    ).run(folderId, filename, req.file.originalname, req.file.mimetype, req.file.size, req.user!.id, text, status);
+      `INSERT INTO documents (scope, folder_id, filename, original_name, mime_type, size_bytes, uploaded_by)
+       VALUES ('general', ?, ?, ?, ?, ?, ?)`
+    ).run(folderId, filename, req.file.originalname, req.file.mimetype, req.file.size, req.user!.id);
     res.status(201).json({ ok: true });
     return;
   }
@@ -117,11 +112,10 @@ router.post("/", requireRole("admin_general"), upload.single("file"), async (req
       return;
     }
     const filename = saveDocumentUpload(req.file.buffer, req.file.originalname);
-    const { text, status } = await extractDocumentText(req.file.buffer, req.file.originalname, req.file.mimetype);
     db.prepare(
-      `INSERT INTO documents (scope, academie, folder_id, filename, original_name, mime_type, size_bytes, uploaded_by, extracted_text, extraction_status)
-       VALUES ('academique', ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    ).run(academie, folderId, filename, req.file.originalname, req.file.mimetype, req.file.size, req.user!.id, text, status);
+      `INSERT INTO documents (scope, academie, folder_id, filename, original_name, mime_type, size_bytes, uploaded_by)
+       VALUES ('academique', ?, ?, ?, ?, ?, ?, ?)`
+    ).run(academie, folderId, filename, req.file.originalname, req.file.mimetype, req.file.size, req.user!.id);
     res.status(201).json({ ok: true });
     return;
   }
@@ -131,11 +125,10 @@ router.post("/", requireRole("admin_general"), upload.single("file"), async (req
       return;
     }
     const filename = saveDocumentUpload(req.file.buffer, req.file.originalname);
-    const { text, status } = await extractDocumentText(req.file.buffer, req.file.originalname, req.file.mimetype);
     db.prepare(
-      `INSERT INTO documents (scope, spelc, folder_id, filename, original_name, mime_type, size_bytes, uploaded_by, extracted_text, extraction_status)
-       VALUES ('spelc', ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    ).run(spelc, folderId, filename, req.file.originalname, req.file.mimetype, req.file.size, req.user!.id, text, status);
+      `INSERT INTO documents (scope, spelc, folder_id, filename, original_name, mime_type, size_bytes, uploaded_by)
+       VALUES ('spelc', ?, ?, ?, ?, ?, ?, ?)`
+    ).run(spelc, folderId, filename, req.file.originalname, req.file.mimetype, req.file.size, req.user!.id);
     res.status(201).json({ ok: true });
     return;
   }

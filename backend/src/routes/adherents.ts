@@ -195,8 +195,7 @@ router.delete("/all", requireRole("admin_general"), (_req, res) => {
 // admin_general (tous Spelcs) ou admin_spelc (son propre Spelc) uniquement :
 // la liste des adhérents (nom, prénom, mail, mobile) est une donnée propre au
 // Spelc, jamais accessible à l'admin académique même pour un Spelc de sa
-// propre académie (canAccessSpelc l'autoriserait sinon, comme pour l'accès
-// aux documents de scope Spelc — voir services/chatTools.ts).
+// propre académie (canAccessSpelc l'autoriserait sinon).
 router.get("/", requireRole("admin_spelc", "admin_general"), (req, res) => {
   const spelc = req.query.spelc as string;
   if (!spelc) {

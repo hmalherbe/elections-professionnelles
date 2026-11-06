@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { CamembertCard } from "../components/CamembertCard";
 import { Card } from "../components/Card";
 import { Ccm2022ResultsTab } from "../components/Ccm2022ResultsTab";
-import { ChatAssistantPanel } from "../components/ChatAssistantPanel";
 import { CourbeCard } from "../components/CourbeCard";
 import { DocumentsPanel } from "../components/DocumentsPanel";
 import { EtablissementsTab } from "../components/EtablissementsTab";
@@ -13,7 +12,7 @@ import { api, qs } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import type { CourbePoint, ImportRecord } from "../lib/types";
 
-const TABS = ["Vue académie", "Résultats 2022", "Participation par établissement", "Scrutins", "Imports", "Documents", "Assistant IA"] as const;
+const TABS = ["Vue académie", "Résultats 2022", "Participation par établissement", "Scrutins", "Imports", "Documents"] as const;
 type Tab = (typeof TABS)[number];
 
 export function AdminAcademiqueDashboard() {
@@ -47,7 +46,6 @@ export function AdminAcademiqueDashboard() {
       {tab === "Participation par établissement" && <EtablissementsTab scope={scope} academie={academie} />}
       {tab === "Imports" && <ImportsPanel academie={academie} />}
       {tab === "Documents" && <DocumentsTab academie={academie} />}
-      {tab === "Assistant IA" && <ChatAssistantPanel />}
     </div>
   );
 }

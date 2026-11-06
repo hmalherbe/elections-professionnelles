@@ -3,7 +3,6 @@ import { Bar, BarChart, CartesianGrid, Legend, ReferenceLine, ResponsiveContaine
 import { CamembertCard } from "../components/CamembertCard";
 import { Card } from "../components/Card";
 import { Ccm2022MapPanel } from "../components/Ccm2022MapPanel";
-import { ChatAssistantPanel } from "../components/ChatAssistantPanel";
 import { CourbeCard } from "../components/CourbeCard";
 import { DocumentsPanel } from "../components/DocumentsPanel";
 import { FileUploadCard } from "../components/FileUploadCard";
@@ -25,7 +24,6 @@ const TABS = [
   "Adhérents",
   "Référentiels",
   "Documents",
-  "Assistant IA",
   "Paramètres",
 ] as const;
 type Tab = (typeof TABS)[number];
@@ -60,7 +58,6 @@ export function AdminGeneralDashboard() {
       {tab === "Adhérents" && <AdherentsAdminPanel />}
       {tab === "Référentiels" && <ReferentielsPanel />}
       {tab === "Documents" && <DocumentsAdminPanel />}
-      {tab === "Assistant IA" && <ChatAssistantPanel />}
       {tab === "Paramètres" && <ParametresPanel />}
     </div>
   );

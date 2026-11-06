@@ -447,16 +447,9 @@ async function processZipImport(
 
     try {
       const storedFilename = saveDocumentUpload(buffer, fileName);
-      // Extraction de texte volontairement différée (extraction_status NULL) plutôt que
-      // faite ici pour chaque fichier : sur un zip de plusieurs centaines/milliers de
-      // documents, l'extraction PDF/DOCX synchrone de chacun peut prendre plusieurs
-      // minutes et n'a d'intérêt que pour les documents effectivement consultés par
-      // l'Assistant IA — lire_document l'exécute alors à la demande et met la base à
-      // jour (voir services/chatTools.ts), exactement comme pour un document déposé
-      // avant l'ajout de cette colonne.
       db.prepare(
-        `INSERT INTO documents (scope, academie, spelc, folder_id, filename, original_name, mime_type, size_bytes, uploaded_by, extracted_text, extraction_status)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL)`
+        `INSERT INTO documents (scope, academie, spelc, folder_id, filename, original_name, mime_type, size_bytes, uploaded_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
       ).run(scope, academie, spelc, folderId, storedFilename, fileName, null, buffer.length, req.user!.id);
       filesImported++;
     } catch (err) {

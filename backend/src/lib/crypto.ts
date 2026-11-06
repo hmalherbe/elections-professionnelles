@@ -1,8 +1,8 @@
 import crypto from "node:crypto";
 
 /**
- * Chiffrement symétrique (AES-256-GCM) pour les clés API (Brevo, Mistral)
- * stockées en base — jamais en clair. La clé est dérivée d'une chaîne
+ * Chiffrement symétrique (AES-256-GCM) pour les clés API Brevo stockées en
+ * base — jamais en clair. La clé est dérivée d'une chaîne
  * secrète d'environnement (SCRAPING_SECRET_KEY, ou à défaut JWT_SECRET) via
  * SHA-256, pour obtenir 32 octets quelle que soit sa longueur d'origine. Le
  * nom de la variable date d'un usage antérieur (scraping, retiré depuis),
