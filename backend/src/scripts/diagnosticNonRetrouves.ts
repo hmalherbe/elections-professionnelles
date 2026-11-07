@@ -84,6 +84,31 @@ interface EmargementIdentity {
   prenom: string;
   nom_norm: string;
   prenom_norm: string;
+  nom_naissance_norm: string | null;
+}
+
+/** Les quatre combinaisons nom/nom de naissance (adhérent) x nom/nom de
+ * naissance (électeur) sont-elles compatibles (exactes, ou toutes deux à une
+ * distance <= seuil) ? Même règle que services/fuzzyMatching.ts. */
+function nomsCompatibles(
+  aNomNorm: string,
+  aNomNaissanceNorm: string | null,
+  eNomNorm: string,
+  eNomNaissanceNorm: string | null,
+  cmp: (a: string, b: string) => boolean
+): boolean {
+  return (
+    cmp(aNomNorm, eNomNorm) ||
+    (Boolean(eNomNaissanceNorm) && cmp(aNomNorm, eNomNaissanceNorm!)) ||
+    (Boolean(aNomNaissanceNorm) && cmp(aNomNaissanceNorm!, eNomNorm)) ||
+    (Boolean(aNomNaissanceNorm) && Boolean(eNomNaissanceNorm) && cmp(aNomNaissanceNorm!, eNomNaissanceNorm!))
+  );
+}
+
+function identityKeys(nomNorm: string, nomNaissanceNorm: string | null, prenomNorm: string): string[] {
+  const keys = [`${nomNorm}|${prenomNorm}`];
+  if (nomNaissanceNorm && nomNaissanceNorm !== nomNorm) keys.push(`${nomNaissanceNorm}|${prenomNorm}`);
+  return keys;
 }
 
 let totalNonRetrouves = 0;
@@ -126,11 +151,13 @@ for (const { spelc, academie } of spelcs) {
       : (() => {
           const placeholders = allIds.map(() => "?").join(",");
           const emargs = db
-            .prepare(`SELECT nom, prenom, nom_norm, prenom_norm FROM emargements WHERE spelc = ? AND import_id IN (${placeholders})`)
+            .prepare(
+              `SELECT nom, prenom, nom_norm, prenom_norm, nom_naissance_norm FROM emargements WHERE spelc = ? AND import_id IN (${placeholders})`
+            )
             .all(spelc, ...allIds) as EmargementIdentity[];
           return [...new Map(emargs.map((e) => [`${e.nom_norm}|${e.prenom_norm}`, e])).values()];
         })();
-  const emargIdentitySet = new Set(uniqueEmargs.map((e) => `${e.nom_norm}|${e.prenom_norm}`));
+  const emargIdentitySet = new Set(uniqueEmargs.flatMap((e) => identityKeys(e.nom_norm, e.nom_naissance_norm, e.prenom_norm)));
 
   const existingAdherentIds = new Set(
     (
@@ -154,7 +181,7 @@ for (const { spelc, academie } of spelcs) {
   perSpelc.push(spelcStats);
 
   for (const a of adherents) {
-    if (emargIdentitySet.has(`${a.nom_norm}|${a.prenom_norm}`)) continue; // trouvé exactement
+    if (identityKeys(a.nom_norm, a.nom_naissance_norm, a.prenom_norm).some((k) => emargIdentitySet.has(k))) continue; // trouvé exactement
     totalNonRetrouves++;
     spelcStats.nonRetrouves++;
 
@@ -163,12 +190,13 @@ for (const { spelc, academie } of spelcs) {
       continue;
     }
 
-    // Algorithme existant (Levenshtein nom/nom_naissance ET prénom).
+    // Algorithme existant (Levenshtein sur les 4 combinaisons nom/nom de
+    // naissance adhérent x électeur, ET prénom).
     const existingCandidates: EmargementIdentity[] = [];
     for (const e of uniqueEmargs) {
-      const nomProche =
-        withinDistance(a.nom_norm, e.nom_norm, threshold) ||
-        (Boolean(a.nom_naissance_norm) && withinDistance(a.nom_naissance_norm!, e.nom_norm, threshold));
+      const nomProche = nomsCompatibles(a.nom_norm, a.nom_naissance_norm, e.nom_norm, e.nom_naissance_norm, (x, y) =>
+        withinDistance(x, y, threshold)
+      );
       if (!nomProche) continue;
       if (!withinDistance(a.prenom_norm, e.prenom_norm, threshold)) continue;
       existingCandidates.push(e);
@@ -179,13 +207,13 @@ for (const { spelc, academie } of spelcs) {
       continue;
     }
 
-    // Règle élargie "prénom composé" : nom/nom_naissance exact OU proche, prénom
-    // contenu mot à mot dans l'autre.
+    // Règle élargie "prénom composé" : nom/nom_naissance (4 combinaisons)
+    // exact OU proche, prénom contenu mot à mot dans l'autre.
     const compoundCandidates: EmargementIdentity[] = [];
     for (const e of uniqueEmargs) {
-      const nomProche =
-        withinDistance(a.nom_norm, e.nom_norm, threshold) ||
-        (Boolean(a.nom_naissance_norm) && withinDistance(a.nom_naissance_norm!, e.nom_norm, threshold));
+      const nomProche = nomsCompatibles(a.nom_norm, a.nom_naissance_norm, e.nom_norm, e.nom_naissance_norm, (x, y) =>
+        withinDistance(x, y, threshold)
+      );
       if (!nomProche) continue;
       if (!isCompoundPrenomMatch(a.prenom_norm, e.prenom_norm)) continue;
       compoundCandidates.push(e);
@@ -206,14 +234,15 @@ for (const { spelc, academie } of spelcs) {
       totalAucuneCorrespondance++;
       spelcStats.aucuneCorrespondance++;
 
-      // Le nom (ou nom de naissance) existe-t-il quelque part dans la liste,
-      // même si aucun prénom compatible n'y est associé ? Distingue "nom
-      // présent, prénom trop différent" (ex. nom marital complet différent,
-      // ou seuil trop strict) de "absence réelle de la liste".
-      const nomCandidates = uniqueEmargs.filter(
-        (e) =>
-          withinDistance(a.nom_norm, e.nom_norm, threshold) ||
-          (Boolean(a.nom_naissance_norm) && withinDistance(a.nom_naissance_norm!, e.nom_norm, threshold))
+      // Le nom (ou nom de naissance, des deux côtés) existe-t-il quelque part
+      // dans la liste, même si aucun prénom compatible n'y est associé ?
+      // Distingue "nom présent, prénom trop différent" (ex. nom marital
+      // complet différent, ou seuil trop strict) de "absence réelle de la
+      // liste".
+      const nomCandidates = uniqueEmargs.filter((e) =>
+        nomsCompatibles(a.nom_norm, a.nom_naissance_norm, e.nom_norm, e.nom_naissance_norm, (x, y) =>
+          withinDistance(x, y, threshold)
+        )
       );
       if (nomCandidates.length > 0) {
         totalNomTrouvePrenomDifferent++;

@@ -11,6 +11,8 @@ interface NationalRow {
   prenom: string;
   nom_norm: string;
   prenom_norm: string;
+  nom_naissance: string | null;
+  nom_naissance_norm: string | null;
   date_emargement: string | null;
   corps: string | null;
   affectation: string | null;
@@ -69,7 +71,7 @@ export function buildElecteursAcademiques(importedBy: number | null): ElecteursA
 
   const rows = db
     .prepare(
-      `SELECT nom, prenom, nom_norm, prenom_norm, date_emargement, corps, affectation,
+      `SELECT nom, prenom, nom_norm, prenom_norm, nom_naissance, nom_naissance_norm, date_emargement, corps, affectation,
               departement, spelc, reference_bulletin, votant, academie
        FROM emargements WHERE import_id = ? AND academie IS NOT NULL`
     )
@@ -95,8 +97,10 @@ export function buildElecteursAcademiques(importedBy: number | null): ElecteursA
   const insertEmargement = db.prepare(`
     INSERT INTO emargements (
       import_id, scope, academie, degre, scrutin_type, nom, prenom, nom_norm, prenom_norm,
+      nom_naissance, nom_naissance_norm,
       date_emargement, corps, affectation, departement, spelc, reference_bulletin, votant, snapshot_date
     ) VALUES (@importId, 'academique', @academie, @degre, @scrutinType, @nom, @prenom, @nomNorm, @prenomNorm,
+      @nomNaissance, @nomNaissanceNorm,
       @dateEmargement, @corps, @affectation, @departement, @spelc, @referenceBulletin, @votant, @snapshotDate)
   `);
 
@@ -120,6 +124,8 @@ export function buildElecteursAcademiques(importedBy: number | null): ElecteursA
           prenom: row.prenom,
           nomNorm: row.nom_norm,
           prenomNorm: row.prenom_norm,
+          nomNaissance: row.nom_naissance,
+          nomNaissanceNorm: row.nom_naissance_norm,
           dateEmargement: row.date_emargement,
           corps: row.corps,
           affectation: row.affectation,

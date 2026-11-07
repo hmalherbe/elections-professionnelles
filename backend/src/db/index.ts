@@ -250,6 +250,12 @@ export function migrate(): void {
   addColumnIfMissing("documents", "folder_id", "INTEGER REFERENCES document_folders(id)");
   addColumnIfMissing("adherents", "nom_naissance", "TEXT");
   addColumnIfMissing("adherents", "nom_naissance_norm", "TEXT");
+  // Symétrique côté émargements : certains fichiers électeurs distinguent un
+  // nom d'usage (colonne "nom" existante) d'un nom de naissance — ex. nom
+  // marital différent — nécessaire pour le rapprochement si l'adhérent est
+  // déclaré par son Spelc sous l'autre nom (voir services/fuzzyMatching.ts).
+  addColumnIfMissing("emargements", "nom_naissance", "TEXT");
+  addColumnIfMissing("emargements", "nom_naissance_norm", "TEXT");
 
   migrateScopeIncludesGeneral();
   dropPsaTables();

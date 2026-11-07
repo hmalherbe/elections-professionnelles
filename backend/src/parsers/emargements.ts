@@ -18,6 +18,14 @@ export interface RawEmargementItem {
    * `affectation` pour déterminer le département (voir buildEmargementRow).
    */
   rne?: string | null;
+  /**
+   * Nom de naissance de l'électeur, distinct de `nom` (nom d'usage) — ex.
+   * fichier des électeurs CCMMEP 2026, qui fournit nomUsage ET nomFamille
+   * séparément. Facultatif, symétrique à adherents.nom_naissance : sert au
+   * rapprochement (exact ou approximatif) si l'adhérent est déclaré par son
+   * Spelc sous l'autre nom (voir services/fuzzyMatching.ts).
+   */
+  nomNaissance?: string | null;
 }
 
 export interface RawEmargementFile {
@@ -33,6 +41,8 @@ export interface EmargementRow {
   prenom: string;
   nomNorm: string;
   prenomNorm: string;
+  nomNaissance: string | null;
+  nomNaissanceNorm: string | null;
   dateEmargement: string | null;
   corps: string | null;
   affectation: string | null;
@@ -97,6 +107,8 @@ export function buildEmargementRow(item: RawEmargementItem, options: BuildRowOpt
     prenom: item.prenom ?? "",
     nomNorm: normalizeName(item.nom),
     prenomNorm: normalizeName(item.prenom),
+    nomNaissance: item.nomNaissance ?? null,
+    nomNaissanceNorm: item.nomNaissance ? normalizeName(item.nomNaissance) : null,
     dateEmargement,
     corps: item.corps ?? null,
     affectation: item.affectation ?? null,

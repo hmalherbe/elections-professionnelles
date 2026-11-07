@@ -63,8 +63,10 @@ export function runImport(raw: unknown, ctx: ImportContext): ImportResult {
   const insertEmargement = db.prepare(`
     INSERT INTO emargements (
       import_id, scope, academie, degre, scrutin_type, nom, prenom, nom_norm, prenom_norm,
+      nom_naissance, nom_naissance_norm,
       date_emargement, corps, affectation, departement, spelc, reference_bulletin, votant, snapshot_date
     ) VALUES (@importId, @scope, @academie, @degre, @scrutinType, @nom, @prenom, @nomNorm, @prenomNorm,
+      @nomNaissance, @nomNaissanceNorm,
       @dateEmargement, @corps, @affectation, @departement, @spelc, @referenceBulletin, @votant, @snapshotDate)
   `);
 
@@ -109,6 +111,8 @@ export function runImport(raw: unknown, ctx: ImportContext): ImportResult {
         prenom: row.prenom,
         nomNorm: row.nomNorm,
         prenomNorm: row.prenomNorm,
+        nomNaissance: row.nomNaissance,
+        nomNaissanceNorm: row.nomNaissanceNorm,
         dateEmargement: row.dateEmargement,
         corps: row.corps,
         affectation: row.affectation,

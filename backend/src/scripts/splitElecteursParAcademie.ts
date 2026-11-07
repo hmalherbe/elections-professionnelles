@@ -15,9 +15,14 @@
  *   3. Type de scrutin (CCMI/CCMA/CCMD/CCML1D/CCML2D...) résolu par
  *      académie et degré via le référentiel Scrutins académiques.
  * Chaque électeur produit un RawEmargementItem { nom: nomUsage, prenom,
- * corps: nomCol, affectation: "<nomEtab> <codePostal>", dateEmargement:
- * null, referenceBulletin: null } — pas de date d'émargement : ce fichier
- * est la liste des électeurs éligibles, pas un relevé de qui a déjà voté.
+ * nomNaissance: nomFamille (si différent de nomUsage), corps: nomCol,
+ * affectation: "<nomEtab> <codePostal>", dateEmargement: null,
+ * referenceBulletin: null } — pas de date d'émargement : ce fichier est la
+ * liste des électeurs éligibles, pas un relevé de qui a déjà voté. Le nom
+ * de naissance est conservé car 36% des électeurs du fichier national ont
+ * un nomFamille différent de leur nomUsage (ex. nom marital) — nécessaire
+ * au rapprochement si l'adhérent est déclaré par son Spelc sous l'autre nom
+ * (voir services/fuzzyMatching.ts, qui compare les deux noms des deux côtés).
  *
  * Usage :
  *   npx tsx src/scripts/splitElecteursParAcademie.ts <electeurs.json> <referentiel_departements.xlsx> <referentiel_scrutins.xlsx> <dossier_sortie>
@@ -70,6 +75,7 @@ const byFile = new Map<string, Record<string, unknown>[]>();
 const unmatchedByDept = new Map<string, number>();
 const sansTypeScrutin = new Map<string, number>();
 let unmatchedTotal = 0;
+let avecNomNaissance = 0;
 
 for (const item of items) {
   const departement = item.codePostal ? departementFromPostalCode(item.codePostal) : null;
@@ -91,9 +97,12 @@ for (const item of items) {
 
   const fileKey = `${academie}-${scrutinType}`;
   const arr = byFile.get(fileKey) ?? [];
+  const nomNaissance = item.nomFamille && item.nomFamille !== item.nomUsage ? item.nomFamille : null;
+  if (nomNaissance) avecNomNaissance++;
   arr.push({
     nom: item.nomUsage,
     prenom: item.prenom,
+    nomNaissance,
     dateEmargement: null,
     corps: item.nomCol ?? null,
     affectation: item.nomEtab && item.codePostal ? `${item.nomEtab} ${item.codePostal}` : null,
@@ -114,6 +123,7 @@ console.log("\nFichiers académiques écrits (1er et 2nd degré) :");
 for (const w of written) console.log(`  ${w.fileKey.padEnd(22)} ${String(w.count).padStart(6)} électeur(s)  -> ${w.file}`);
 const totalWritten = written.reduce((s, w) => s + w.count, 0);
 console.log(`\nTotal réparti : ${totalWritten} / ${items.length}`);
+console.log(`  dont avec un nom de naissance distinct du nom d'usage : ${avecNomNaissance}`);
 
 if (unmatchedTotal > 0) {
   console.log(`\n${unmatchedTotal} électeur(s) NON réparti(s) (département absent du référentiel ou code postal manquant) :`);
