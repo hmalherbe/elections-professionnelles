@@ -91,8 +91,12 @@ let totalDejaEnFile = 0; // en_attente/valide/rejete existants
 let totalAmbigu = 0;
 let totalCompoundDetectable = 0;
 let totalAucuneCorrespondance = 0;
+let totalNomTrouvePrenomDifferent = 0; // le nom (ou nom_naissance) existe, mais aucun prénom compatible
+let totalNomAbsent = 0; // aucun électeur, même approchant, ne porte ce nom
 
 const detailRows: { spelc: string; nom: string; prenom: string; candidat: string }[] = [];
+const nomTrouveRows: { spelc: string; nom: string; prenom: string; candidat: string }[] = [];
+const nomAbsentRows: { spelc: string; nom: string; prenom: string }[] = [];
 const perSpelc: {
   spelc: string;
   academie: string;
@@ -201,16 +205,45 @@ for (const { spelc, academie } of spelcs) {
     } else {
       totalAucuneCorrespondance++;
       spelcStats.aucuneCorrespondance++;
+
+      // Le nom (ou nom de naissance) existe-t-il quelque part dans la liste,
+      // même si aucun prénom compatible n'y est associé ? Distingue "nom
+      // présent, prénom trop différent" (ex. nom marital complet différent,
+      // ou seuil trop strict) de "absence réelle de la liste".
+      const nomCandidates = uniqueEmargs.filter(
+        (e) =>
+          withinDistance(a.nom_norm, e.nom_norm, threshold) ||
+          (Boolean(a.nom_naissance_norm) && withinDistance(a.nom_naissance_norm!, e.nom_norm, threshold))
+      );
+      if (nomCandidates.length > 0) {
+        totalNomTrouvePrenomDifferent++;
+        if (onlySpelc) {
+          nomTrouveRows.push({
+            spelc,
+            nom: a.nom,
+            prenom: a.prenom,
+            candidat: nomCandidates
+              .slice(0, 3)
+              .map((c) => `${c.nom} ${c.prenom}`)
+              .join(" / "),
+          });
+        }
+      } else {
+        totalNomAbsent++;
+        if (onlySpelc) nomAbsentRows.push({ spelc, nom: a.nom, prenom: a.prenom });
+      }
     }
   }
 }
 
 console.log(`Seuil de fuzzy matching courant : ${threshold}\n`);
-console.log(`Total adhérents non retrouvés (tous Spelcs${onlySpelc ? ` — ${onlySpelc}` : ""}) : ${totalNonRetrouves}`);
+console.log(`Total adhérents non retrouvés (${onlySpelc ? onlySpelc : "tous Spelcs"}) : ${totalNonRetrouves}`);
 console.log(`  dont déjà en file de validation (en_attente/validé/rejeté)     : ${totalDejaEnFile}`);
 console.log(`  dont candidat(s) trouvé(s) par l'algorithme actuel (ambigu/à rafraîchir) : ${totalAmbigu}`);
 console.log(`  dont prénom composé détectable (règle élargie, pas l'algorithme actuel) : ${totalCompoundDetectable}`);
 console.log(`  dont aucune correspondance même avec la règle élargie          : ${totalAucuneCorrespondance}`);
+console.log(`    - dont le nom (ou nom de naissance) existe mais aucun prénom compatible : ${totalNomTrouvePrenomDifferent}`);
+console.log(`    - dont le nom est absent de la liste électorale, même approchant        : ${totalNomAbsent}`);
 
 // Trié par nombre d'électeurs disponibles croissant : les Spelcs en tête
 // (0 ou très peu d'électeurs chargés) expliquent probablement l'essentiel de
@@ -231,5 +264,19 @@ if (onlySpelc && detailRows.length > 0) {
   console.log(`\nDétail "prénom composé détectable" pour ${onlySpelc} :`);
   for (const r of detailRows) {
     console.log(`  ${r.nom} ${r.prenom}  ->  ${r.candidat}`);
+  }
+}
+
+if (onlySpelc && nomTrouveRows.length > 0) {
+  console.log(`\nDétail "nom trouvé, prénom différent" pour ${onlySpelc} (jusqu'à 3 candidats par nom) :`);
+  for (const r of nomTrouveRows) {
+    console.log(`  ${r.nom} ${r.prenom}  ->  ${r.candidat}`);
+  }
+}
+
+if (onlySpelc && nomAbsentRows.length > 0) {
+  console.log(`\nDétail "nom absent de la liste électorale" pour ${onlySpelc} :`);
+  for (const r of nomAbsentRows) {
+    console.log(`  ${r.nom} ${r.prenom}`);
   }
 }
