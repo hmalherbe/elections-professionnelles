@@ -93,23 +93,40 @@ let totalCompoundDetectable = 0;
 let totalAucuneCorrespondance = 0;
 
 const detailRows: { spelc: string; nom: string; prenom: string; candidat: string }[] = [];
+const perSpelc: {
+  spelc: string;
+  academie: string;
+  electeursDisponibles: number;
+  adherents: number;
+  nonRetrouves: number;
+  aucuneCorrespondance: number;
+}[] = [];
 
 for (const { spelc, academie } of spelcs) {
   const localIds = currentImportIds("academique", academie);
   const nationalIds = currentImportIds("national", null);
   const allIds = [...localIds, ...nationalIds];
-  if (allIds.length === 0) continue;
-
-  const placeholders = allIds.map(() => "?").join(",");
-  const emargs = db
-    .prepare(`SELECT nom, prenom, nom_norm, prenom_norm FROM emargements WHERE spelc = ? AND import_id IN (${placeholders})`)
-    .all(spelc, ...allIds) as EmargementIdentity[];
-  const uniqueEmargs = [...new Map(emargs.map((e) => [`${e.nom_norm}|${e.prenom_norm}`, e])).values()];
-  const emargIdentitySet = new Set(uniqueEmargs.map((e) => `${e.nom_norm}|${e.prenom_norm}`));
 
   const adherents = db
     .prepare("SELECT id, nom, prenom, nom_norm, prenom_norm, nom_naissance_norm FROM adherents WHERE spelc = ?")
     .all(spelc) as { id: number; nom: string; prenom: string; nom_norm: string; prenom_norm: string; nom_naissance_norm: string | null }[];
+  if (adherents.length === 0) continue;
+
+  // Aucun import (national ni local) disponible pour cette académie : ne
+  // JAMAIS sauter ce Spelc en silence — c'est précisément le cas qui
+  // explique le plus souvent "aucune correspondance" (voir répartition par
+  // Spelc plus bas), pas une vraie absence de la liste électorale.
+  const uniqueEmargs: EmargementIdentity[] =
+    allIds.length === 0
+      ? []
+      : (() => {
+          const placeholders = allIds.map(() => "?").join(",");
+          const emargs = db
+            .prepare(`SELECT nom, prenom, nom_norm, prenom_norm FROM emargements WHERE spelc = ? AND import_id IN (${placeholders})`)
+            .all(spelc, ...allIds) as EmargementIdentity[];
+          return [...new Map(emargs.map((e) => [`${e.nom_norm}|${e.prenom_norm}`, e])).values()];
+        })();
+  const emargIdentitySet = new Set(uniqueEmargs.map((e) => `${e.nom_norm}|${e.prenom_norm}`));
 
   const existingAdherentIds = new Set(
     (
@@ -122,9 +139,20 @@ for (const { spelc, academie } of spelcs) {
     ).map((r) => r.id)
   );
 
+  const spelcStats = {
+    spelc,
+    academie,
+    electeursDisponibles: uniqueEmargs.length,
+    adherents: adherents.length,
+    nonRetrouves: 0,
+    aucuneCorrespondance: 0,
+  };
+  perSpelc.push(spelcStats);
+
   for (const a of adherents) {
     if (emargIdentitySet.has(`${a.nom_norm}|${a.prenom_norm}`)) continue; // trouvé exactement
     totalNonRetrouves++;
+    spelcStats.nonRetrouves++;
 
     if (existingAdherentIds.has(a.id)) {
       totalDejaEnFile++;
@@ -172,6 +200,7 @@ for (const { spelc, academie } of spelcs) {
       }
     } else {
       totalAucuneCorrespondance++;
+      spelcStats.aucuneCorrespondance++;
     }
   }
 }
@@ -182,6 +211,21 @@ console.log(`  dont déjà en file de validation (en_attente/validé/rejeté)   
 console.log(`  dont candidat(s) trouvé(s) par l'algorithme actuel (ambigu/à rafraîchir) : ${totalAmbigu}`);
 console.log(`  dont prénom composé détectable (règle élargie, pas l'algorithme actuel) : ${totalCompoundDetectable}`);
 console.log(`  dont aucune correspondance même avec la règle élargie          : ${totalAucuneCorrespondance}`);
+
+// Trié par nombre d'électeurs disponibles croissant : les Spelcs en tête
+// (0 ou très peu d'électeurs chargés) expliquent probablement l'essentiel de
+// leurs "aucune correspondance" — import national/local manquant ou pas
+// encore à jour pour leur académie, pas une vraie absence de la liste.
+const withGaps = perSpelc.filter((s) => s.aucuneCorrespondance > 0).sort((a, b) => a.electeursDisponibles - b.electeursDisponibles);
+if (withGaps.length > 0) {
+  console.log(`\nRépartition par Spelc (uniquement ceux ayant au moins un "aucune correspondance") :`);
+  console.log(`  ${"Spelc".padEnd(28)} ${"Académie".padEnd(18)} ${"Électeurs dispo.".padStart(16)} ${"Adhérents".padStart(10)} ${"Aucune corresp.".padStart(16)}`);
+  for (const s of withGaps) {
+    console.log(
+      `  ${s.spelc.padEnd(28)} ${s.academie.padEnd(18)} ${String(s.electeursDisponibles).padStart(16)} ${String(s.adherents).padStart(10)} ${String(s.aucuneCorrespondance).padStart(16)}`
+    );
+  }
+}
 
 if (onlySpelc && detailRows.length > 0) {
   console.log(`\nDétail "prénom composé détectable" pour ${onlySpelc} :`);
