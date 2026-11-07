@@ -70,7 +70,7 @@ for (const item of items) {
     continue;
   }
 
-  const degre = classifyDegreFromEtablissement(item.affectation);
+  const degre = classifyDegreFromEtablissement(item.affectation, `${item.nom}|${item.prenom}`);
   const scrutins = getAcademieScrutins(academie);
   const scrutinType = degre === "1D" ? scrutins.type1d : scrutins.type2d;
   if (!scrutinType) {

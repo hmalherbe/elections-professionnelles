@@ -24,16 +24,36 @@ interface NationalRow {
 }
 
 /**
+ * Tirage 50/50 déterministe à partir d'une chaîne d'identité (ex. nom +
+ * prénom) : même résultat à chaque appel pour la même personne, contrairement
+ * à Math.random(). Nécessaire ici parce que le même électeur ambigu peut être
+ * classé par cette fonction à des moments différents — un import du CCMA puis,
+ * plus tard, un import du CCMI régénéré séparément (voir scripts/split*.ts) —
+ * et un résultat différent à chaque fois ferait apparaître la même personne
+ * dans les deux degrés (détecté par findCrossDegreDuplicates côté import).
+ * Hash polynomial simple (pas cryptographique, juste stable et ~uniforme).
+ */
+function deterministicCoinFlip(seed: string): boolean {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) {
+    hash = (hash * 31 + seed.charCodeAt(i)) | 0;
+  }
+  return (hash & 1) === 0;
+}
+
+/**
  * Règle métier demandée : le nom de l'établissement (champ "affectation")
  * distingue de façon fiable le 2nd degré (collège/lycée) du 1er degré
  * (école) ; faute de règle plus précise pour les autres cas (services
- * académiques, administration...), le degré est tiré au hasard.
+ * académiques, administration...), le degré est tiré au hasard — mais de
+ * façon déterministe par personne (voir deterministicCoinFlip), via `seed`
+ * (typiquement nom+prénom, ou le matricule quand disponible).
  */
-export function classifyDegreFromEtablissement(affectation: string | null): "1D" | "2D" {
+export function classifyDegreFromEtablissement(affectation: string | null, seed: string): "1D" | "2D" {
   const normalized = stripAccents(affectation ?? "").toUpperCase();
   if (normalized.includes("COLLEGE") || normalized.includes("LYCEE")) return "2D";
   if (normalized.includes("ECOLE")) return "1D";
-  return Math.random() < 0.5 ? "1D" : "2D";
+  return deterministicCoinFlip(seed) ? "1D" : "2D";
 }
 
 /**
@@ -44,10 +64,10 @@ export function classifyDegreFromEtablissement(affectation: string | null): "1D"
  * seulement si le corps ne permet pas de conclure (ex. "maître délégué",
  * utilisé indifféremment dans les deux degrés — voir classifyDegre).
  */
-export function classifyDegreForElecteur(corps: string | null, etablissement: string | null): "1D" | "2D" {
+export function classifyDegreForElecteur(corps: string | null, etablissement: string | null, seed: string): "1D" | "2D" {
   const viaCorps = classifyDegre(corps);
   if (viaCorps !== "INDETERMINE") return viaCorps;
-  return classifyDegreFromEtablissement(etablissement);
+  return classifyDegreFromEtablissement(etablissement, seed);
 }
 
 export interface ElecteursAcademiquesResult {
@@ -83,7 +103,7 @@ export function buildElecteursAcademiques(importedBy: number | null): ElecteursA
 
   const grouped = new Map<string, NationalRow[]>();
   for (const row of rows) {
-    const degre = classifyDegreFromEtablissement(row.affectation);
+    const degre = classifyDegreFromEtablissement(row.affectation, `${row.nom_norm}|${row.prenom_norm}`);
     const key = `${row.academie}|${degre}`;
     if (!grouped.has(key)) grouped.set(key, []);
     grouped.get(key)!.push(row);

@@ -53,6 +53,7 @@ const { departementFromPostalCode } = await import("../lib/departement.js");
 const { classifyDegreForElecteur } = await import("../services/electeursAcademiques.js");
 
 interface ElecteurItem {
+  matricule?: string | null;
   nomFamille?: string | null;
   nomUsage: string;
   prenom: string;
@@ -87,7 +88,11 @@ for (const item of items) {
     continue;
   }
 
-  const degre = classifyDegreForElecteur(item.nomCol, item.nomEtab);
+  // matricule en priorité (identifiant le plus stable) ; repli nom+prénom
+  // si absent — dans les deux cas, toujours la même graine pour une même
+  // personne, donc le même résultat à chaque régénération du fichier.
+  const seed = item.matricule || `${item.nomUsage}|${item.prenom}`;
+  const degre = classifyDegreForElecteur(item.nomCol, item.nomEtab, seed);
   const scrutins = getAcademieScrutins(academie);
   const scrutinType = degre === "1D" ? scrutins.type1d : scrutins.type2d;
   if (!scrutinType) {
