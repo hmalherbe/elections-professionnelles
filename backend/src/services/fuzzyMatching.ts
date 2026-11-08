@@ -47,6 +47,40 @@ function withinDistance(a: string, b: string, threshold: number): boolean {
   return dp[n] <= threshold;
 }
 
+/** Mots d'un prénom normalisé, espace et tiret traités de façon identique
+ * (ex. "Thi-Hoang-Liên" et "Thi Hoang Lien" donnent les mêmes mots) — un
+ * mot d'une seule lettre est ignoré (trop permissif en comparaison floue,
+ * ex. une initiale). */
+function prenomWords(prenomNorm: string): string[] {
+  return prenomNorm.split(/[\s-]+/).filter((w) => w.length >= 2);
+}
+
+/**
+ * Le prénom d'un adhérent et celui d'un électeur désignent-ils la même
+ * personne au sens large, au-delà de la simple distance de Levenshtein sur
+ * la chaîne entière :
+ *   - tiret/espace sans incidence (ex. adhérent "Thi-Hoang-Liên" / électeur
+ *     "Thi Hoang Lien" — même mots, juste séparés différemment) ;
+ *   - prénom composé : tous les mots du prénom le plus court (en nombre de
+ *     mots) se retrouvent, chacun à une distance <= seuil, parmi les mots
+ *     de l'autre — ex. adhérent "Mirinah" / électeur "Mamy Mirinah", ou
+ *     adhérent "Audrey-Francine" / électeur "Audrey" (le fichier CCMMEP
+ *     porte parfois le prénom légal complet, le Spelc le seul prénom
+ *     d'usage, et inversement selon la source).
+ * Une personne différente partageant un nom proche ET un mot de prénom isolé
+ * (ex. "Marie" très courant) reste filtrée par la règle existante : une
+ * suggestion n'est créée que si un seul candidat unique est trouvé au total
+ * (voir refreshFuzzyCandidates) — une coïncidence ambiguë ne propose rien.
+ */
+export function prenomCompatible(aPrenomNorm: string, ePrenomNorm: string, threshold: number): boolean {
+  if (withinDistance(aPrenomNorm, ePrenomNorm, threshold)) return true;
+  const aWords = prenomWords(aPrenomNorm);
+  const eWords = prenomWords(ePrenomNorm);
+  if (aWords.length === 0 || eWords.length === 0) return false;
+  const [shorter, longer] = aWords.length <= eWords.length ? [aWords, eWords] : [eWords, aWords];
+  return shorter.every((sw) => longer.some((lw) => withinDistance(sw, lw, threshold)));
+}
+
 /**
  * Fragment SQL : les noms de l'alias adhérent "ad" (nom ET, si renseigné,
  * nom de naissance) et de l'alias émargement "e" (nom ET, si renseigné, nom
@@ -191,7 +225,7 @@ function findCandidates(
         Boolean(e.nom_naissance_norm) &&
         withinDistance(a.nom_naissance_norm!, e.nom_naissance_norm!, threshold));
     if (!nomProche) continue;
-    if (!withinDistance(a.prenom_norm, e.prenom_norm, threshold)) continue;
+    if (!prenomCompatible(a.prenom_norm, e.prenom_norm, threshold)) continue;
     candidates.push(e);
   }
   return [...new Map(candidates.map((c) => [`${c.nom_norm}|${c.prenom_norm}`, c])).values()];
