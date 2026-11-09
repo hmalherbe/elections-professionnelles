@@ -10,7 +10,7 @@ import {
   scrutinsTab,
   type Scope,
 } from "../services/stats.js";
-import { buildScrutinsByEtablissementWorkbook } from "../lib/scrutinsExport.js";
+import { buildEtablissementsWorkbook, buildScrutinsByEtablissementWorkbook } from "../lib/scrutinsExport.js";
 
 const router = Router();
 router.use(requireAuth);
@@ -127,6 +127,26 @@ router.get("/etablissements", (req, res) => {
   const spelc = (req.query.spelc as string) || null;
   if (!checkScopeAccess(req, res, scope, academie, spelc)) return;
   res.json({ etablissements: participationParEtablissement({ scope, academie, spelc }) });
+});
+
+/**
+ * Export Excel du tableau "Participation par établissement" (bouton "Export
+ * Excel" de cet onglet) — mêmes périmètre/droits que /etablissements, voir
+ * lib/scrutinsExport.ts.
+ */
+router.get("/etablissements/export", async (req, res) => {
+  const scope = (req.query.scope as Scope) ?? "national";
+  const academie = (req.query.academie as string) || null;
+  const spelc = (req.query.spelc as string) || null;
+  if (!checkScopeAccess(req, res, scope, academie, spelc)) return;
+
+  const rows = participationParEtablissement({ scope, academie, spelc });
+  const wb = buildEtablissementsWorkbook(rows);
+
+  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  res.setHeader("Content-Disposition", `attachment; filename="participation-par-etablissement.xlsx"`);
+  await wb.xlsx.write(res);
+  res.end();
 });
 
 export default router;

@@ -14,6 +14,18 @@ export interface ParticipationRow {
   inscrits: number;
   votants: number;
   taux: number;
+  inscritsCcmi: number;
+  votantsCcmi: number;
+  tauxCcmi: number;
+  inscritsCcma: number;
+  votantsCcma: number;
+  tauxCcma: number;
+  adherentsInscritsCcmi: number;
+  adherentsVotantsCcmi: number;
+  adherentsTauxCcmi: number;
+  adherentsInscritsCcma: number;
+  adherentsVotantsCcma: number;
+  adherentsTauxCcma: number;
 }
 
 export interface AcademieNode extends ParticipationRow {
@@ -64,6 +76,9 @@ export interface EtablissementRow {
   inscrits: number;
   votants: number;
   taux: number;
+  adherentsInscrits: number;
+  adherentsVotants: number;
+  adherentsTaux: number;
 }
 
 export interface ImportRecord {

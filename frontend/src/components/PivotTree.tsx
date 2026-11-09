@@ -1,7 +1,7 @@
 import { Fragment, useState } from "react";
 import { Card } from "./Card";
 import { formatPercent } from "../lib/colors";
-import type { AcademieNode } from "../lib/types";
+import type { AcademieNode, ParticipationRow } from "../lib/types";
 
 function Bar({ taux }: { taux: number }) {
   return (
@@ -11,20 +11,29 @@ function Bar({ taux }: { taux: number }) {
   );
 }
 
-type SortKey = "label" | "inscrits" | "votants" | "taux";
+/** Pourcentage compact, avec les effectifs exacts en infobulle — pour les
+ * colonnes CCMI/CCMA (électeurs et adhérents), trop nombreuses pour
+ * toutes avoir leur propre barre comme la participation globale. */
+function PercentCell({ taux, inscrits, votants }: { taux: number; inscrits: number; votants: number }) {
+  return (
+    <span title={`${votants.toLocaleString("fr-FR")} / ${inscrits.toLocaleString("fr-FR")}`}>{formatPercent(taux)}</span>
+  );
+}
+
+type SortKey = "label" | "inscrits" | "votants" | "taux" | "tauxCcmi" | "tauxCcma" | "adherentsTauxCcmi" | "adherentsTauxCcma";
 
 const COLUMNS: { key: SortKey; label: string; defaultDir: "asc" | "desc" }[] = [
   { key: "label", label: "Académie / Spelc", defaultDir: "asc" },
   { key: "inscrits", label: "Inscrits", defaultDir: "desc" },
   { key: "votants", label: "Votants", defaultDir: "desc" },
   { key: "taux", label: "Taux de participation", defaultDir: "desc" },
+  { key: "tauxCcmi", label: "Taux CCMI (1er degré)", defaultDir: "desc" },
+  { key: "tauxCcma", label: "Taux CCMA (2nd degré)", defaultDir: "desc" },
+  { key: "adherentsTauxCcmi", label: "Taux adhérents CCMI", defaultDir: "desc" },
+  { key: "adherentsTauxCcma", label: "Taux adhérents CCMA", defaultDir: "desc" },
 ];
 
-function sortNodes<T extends { label: string; inscrits: number; votants: number; taux: number }>(
-  nodes: T[],
-  sortKey: SortKey,
-  sortDir: "asc" | "desc"
-): T[] {
+function sortNodes<T extends ParticipationRow>(nodes: T[], sortKey: SortKey, sortDir: "asc" | "desc"): T[] {
   const dir = sortDir === "asc" ? 1 : -1;
   return [...nodes].sort((a, b) => {
     if (sortKey === "label") return a.label.localeCompare(b.label) * dir;
@@ -93,6 +102,26 @@ export function PivotTree({ tree }: { tree: AcademieNode[] }) {
                       <span className="text-slate-600">{formatPercent(node.taux)}</span>
                     </div>
                   </td>
+                  <td className="px-4 py-2 text-slate-600">
+                    <PercentCell taux={node.tauxCcmi} inscrits={node.inscritsCcmi} votants={node.votantsCcmi} />
+                  </td>
+                  <td className="px-4 py-2 text-slate-600">
+                    <PercentCell taux={node.tauxCcma} inscrits={node.inscritsCcma} votants={node.votantsCcma} />
+                  </td>
+                  <td className="px-4 py-2 text-slate-600">
+                    <PercentCell
+                      taux={node.adherentsTauxCcmi}
+                      inscrits={node.adherentsInscritsCcmi}
+                      votants={node.adherentsVotantsCcmi}
+                    />
+                  </td>
+                  <td className="px-4 py-2 text-slate-600">
+                    <PercentCell
+                      taux={node.adherentsTauxCcma}
+                      inscrits={node.adherentsInscritsCcma}
+                      votants={node.adherentsVotantsCcma}
+                    />
+                  </td>
                 </tr>
                 {open.has(node.label) &&
                   sortNodes(node.spelcs, sortKey, sortDir).map((s) => (
@@ -105,6 +134,26 @@ export function PivotTree({ tree }: { tree: AcademieNode[] }) {
                           <Bar taux={s.taux} />
                           <span className="text-slate-500">{formatPercent(s.taux)}</span>
                         </div>
+                      </td>
+                      <td className="px-4 py-1.5 text-slate-500">
+                        <PercentCell taux={s.tauxCcmi} inscrits={s.inscritsCcmi} votants={s.votantsCcmi} />
+                      </td>
+                      <td className="px-4 py-1.5 text-slate-500">
+                        <PercentCell taux={s.tauxCcma} inscrits={s.inscritsCcma} votants={s.votantsCcma} />
+                      </td>
+                      <td className="px-4 py-1.5 text-slate-500">
+                        <PercentCell
+                          taux={s.adherentsTauxCcmi}
+                          inscrits={s.adherentsInscritsCcmi}
+                          votants={s.adherentsVotantsCcmi}
+                        />
+                      </td>
+                      <td className="px-4 py-1.5 text-slate-500">
+                        <PercentCell
+                          taux={s.adherentsTauxCcma}
+                          inscrits={s.adherentsInscritsCcma}
+                          votants={s.adherentsVotantsCcma}
+                        />
                       </td>
                     </tr>
                   ))}

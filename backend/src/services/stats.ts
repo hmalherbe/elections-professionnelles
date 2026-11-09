@@ -41,10 +41,76 @@ export interface ParticipationRow {
   inscrits: number;
   votants: number;
   taux: number;
+  // Même ventilation, restreinte au 1er degré (CCMI) et au 2nd degré (CCMA)
+  // via la colonne `degre` (voir lib/degre.ts) — plus robuste au niveau
+  // national que `scrutin_type`, dont le libellé réel varie par académie
+  // (CCMI/CCMA/CCMD/CCML1D/CCML2D…), alors que le degré, lui, est uniforme.
+  inscritsCcmi: number;
+  votantsCcmi: number;
+  tauxCcmi: number;
+  inscritsCcma: number;
+  votantsCcma: number;
+  tauxCcma: number;
+  // Mêmes ventilations CCMI/CCMA, restreintes aux électeurs reconnus comme
+  // adhérents d'un Spelc (voir adherentExistsClause).
+  adherentsInscritsCcmi: number;
+  adherentsVotantsCcmi: number;
+  adherentsTauxCcmi: number;
+  adherentsInscritsCcma: number;
+  adherentsVotantsCcma: number;
+  adherentsTauxCcma: number;
 }
 
 export interface AcademieNode extends ParticipationRow {
   spelcs: ParticipationRow[];
+}
+
+interface DegreAdherentRaw {
+  inscritsCcmi: number;
+  votantsCcmi: number;
+  inscritsCcma: number;
+  votantsCcma: number;
+  adherentsInscritsCcmi: number;
+  adherentsVotantsCcmi: number;
+  adherentsInscritsCcma: number;
+  adherentsVotantsCcma: number;
+}
+
+/** Fragment SQL (agrégats conditionnels) pour la ventilation CCMI/CCMA,
+ * électeurs et adhérents — voir ParticipationRow. */
+function degreAdherentSelectFragment(adherentExists: string): string {
+  return `
+    SUM(CASE WHEN degre = '1D' THEN 1 ELSE 0 END) AS inscritsCcmi,
+    SUM(CASE WHEN degre = '1D' THEN votant ELSE 0 END) AS votantsCcmi,
+    SUM(CASE WHEN degre = '2D' THEN 1 ELSE 0 END) AS inscritsCcma,
+    SUM(CASE WHEN degre = '2D' THEN votant ELSE 0 END) AS votantsCcma,
+    SUM(CASE WHEN ${adherentExists} AND degre = '1D' THEN 1 ELSE 0 END) AS adherentsInscritsCcmi,
+    SUM(CASE WHEN ${adherentExists} AND degre = '1D' THEN votant ELSE 0 END) AS adherentsVotantsCcmi,
+    SUM(CASE WHEN ${adherentExists} AND degre = '2D' THEN 1 ELSE 0 END) AS adherentsInscritsCcma,
+    SUM(CASE WHEN ${adherentExists} AND degre = '2D' THEN votant ELSE 0 END) AS adherentsVotantsCcma
+  `;
+}
+
+function toParticipationRow(label: string, inscrits: number, votants: number, raw: DegreAdherentRaw): ParticipationRow {
+  const pct = (num: number, den: number) => (den ? num / den : 0);
+  return {
+    label,
+    inscrits,
+    votants,
+    taux: pct(votants, inscrits),
+    inscritsCcmi: raw.inscritsCcmi,
+    votantsCcmi: raw.votantsCcmi,
+    tauxCcmi: pct(raw.votantsCcmi, raw.inscritsCcmi),
+    inscritsCcma: raw.inscritsCcma,
+    votantsCcma: raw.votantsCcma,
+    tauxCcma: pct(raw.votantsCcma, raw.inscritsCcma),
+    adherentsInscritsCcmi: raw.adherentsInscritsCcmi,
+    adherentsVotantsCcmi: raw.adherentsVotantsCcmi,
+    adherentsTauxCcmi: pct(raw.adherentsVotantsCcmi, raw.adherentsInscritsCcmi),
+    adherentsInscritsCcma: raw.adherentsInscritsCcma,
+    adherentsVotantsCcma: raw.adherentsVotantsCcma,
+    adherentsTauxCcma: pct(raw.adherentsVotantsCcma, raw.adherentsInscritsCcma),
+  };
 }
 
 /** TCD participation par académie, en cascade par Spelc (scrutin national CCMMEP). */
@@ -52,37 +118,29 @@ export function participationTreeNational(): AcademieNode[] {
   const ids = currentImportIds("national", null);
   if (ids.length === 0) return [];
   const placeholders = idsPlaceholder(ids);
+  const adherentExists = adherentExistsClause();
+  const extra = degreAdherentSelectFragment(adherentExists);
 
   const academieRows = db
     .prepare(
-      `SELECT COALESCE(academie, 'Non déterminé') AS label, COUNT(*) AS inscrits, SUM(votant) AS votants
-       FROM emargements WHERE import_id IN (${placeholders})
+      `SELECT COALESCE(academie, 'Non déterminé') AS label, COUNT(*) AS inscrits, SUM(votant) AS votants, ${extra}
+       FROM emargements e WHERE e.import_id IN (${placeholders})
        GROUP BY label ORDER BY label`
     )
-    .all(...ids) as { label: string; inscrits: number; votants: number }[];
+    .all(...ids) as ({ label: string; inscrits: number; votants: number } & DegreAdherentRaw)[];
 
   const spelcRows = db
     .prepare(
       `SELECT COALESCE(academie, 'Non déterminé') AS academie, COALESCE(spelc, 'Non déterminé') AS label,
-              COUNT(*) AS inscrits, SUM(votant) AS votants
-       FROM emargements WHERE import_id IN (${placeholders})
+              COUNT(*) AS inscrits, SUM(votant) AS votants, ${extra}
+       FROM emargements e WHERE e.import_id IN (${placeholders})
        GROUP BY academie, label ORDER BY academie, label`
     )
-    .all(...ids) as { academie: string; label: string; inscrits: number; votants: number }[];
+    .all(...ids) as ({ academie: string; label: string; inscrits: number; votants: number } & DegreAdherentRaw)[];
 
   return academieRows.map((a) => ({
-    label: a.label,
-    inscrits: a.inscrits,
-    votants: a.votants,
-    taux: a.inscrits ? a.votants / a.inscrits : 0,
-    spelcs: spelcRows
-      .filter((s) => s.academie === a.label)
-      .map((s) => ({
-        label: s.label,
-        inscrits: s.inscrits,
-        votants: s.votants,
-        taux: s.inscrits ? s.votants / s.inscrits : 0,
-      })),
+    ...toParticipationRow(a.label, a.inscrits, a.votants, a),
+    spelcs: spelcRows.filter((s) => s.academie === a.label).map((s) => toParticipationRow(s.label, s.inscrits, s.votants, s)),
   }));
 }
 
@@ -352,17 +410,37 @@ export interface EtablissementRow {
   inscrits: number;
   votants: number;
   taux: number;
+  /** Parmi les électeurs de cet établissement reconnus comme adhérents (voir
+   * adherentExistsClause) : inscrits, votants et taux correspondant — permet
+   * de distinguer la participation de l'établissement dans son ensemble de
+   * celle des seuls adhérents du (ou des, en scope académique) Spelc. */
+  adherentsInscrits: number;
+  adherentsVotants: number;
+  adherentsTaux: number;
 }
 
 export function participationParEtablissement(filter: ScopeFilter): EtablissementRow[] {
   const ids = currentImportIds(filter.scope, effectiveAcademie(filter));
   if (ids.length === 0) return [];
   const { clause, params } = whereForScope(filter, ids);
+  const adherentExists = adherentExistsClause();
   const rows = db
     .prepare(
-      `SELECT COALESCE(affectation, 'Non renseigné') AS affectation, COUNT(*) AS inscrits, SUM(votant) AS votants
-       FROM emargements WHERE ${clause} GROUP BY affectation ORDER BY inscrits DESC`
+      `SELECT COALESCE(affectation, 'Non renseigné') AS affectation, COUNT(*) AS inscrits, SUM(votant) AS votants,
+              SUM(CASE WHEN ${adherentExists} THEN 1 ELSE 0 END) AS adherentsInscrits,
+              SUM(CASE WHEN ${adherentExists} THEN votant ELSE 0 END) AS adherentsVotants
+       FROM emargements e WHERE ${clause} GROUP BY affectation ORDER BY inscrits DESC`
     )
-    .all(...params) as { affectation: string; inscrits: number; votants: number }[];
-  return rows.map((r) => ({ ...r, taux: r.inscrits ? r.votants / r.inscrits : 0 }));
+    .all(...params) as {
+      affectation: string;
+      inscrits: number;
+      votants: number;
+      adherentsInscrits: number;
+      adherentsVotants: number;
+    }[];
+  return rows.map((r) => ({
+    ...r,
+    taux: r.inscrits ? r.votants / r.inscrits : 0,
+    adherentsTaux: r.adherentsInscrits ? r.adherentsVotants / r.adherentsInscrits : 0,
+  }));
 }
