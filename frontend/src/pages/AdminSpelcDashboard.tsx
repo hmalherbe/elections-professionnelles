@@ -559,6 +559,16 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
   const filteredTrackingRows =
     trackingTypeFilter === "all" ? trackingRows : trackingRows.filter((r) => r.type === trackingTypeFilter);
 
+  // Une ligne par jour ayant au moins un envoi (mail ou SMS), la plus
+  // récente en premier — même données que les deux courbes ci-dessus, en
+  // comptages exacts plutôt qu'à lire sur un graphique.
+  const dailyCounts = useMemo(() => {
+    const byDate = new Map<string, { mail: RelanceMail | null; sms: RelanceSms | null }>();
+    for (const m of mailRows) byDate.set(m.date, { mail: m, sms: byDate.get(m.date)?.sms ?? null });
+    for (const s of smsRows) byDate.set(s.date, { mail: byDate.get(s.date)?.mail ?? null, sms: s });
+    return [...byDate.entries()].sort((a, b) => b[0].localeCompare(a[0]));
+  }, [mailRows, smsRows]);
+
   async function checkTrackingNow() {
     setTrackingChecking(true);
     try {
@@ -1028,6 +1038,43 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
             </div>
           </Card>
         </div>
+      )}
+
+      {!relanceOnly && dailyCounts.length > 0 && (
+        <Card title="Comptages par journée">
+          <div className="max-h-96 overflow-auto">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-white">
+                <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-500">
+                  <th className="py-1.5 pr-2">Date</th>
+                  <th className="px-2 text-right">Mails envoyés</th>
+                  <th className="px-2 text-right">Mails erreurs</th>
+                  <th className="px-2 text-right">Mails lus</th>
+                  <th className="px-2 text-right">Mails cliqués</th>
+                  <th className="px-2 text-right">SMS envoyés</th>
+                  <th className="px-2 text-right">SMS erreurs</th>
+                  <th className="px-2 text-right">SMS délivrés</th>
+                  <th className="px-2 text-right">SMS rejetés</th>
+                </tr>
+              </thead>
+              <tbody>
+                {dailyCounts.map(([date, { mail, sms }]) => (
+                  <tr key={date} className="border-b border-slate-100">
+                    <td className="py-1.5 pr-2 font-medium text-slate-700">{date}</td>
+                    <td className="px-2 text-right">{mail?.total_envoye ?? "–"}</td>
+                    <td className="px-2 text-right">{mail?.erreurs_envoi ?? "–"}</td>
+                    <td className="px-2 text-right">{mail?.mails_lus ?? "–"}</td>
+                    <td className="px-2 text-right">{mail?.liens_clique ?? "–"}</td>
+                    <td className="px-2 text-right">{sms?.sms_envoyes ?? "–"}</td>
+                    <td className="px-2 text-right">{sms?.erreurs_envoi ?? "–"}</td>
+                    <td className="px-2 text-right">{sms?.sms_delivres ?? "–"}</td>
+                    <td className="px-2 text-right">{sms?.sms_rejetes ?? "–"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
       )}
 
       <Card
