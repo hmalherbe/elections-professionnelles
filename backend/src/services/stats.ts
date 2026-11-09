@@ -1,5 +1,5 @@
 import { db } from "../db/index.js";
-import { adherentExistsClause } from "./fuzzyMatching.js";
+import { adherentExistsClause, buildAdherentIdentitySets, electeurMatchesAdherent } from "./fuzzyMatching.js";
 
 export type Scope = "national" | "academique";
 
@@ -76,19 +76,17 @@ interface DegreAdherentRaw {
   adherentsVotantsCcma: number;
 }
 
-/** Fragment SQL (agrégats conditionnels) pour la ventilation CCMI/CCMA,
- * électeurs et adhérents — voir ParticipationRow. */
-function degreAdherentSelectFragment(adherentExists: string): string {
-  return `
-    SUM(CASE WHEN degre = '1D' THEN 1 ELSE 0 END) AS inscritsCcmi,
-    SUM(CASE WHEN degre = '1D' THEN votant ELSE 0 END) AS votantsCcmi,
-    SUM(CASE WHEN degre = '2D' THEN 1 ELSE 0 END) AS inscritsCcma,
-    SUM(CASE WHEN degre = '2D' THEN votant ELSE 0 END) AS votantsCcma,
-    SUM(CASE WHEN ${adherentExists} AND degre = '1D' THEN 1 ELSE 0 END) AS adherentsInscritsCcmi,
-    SUM(CASE WHEN ${adherentExists} AND degre = '1D' THEN votant ELSE 0 END) AS adherentsVotantsCcmi,
-    SUM(CASE WHEN ${adherentExists} AND degre = '2D' THEN 1 ELSE 0 END) AS adherentsInscritsCcma,
-    SUM(CASE WHEN ${adherentExists} AND degre = '2D' THEN votant ELSE 0 END) AS adherentsVotantsCcma
-  `;
+function emptyDegreAdherentRaw(): DegreAdherentRaw {
+  return {
+    inscritsCcmi: 0,
+    votantsCcmi: 0,
+    inscritsCcma: 0,
+    votantsCcma: 0,
+    adherentsInscritsCcmi: 0,
+    adherentsVotantsCcmi: 0,
+    adherentsInscritsCcma: 0,
+    adherentsVotantsCcma: 0,
+  };
 }
 
 function toParticipationRow(label: string, inscrits: number, votants: number, raw: DegreAdherentRaw): ParticipationRow {
@@ -113,35 +111,94 @@ function toParticipationRow(label: string, inscrits: number, votants: number, ra
   };
 }
 
-/** TCD participation par académie, en cascade par Spelc (scrutin national CCMMEP). */
+interface TreeAcc {
+  inscrits: number;
+  votants: number;
+  raw: DegreAdherentRaw;
+}
+
+function newTreeAcc(): TreeAcc {
+  return { inscrits: 0, votants: 0, raw: emptyDegreAdherentRaw() };
+}
+
+function bumpTreeAcc(acc: TreeAcc, degre: string, votant: number, isAdherent: boolean): void {
+  acc.inscrits++;
+  acc.votants += votant;
+  if (degre === "1D") {
+    acc.raw.inscritsCcmi++;
+    acc.raw.votantsCcmi += votant;
+    if (isAdherent) {
+      acc.raw.adherentsInscritsCcmi++;
+      acc.raw.adherentsVotantsCcmi += votant;
+    }
+  } else if (degre === "2D") {
+    acc.raw.inscritsCcma++;
+    acc.raw.votantsCcma += votant;
+    if (isAdherent) {
+      acc.raw.adherentsInscritsCcma++;
+      acc.raw.adherentsVotantsCcma += votant;
+    }
+  }
+}
+
+/**
+ * TCD participation par académie, en cascade par Spelc (scrutin national
+ * CCMMEP). Agrégation faite en JS, en une seule passe sur l'import courant
+ * (potentiellement des centaines de milliers de lignes) : une sous-requête
+ * SQL corrélée par ligne (voir buildAdherentIdentitySets) deviendrait ici
+ * bien trop lente, et comme le backend est mono-thread (Node), toute
+ * l'application reste bloquée pendant toute sa durée.
+ */
 export function participationTreeNational(): AcademieNode[] {
   const ids = currentImportIds("national", null);
   if (ids.length === 0) return [];
   const placeholders = idsPlaceholder(ids);
-  const adherentExists = adherentExistsClause();
-  const extra = degreAdherentSelectFragment(adherentExists);
 
-  const academieRows = db
+  const rows = db
     .prepare(
-      `SELECT COALESCE(academie, 'Non déterminé') AS label, COUNT(*) AS inscrits, SUM(votant) AS votants, ${extra}
-       FROM emargements e WHERE e.import_id IN (${placeholders})
-       GROUP BY label ORDER BY label`
+      `SELECT COALESCE(academie, 'Non déterminé') AS academie, COALESCE(spelc, 'Non déterminé') AS spelcLabel,
+              spelc, nom_norm AS nomNorm, prenom_norm AS prenomNorm, nom_naissance_norm AS nomNaissanceNorm,
+              degre, votant
+       FROM emargements WHERE import_id IN (${placeholders})`
     )
-    .all(...ids) as ({ label: string; inscrits: number; votants: number } & DegreAdherentRaw)[];
+    .all(...ids) as {
+      academie: string;
+      spelcLabel: string;
+      spelc: string | null;
+      nomNorm: string;
+      prenomNorm: string;
+      nomNaissanceNorm: string | null;
+      degre: string;
+      votant: number;
+    }[];
 
-  const spelcRows = db
-    .prepare(
-      `SELECT COALESCE(academie, 'Non déterminé') AS academie, COALESCE(spelc, 'Non déterminé') AS label,
-              COUNT(*) AS inscrits, SUM(votant) AS votants, ${extra}
-       FROM emargements e WHERE e.import_id IN (${placeholders})
-       GROUP BY academie, label ORDER BY academie, label`
-    )
-    .all(...ids) as ({ academie: string; label: string; inscrits: number; votants: number } & DegreAdherentRaw)[];
+  const adherentSets = buildAdherentIdentitySets();
 
-  return academieRows.map((a) => ({
-    ...toParticipationRow(a.label, a.inscrits, a.votants, a),
-    spelcs: spelcRows.filter((s) => s.academie === a.label).map((s) => toParticipationRow(s.label, s.inscrits, s.votants, s)),
-  }));
+  const academieAcc = new Map<string, TreeAcc>();
+  const spelcAccByAcademie = new Map<string, Map<string, TreeAcc>>();
+
+  for (const row of rows) {
+    const isAdherent = electeurMatchesAdherent(adherentSets, row.spelc, row.nomNorm, row.prenomNorm, row.nomNaissanceNorm);
+
+    const a = academieAcc.get(row.academie) ?? newTreeAcc();
+    bumpTreeAcc(a, row.degre, row.votant, isAdherent);
+    academieAcc.set(row.academie, a);
+
+    const spelcMap = spelcAccByAcademie.get(row.academie) ?? new Map<string, TreeAcc>();
+    const s = spelcMap.get(row.spelcLabel) ?? newTreeAcc();
+    bumpTreeAcc(s, row.degre, row.votant, isAdherent);
+    spelcMap.set(row.spelcLabel, s);
+    spelcAccByAcademie.set(row.academie, spelcMap);
+  }
+
+  return [...academieAcc.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([academie, acc]) => ({
+      ...toParticipationRow(academie, acc.inscrits, acc.votants, acc.raw),
+      spelcs: [...(spelcAccByAcademie.get(academie) ?? new Map<string, TreeAcc>()).entries()]
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([label, s]) => toParticipationRow(label, s.inscrits, s.votants, s.raw)),
+    }));
 }
 
 export interface ScopeFilter {
@@ -423,24 +480,50 @@ export function participationParEtablissement(filter: ScopeFilter): Etablissemen
   const ids = currentImportIds(filter.scope, effectiveAcademie(filter));
   if (ids.length === 0) return [];
   const { clause, params } = whereForScope(filter, ids);
-  const adherentExists = adherentExistsClause();
   const rows = db
     .prepare(
-      `SELECT COALESCE(affectation, 'Non renseigné') AS affectation, COUNT(*) AS inscrits, SUM(votant) AS votants,
-              SUM(CASE WHEN ${adherentExists} THEN 1 ELSE 0 END) AS adherentsInscrits,
-              SUM(CASE WHEN ${adherentExists} THEN votant ELSE 0 END) AS adherentsVotants
-       FROM emargements e WHERE ${clause} GROUP BY affectation ORDER BY inscrits DESC`
+      `SELECT COALESCE(affectation, 'Non renseigné') AS affectation, spelc, nom_norm AS nomNorm, prenom_norm AS prenomNorm,
+              nom_naissance_norm AS nomNaissanceNorm, votant
+       FROM emargements WHERE ${clause}`
     )
     .all(...params) as {
       affectation: string;
-      inscrits: number;
-      votants: number;
-      adherentsInscrits: number;
-      adherentsVotants: number;
+      spelc: string | null;
+      nomNorm: string;
+      prenomNorm: string;
+      nomNaissanceNorm: string | null;
+      votant: number;
     }[];
-  return rows.map((r) => ({
-    ...r,
-    taux: r.inscrits ? r.votants / r.inscrits : 0,
-    adherentsTaux: r.adherentsInscrits ? r.adherentsVotants / r.adherentsInscrits : 0,
-  }));
+
+  const adherentSets = buildAdherentIdentitySets();
+
+  interface Acc {
+    inscrits: number;
+    votants: number;
+    adherentsInscrits: number;
+    adherentsVotants: number;
+  }
+  const acc = new Map<string, Acc>();
+  for (const row of rows) {
+    const a = acc.get(row.affectation) ?? { inscrits: 0, votants: 0, adherentsInscrits: 0, adherentsVotants: 0 };
+    a.inscrits++;
+    a.votants += row.votant;
+    if (electeurMatchesAdherent(adherentSets, row.spelc, row.nomNorm, row.prenomNorm, row.nomNaissanceNorm)) {
+      a.adherentsInscrits++;
+      a.adherentsVotants += row.votant;
+    }
+    acc.set(row.affectation, a);
+  }
+
+  return [...acc.entries()]
+    .sort((a, b) => b[1].inscrits - a[1].inscrits)
+    .map(([affectation, a]) => ({
+      affectation,
+      inscrits: a.inscrits,
+      votants: a.votants,
+      taux: a.inscrits ? a.votants / a.inscrits : 0,
+      adherentsInscrits: a.adherentsInscrits,
+      adherentsVotants: a.adherentsVotants,
+      adherentsTaux: a.adherentsInscrits ? a.adherentsVotants / a.adherentsInscrits : 0,
+    }));
 }

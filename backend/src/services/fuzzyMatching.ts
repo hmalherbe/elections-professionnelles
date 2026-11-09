@@ -120,6 +120,69 @@ export function adherentExistsClause(): string {
 }
 
 /**
+ * Équivalent de adherentExistsClause(), mais calculé une fois en mémoire
+ * (un Set d'identités "nom_norm|prenom_norm" par Spelc) plutôt que par une
+ * sous-requête SQL corrélée réévaluée à chaque ligne — nécessaire pour les
+ * statistiques qui scannent TOUT l'import national (des centaines de
+ * milliers de lignes) : une sous-requête corrélée par ligne, répétée pour
+ * chacune des colonnes CCMI/CCMA (voir participationTreeNational), revient
+ * à potentiellement plus d'un million d'évaluations et devient visiblement
+ * lent (plusieurs minutes, tout le backend bloqué pendant ce temps — Node
+ * est mono-thread). adherentExistsClause() reste adaptée (et plus simple)
+ * pour une requête déjà filtrée sur un seul Spelc ou une seule académie
+ * (scrutinsTab, scrutinsByEtablissement), où le volume de lignes reste
+ * modeste.
+ */
+export function buildAdherentIdentitySets(): Map<string, Set<string>> {
+  const bySpelc = new Map<string, Set<string>>();
+  const add = (spelc: string | null, nomNorm: string, prenomNorm: string) => {
+    if (!spelc) return;
+    const set = bySpelc.get(spelc) ?? new Set<string>();
+    set.add(`${nomNorm}|${prenomNorm}`);
+    bySpelc.set(spelc, set);
+  };
+
+  const adherentRows = db.prepare("SELECT spelc, nom_norm, prenom_norm, nom_naissance_norm FROM adherents").all() as {
+    spelc: string;
+    nom_norm: string;
+    prenom_norm: string;
+    nom_naissance_norm: string | null;
+  }[];
+  for (const r of adherentRows) {
+    add(r.spelc, r.nom_norm, r.prenom_norm);
+    if (r.nom_naissance_norm && r.nom_naissance_norm !== r.nom_norm) add(r.spelc, r.nom_naissance_norm, r.prenom_norm);
+  }
+
+  const fuzzyRows = db
+    .prepare(
+      `SELECT a.spelc AS spelc, fm.candidate_nom_norm AS nomNorm, fm.candidate_prenom_norm AS prenomNorm
+       FROM adherent_fuzzy_matches fm INNER JOIN adherents a ON a.id = fm.adherent_id WHERE fm.status = 'valide'`
+    )
+    .all() as { spelc: string; nomNorm: string; prenomNorm: string }[];
+  for (const r of fuzzyRows) add(r.spelc, r.nomNorm, r.prenomNorm);
+
+  return bySpelc;
+}
+
+/** Un électeur (son Spelc, nom, prénom, nom de naissance déjà normalisés)
+ * a-t-il un adhérent correspondant, d'après les ensembles construits par
+ * buildAdherentIdentitySets() ? Même règle que adherentExistsClause(). */
+export function electeurMatchesAdherent(
+  adherentSets: Map<string, Set<string>>,
+  spelc: string | null,
+  nomNorm: string,
+  prenomNorm: string,
+  nomNaissanceNorm: string | null
+): boolean {
+  if (!spelc) return false;
+  const set = adherentSets.get(spelc);
+  if (!set) return false;
+  if (set.has(`${nomNorm}|${prenomNorm}`)) return true;
+  if (nomNaissanceNorm && nomNaissanceNorm !== nomNorm && set.has(`${nomNaissanceNorm}|${prenomNorm}`)) return true;
+  return false;
+}
+
+/**
  * Condition supplémentaire (à ajouter avec OR) à l'intérieur d'un LEFT JOIN
  * emargements AS <emargAlias> déjà joint sur l'adhérent aliasé "a" — étend
  * le rapprochement exact à tout rapprochement approximatif validé pour cet
