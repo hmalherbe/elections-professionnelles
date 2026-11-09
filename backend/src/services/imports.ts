@@ -73,7 +73,21 @@ export function runImport(raw: unknown, ctx: ImportContext): ImportResult {
   const degreCounts: Record<string, number> = {};
   let votants = 0;
 
+  // Import national (quotidien) : toujours cumulatif par nature (voir
+  // courbeCumulative) — seul le plus récent est jamais lu (currentImportIds
+  // ne retient que lui). Les précédents ne servent donc plus à rien une
+  // fois le nouveau inséré, mais restaient jusqu'ici indéfiniment (aucun
+  // bouton de suppression pour ce scope, contrairement aux imports
+  // académiques) : la table emargements grossit sans fin au fil des
+  // imports quotidiens, ralentissant chaque import suivant (4 index à
+  // maintenir sur une table toujours plus grosse). On les supprime donc
+  // avant d'insérer le nouveau (CASCADE supprime leurs émargements avec
+  // eux), dans la même transaction pour rester atomique.
+  const deletePreviousNational = db.prepare("DELETE FROM imports WHERE scope = 'national'");
+
   const tx = db.transaction((rows: RawEmargementItem[]) => {
+    if (ctx.scope === "national") deletePreviousNational.run();
+
     const importId = insertImport.run(
       ctx.scope,
       ctx.academie,
