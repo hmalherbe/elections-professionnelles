@@ -78,12 +78,32 @@ for (const spelc of spelcs) {
   if (onlySpelc) indetermineRows.push(...rows.filter((r) => r.degre === "INDETERMINE"));
 
   console.log(`${spelc.padEnd(28)} adhérents rapprochés (national) : ${rows.length.toString().padStart(4)}  1D=${d1}  2D=${d2}  INDETERMINE=${dInd}`);
+
+  // Pour comparaison : répartition par degré de TOUS les électeurs de ce
+  // Spelc (pas seulement les adhérents rapprochés) — distingue "la
+  // vocabulaire de corps ne classe quasiment jamais en 1D pour ce Spelc"
+  // (vrai pour tout le monde, pas spécifique aux adhérents) de "le 1D
+  // existe bien dans les électeurs, mais aucun adhérent n'y est rapproché"
+  // (problème de rapprochement, pas de vocabulaire).
+  if (onlySpelc) {
+    const allElecteurs = db
+      .prepare(`SELECT degre, corps FROM emargements WHERE import_id = ? AND spelc = ?`)
+      .all(nationalImportId, spelc) as { degre: string; corps: string | null }[];
+    const e1 = allElecteurs.filter((r) => r.degre === "1D").length;
+    const e2 = allElecteurs.filter((r) => r.degre === "2D").length;
+    const eInd = allElecteurs.filter((r) => r.degre === "INDETERMINE").length;
+    console.log(`${"".padEnd(28)} TOUS les électeurs de ce Spelc (national) : ${allElecteurs.length.toString().padStart(4)}  1D=${e1}  2D=${e2}  INDETERMINE=${eInd}`);
+
+    const corpsIndetermine = [...new Set(allElecteurs.filter((r) => r.degre === "INDETERMINE").map((r) => r.corps ?? "(vide)"))].sort();
+    console.log(`\nCorps distincts classés INDETERMINE parmi TOUS les électeurs de ${spelc} (${corpsIndetermine.length} valeur(s) distincte(s)) :`);
+    for (const c of corpsIndetermine) console.log(`  "${c}"`);
+  }
 }
 
-console.log(`\nTotal : 1D=${total1D}  2D=${total2D}  INDETERMINE=${totalIndetermine}`);
+console.log(`\nTotal (adhérents rapprochés) : 1D=${total1D}  2D=${total2D}  INDETERMINE=${totalIndetermine}`);
 
 if (onlySpelc && indetermineRows.length > 0) {
-  console.log(`\nDétail des cas INDETERMINE pour ${onlySpelc} (corps + établissement, tels que reçus à l'import national) :`);
+  console.log(`\nDétail des adhérents rapprochés classés INDETERMINE pour ${onlySpelc} (corps + établissement, tels que reçus à l'import national) :`);
   for (const r of indetermineRows) {
     console.log(`  ${r.nom} ${r.prenom}  corps="${r.corps ?? ""}"  établissement="${r.affectation ?? ""}"`);
   }
