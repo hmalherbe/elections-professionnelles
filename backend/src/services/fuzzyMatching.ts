@@ -47,15 +47,25 @@ function withinDistance(a: string, b: string, threshold: number): boolean {
   return dp[n] <= threshold;
 }
 
-/** Un nom normalisé, tiret traité comme un espace (ex. "SOUSSI-OUADA" /
- * "SOUSSI OUADA") — contrairement au prénom (voir prenomCompatible), ne
- * sert pas à une comparaison floue mais à élargir la correspondance EXACTE
- * elle-même (voir identityKeys/nomMatchClause) : une différence d'un seul
- * tiret entre le nom déclaré par le Spelc et celui du fichier CCMMEP ne
- * laisse aucune ambiguïté sur la personne, contrairement à une distance de
- * Levenshtein quelconque qui, elle, reste une simple suggestion à valider. */
+/** Un nom (ou prénom) normalisé, tiret traité comme un espace (ex.
+ * "SOUSSI-OUADA" / "SOUSSI OUADA", ou "ANNE-CHARLOTTE" / "ANNE CHARLOTTE")
+ * — ne sert pas à une comparaison floue mais à élargir la correspondance
+ * EXACTE elle-même (voir identityKeys/nomMatchClause/prenomEqualClause) :
+ * une différence d'un seul tiret entre ce qui est déclaré par le Spelc et
+ * le fichier CCMMEP ne laisse aucune ambiguïté sur la personne, contrairement
+ * à une distance de Levenshtein quelconque, qui elle reste une simple
+ * suggestion à valider (voir prenomCompatible pour le reste de la tolérance
+ * sur le prénom — prénoms composés, variante orthographique). */
 function collapseHyphens(nomNorm: string): string {
   return nomNorm.replace(/-/g, " ").replace(/\s+/g, " ").trim();
+}
+
+/** Fragment SQL : deux expressions normalisées sont-elles égales, tiret et
+ * espace confondus (voir collapseHyphens) ? Base de nomMatchClause() et de
+ * la comparaison du prénom dans adherentExistsClause()/
+ * adherentContactSelectFragment(). */
+function hyphenInsensitiveEqual(a: string, b: string): string {
+  return `(${a} = ${b} OR REPLACE(${a}, '-', ' ') = REPLACE(${b}, '-', ' '))`;
 }
 
 /** Mots d'un prénom normalisé, espace et tiret traités de façon identique
@@ -104,14 +114,21 @@ export function prenomCompatible(aPrenomNorm: string, ePrenomNorm: string, thres
  * et espace confondus, sans affecter l'égalité stricte déjà couverte.
  */
 function nomMatchClause(adAlias: string, eAlias: string): string {
-  const eq = (a: string, b: string) => `(${a} = ${b} OR REPLACE(${a}, '-', ' ') = REPLACE(${b}, '-', ' '))`;
   return `(
-    ${eq(`${adAlias}.nom_norm`, `${eAlias}.nom_norm`)}
-    OR (${eAlias}.nom_naissance_norm IS NOT NULL AND ${eq(`${adAlias}.nom_norm`, `${eAlias}.nom_naissance_norm`)})
-    OR (${adAlias}.nom_naissance_norm IS NOT NULL AND ${eq(`${adAlias}.nom_naissance_norm`, `${eAlias}.nom_norm`)})
+    ${hyphenInsensitiveEqual(`${adAlias}.nom_norm`, `${eAlias}.nom_norm`)}
+    OR (${eAlias}.nom_naissance_norm IS NOT NULL AND ${hyphenInsensitiveEqual(`${adAlias}.nom_norm`, `${eAlias}.nom_naissance_norm`)})
+    OR (${adAlias}.nom_naissance_norm IS NOT NULL AND ${hyphenInsensitiveEqual(`${adAlias}.nom_naissance_norm`, `${eAlias}.nom_norm`)})
     OR (${adAlias}.nom_naissance_norm IS NOT NULL AND ${eAlias}.nom_naissance_norm IS NOT NULL
-        AND ${eq(`${adAlias}.nom_naissance_norm`, `${eAlias}.nom_naissance_norm`)})
+        AND ${hyphenInsensitiveEqual(`${adAlias}.nom_naissance_norm`, `${eAlias}.nom_naissance_norm`)})
   )`;
+}
+
+/** Fragment SQL : le prénom de l'alias adhérent et celui de l'alias
+ * émargement sont-ils égaux, tiret et espace confondus (voir
+ * hyphenInsensitiveEqual) ? Même tolérance que nomMatchClause(), côté
+ * prénom — ex. adhérent "Anne-Charlotte" / électeur "Anne Charlotte". */
+function prenomEqualClause(adAlias: string, eAlias: string): string {
+  return hyphenInsensitiveEqual(`${adAlias}.prenom_norm`, `${eAlias}.prenom_norm`);
 }
 
 /**
@@ -123,7 +140,7 @@ export function adherentExistsClause(): string {
   return `(
     EXISTS (
       SELECT 1 FROM adherents ad
-      WHERE ad.spelc = e.spelc AND ${nomMatchClause("ad", "e")} AND ad.prenom_norm = e.prenom_norm
+      WHERE ad.spelc = e.spelc AND ${nomMatchClause("ad", "e")} AND ${prenomEqualClause("ad", "e")}
     )
     OR EXISTS (
       SELECT 1 FROM adherent_fuzzy_matches fm
@@ -146,13 +163,13 @@ export function adherentExistsClause(): string {
 export function adherentContactSelectFragment(e: string, alias: string): string {
   return `
     COALESCE(
-      (SELECT ad.mail FROM adherents ad WHERE ad.spelc = ${e}.spelc AND ${nomMatchClause("ad", e)} AND ad.prenom_norm = ${e}.prenom_norm LIMIT 1),
+      (SELECT ad.mail FROM adherents ad WHERE ad.spelc = ${e}.spelc AND ${nomMatchClause("ad", e)} AND ${prenomEqualClause("ad", e)} LIMIT 1),
       (SELECT ad2.mail FROM adherent_fuzzy_matches fm INNER JOIN adherents ad2 ON ad2.id = fm.adherent_id
        WHERE fm.status = 'valide' AND ad2.spelc = ${e}.spelc
          AND fm.candidate_nom_norm = ${e}.nom_norm AND fm.candidate_prenom_norm = ${e}.prenom_norm LIMIT 1)
     ) AS ${alias}Mail,
     COALESCE(
-      (SELECT ad.mobile FROM adherents ad WHERE ad.spelc = ${e}.spelc AND ${nomMatchClause("ad", e)} AND ad.prenom_norm = ${e}.prenom_norm LIMIT 1),
+      (SELECT ad.mobile FROM adherents ad WHERE ad.spelc = ${e}.spelc AND ${nomMatchClause("ad", e)} AND ${prenomEqualClause("ad", e)} LIMIT 1),
       (SELECT ad2.mobile FROM adherent_fuzzy_matches fm INNER JOIN adherents ad2 ON ad2.id = fm.adherent_id
        WHERE fm.status = 'valide' AND ad2.spelc = ${e}.spelc
          AND fm.candidate_nom_norm = ${e}.nom_norm AND fm.candidate_prenom_norm = ${e}.prenom_norm LIMIT 1)
@@ -179,8 +196,11 @@ export function buildAdherentIdentitySets(): Map<string, Set<string>> {
   const add = (spelc: string | null, nomNorm: string, prenomNorm: string) => {
     if (!spelc) return;
     const set = bySpelc.get(spelc) ?? new Set<string>();
-    set.add(`${nomNorm}|${prenomNorm}`);
-    set.add(`${collapseHyphens(nomNorm)}|${prenomNorm}`);
+    for (const nom of [nomNorm, collapseHyphens(nomNorm)]) {
+      for (const prenom of [prenomNorm, collapseHyphens(prenomNorm)]) {
+        set.add(`${nom}|${prenom}`);
+      }
+    }
     bySpelc.set(spelc, set);
   };
 
@@ -219,13 +239,12 @@ export function electeurMatchesAdherent(
   if (!spelc) return false;
   const set = adherentSets.get(spelc);
   if (!set) return false;
-  if (set.has(`${nomNorm}|${prenomNorm}`) || set.has(`${collapseHyphens(nomNorm)}|${prenomNorm}`)) return true;
-  if (
-    nomNaissanceNorm &&
-    nomNaissanceNorm !== nomNorm &&
-    (set.has(`${nomNaissanceNorm}|${prenomNorm}`) || set.has(`${collapseHyphens(nomNaissanceNorm)}|${prenomNorm}`))
-  )
-    return true;
+  const prenoms = [prenomNorm, collapseHyphens(prenomNorm)];
+  const noms = [nomNorm, collapseHyphens(nomNorm)];
+  if (nomNaissanceNorm && nomNaissanceNorm !== nomNorm) {
+    noms.push(nomNaissanceNorm, collapseHyphens(nomNaissanceNorm));
+  }
+  for (const nom of noms) for (const prenom of prenoms) if (set.has(`${nom}|${prenom}`)) return true;
   return false;
 }
 
@@ -268,7 +287,10 @@ export function identityKeys(nomNorm: string, nomNaissanceNorm: string | null, p
     noms.add(nomNaissanceNorm);
     noms.add(collapseHyphens(nomNaissanceNorm));
   }
-  return [...noms].map((n) => `${n}|${prenomNorm}`);
+  const prenoms = new Set<string>([prenomNorm, collapseHyphens(prenomNorm)]);
+  const keys: string[] = [];
+  for (const nom of noms) for (const prenom of prenoms) keys.push(`${nom}|${prenom}`);
+  return keys;
 }
 
 /** Un adhérent (nom ET, si renseigné, nom de naissance) a-t-il une

@@ -48,7 +48,7 @@ describe("prenomCompatible", () => {
   });
 });
 
-describe("identityKeys — tolérance tiret/espace sur le nom (rapprochement exact)", () => {
+describe("identityKeys — tolérance tiret/espace sur le nom ET le prénom (rapprochement exact)", () => {
   it("un nom à tiret et sa variante à espace produisent au moins une clé commune", () => {
     const adherent = identityKeys(n("Soussi-Ouada"), null, n("Imen"));
     const electeur = identityKeys(n("Soussi Ouada"), null, n("Imen"));
@@ -71,6 +71,24 @@ describe("identityKeys — tolérance tiret/espace sur le nom (rapprochement exa
     const adherent = identityKeys(n("Dupont"), n("Soussi-Ouada"), n("Imen"));
     const electeur = identityKeys(n("Dupont"), n("Soussi Ouada"), n("Imen"));
     expect(adherent.some((k) => electeur.includes(k))).toBe(true);
+  });
+
+  it("un prénom à tiret et sa variante à espace produisent au moins une clé commune (cas Anne-Charlotte / Anne Charlotte)", () => {
+    const adherent = identityKeys(n("Unzueta"), null, n("Anne-Charlotte"));
+    const electeur = identityKeys(n("Unzueta"), null, n("Anne Charlotte"));
+    expect(adherent.some((k) => electeur.includes(k))).toBe(true);
+  });
+
+  it("couvre aussi un tiret simultané sur le nom et le prénom (cas Marie-Cécile Verany / Marie Cécile Verany)", () => {
+    const adherent = identityKeys(n("Verany"), null, n("Marie-Cécile"));
+    const electeur = identityKeys(n("Verany"), null, n("Marie Cécile"));
+    expect(adherent.some((k) => electeur.includes(k))).toBe(true);
+  });
+
+  it("ne rapproche pas deux prénoms différents au-delà du seul tiret/espace", () => {
+    const a = identityKeys(n("Martin"), null, n("Marie-Claire"));
+    const b = identityKeys(n("Martin"), null, n("Marie Laure"));
+    expect(a.some((k) => b.includes(k))).toBe(false);
   });
 });
 
