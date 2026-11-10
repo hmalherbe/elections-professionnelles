@@ -111,7 +111,7 @@ function AdherentsPanel({ spelc }: { spelc: string }) {
       <FileUploadCard
         title="Import des adhérents"
         subtitle="Fichier CSV ou Excel, 1re ligne = en-têtes. Remplace entièrement la liste précédente pour ce Spelc. Le nom de naissance est facultatif : il sert uniquement au rapprochement approximatif si le nom actuel ne suffit pas à retrouver la personne dans les émargements (ex. nom d'épouse)."
-        expectedColumns={["Nom", "Prénom", "Mail", "Numéro de mobile", "Nom de naissance (facultatif)"]}
+        expectedColumns={["Nom", "Prénom", "Mail", "Numéro de mobile", "Nom de naissance"]}
         accept=".csv,.xlsx"
         onUpload={async (file) => {
           const fd = new FormData();
