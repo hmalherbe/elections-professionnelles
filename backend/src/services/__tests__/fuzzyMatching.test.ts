@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { prenomCompatible } from "../fuzzyMatching.js";
+import { electeurMatchesAdherent, identityKeys, prenomCompatible } from "../fuzzyMatching.js";
 import { normalizeName } from "../../lib/normalize.js";
 
 const n = normalizeName;
@@ -45,5 +45,45 @@ describe("prenomCompatible", () => {
   it("ignore les mots d'une seule lettre (initiales) pour éviter les faux positifs", () => {
     // "A" ne doit pas suffire à rapprocher deux prénoms composés sans autre mot commun.
     expect(prenomCompatible(n("A"), n("Amandine Blandine"), 1)).toBe(false);
+  });
+});
+
+describe("identityKeys — tolérance tiret/espace sur le nom (rapprochement exact)", () => {
+  it("un nom à tiret et sa variante à espace produisent au moins une clé commune", () => {
+    const adherent = identityKeys(n("Soussi-Ouada"), null, n("Imen"));
+    const electeur = identityKeys(n("Soussi Ouada"), null, n("Imen"));
+    expect(adherent.some((k) => electeur.includes(k))).toBe(true);
+  });
+
+  it("reste symétrique (tiret côté adhérent ou côté électeur, peu importe)", () => {
+    const a = identityKeys(n("Jean-Pierre"), null, n("Paul"));
+    const b = identityKeys(n("Jean Pierre"), null, n("Paul"));
+    expect(a.some((k) => b.includes(k))).toBe(true);
+  });
+
+  it("ne rapproche pas deux noms différents au-delà du seul tiret/espace", () => {
+    const a = identityKeys(n("Martin"), null, n("Paul"));
+    const b = identityKeys(n("Martine"), null, n("Paul"));
+    expect(a.some((k) => b.includes(k))).toBe(false);
+  });
+
+  it("fonctionne aussi via le nom de naissance", () => {
+    const adherent = identityKeys(n("Dupont"), n("Soussi-Ouada"), n("Imen"));
+    const electeur = identityKeys(n("Dupont"), n("Soussi Ouada"), n("Imen"));
+    expect(adherent.some((k) => electeur.includes(k))).toBe(true);
+  });
+});
+
+describe("electeurMatchesAdherent — tolérance tiret/espace sur le nom", () => {
+  it("rapproche un électeur à tiret avec un adhérent à espace (et inversement)", () => {
+    const sets = new Map<string, Set<string>>();
+    const add = (spelc: string, nomNorm: string, prenomNorm: string) => {
+      const set = sets.get(spelc) ?? new Set<string>();
+      set.add(`${nomNorm}|${prenomNorm}`);
+      set.add(`${nomNorm.replace(/-/g, " ")}|${prenomNorm}`);
+      sets.set(spelc, set);
+    };
+    add("Spelc Test", n("Soussi Ouada"), n("Imen"));
+    expect(electeurMatchesAdherent(sets, "Spelc Test", n("Soussi-Ouada"), n("Imen"), null)).toBe(true);
   });
 });

@@ -47,6 +47,17 @@ function withinDistance(a: string, b: string, threshold: number): boolean {
   return dp[n] <= threshold;
 }
 
+/** Un nom normalisé, tiret traité comme un espace (ex. "SOUSSI-OUADA" /
+ * "SOUSSI OUADA") — contrairement au prénom (voir prenomCompatible), ne
+ * sert pas à une comparaison floue mais à élargir la correspondance EXACTE
+ * elle-même (voir identityKeys/nomMatchClause) : une différence d'un seul
+ * tiret entre le nom déclaré par le Spelc et celui du fichier CCMMEP ne
+ * laisse aucune ambiguïté sur la personne, contrairement à une distance de
+ * Levenshtein quelconque qui, elle, reste une simple suggestion à valider. */
+function collapseHyphens(nomNorm: string): string {
+  return nomNorm.replace(/-/g, " ").replace(/\s+/g, " ").trim();
+}
+
 /** Mots d'un prénom normalisé, espace et tiret traités de façon identique
  * (ex. "Thi-Hoang-Liên" et "Thi Hoang Lien" donnent les mêmes mots) — un
  * mot d'une seule lettre est ignoré (trop permissif en comparaison floue,
@@ -87,15 +98,19 @@ export function prenomCompatible(aPrenomNorm: string, ePrenomNorm: string, thres
  * de naissance) se recoupent-ils sur au moins une des quatre combinaisons ?
  * Symétrique : un nom d'usage différent du nom de naissance existe des deux
  * côtés (adhérent déclaré par son Spelc, électeur du fichier CCMMEP), et
- * l'un ou l'autre peut porter la correspondance.
+ * l'un ou l'autre peut porter la correspondance. Chaque combinaison tolère
+ * aussi un tiret à la place d'un espace, ou l'inverse (voir
+ * collapseHyphens) : REPLACE(..., '-', ' ') compare les deux chaînes tiret
+ * et espace confondus, sans affecter l'égalité stricte déjà couverte.
  */
 function nomMatchClause(adAlias: string, eAlias: string): string {
+  const eq = (a: string, b: string) => `(${a} = ${b} OR REPLACE(${a}, '-', ' ') = REPLACE(${b}, '-', ' '))`;
   return `(
-    ${adAlias}.nom_norm = ${eAlias}.nom_norm
-    OR (${eAlias}.nom_naissance_norm IS NOT NULL AND ${adAlias}.nom_norm = ${eAlias}.nom_naissance_norm)
-    OR (${adAlias}.nom_naissance_norm IS NOT NULL AND ${adAlias}.nom_naissance_norm = ${eAlias}.nom_norm)
+    ${eq(`${adAlias}.nom_norm`, `${eAlias}.nom_norm`)}
+    OR (${eAlias}.nom_naissance_norm IS NOT NULL AND ${eq(`${adAlias}.nom_norm`, `${eAlias}.nom_naissance_norm`)})
+    OR (${adAlias}.nom_naissance_norm IS NOT NULL AND ${eq(`${adAlias}.nom_naissance_norm`, `${eAlias}.nom_norm`)})
     OR (${adAlias}.nom_naissance_norm IS NOT NULL AND ${eAlias}.nom_naissance_norm IS NOT NULL
-        AND ${adAlias}.nom_naissance_norm = ${eAlias}.nom_naissance_norm)
+        AND ${eq(`${adAlias}.nom_naissance_norm`, `${eAlias}.nom_naissance_norm`)})
   )`;
 }
 
@@ -165,6 +180,7 @@ export function buildAdherentIdentitySets(): Map<string, Set<string>> {
     if (!spelc) return;
     const set = bySpelc.get(spelc) ?? new Set<string>();
     set.add(`${nomNorm}|${prenomNorm}`);
+    set.add(`${collapseHyphens(nomNorm)}|${prenomNorm}`);
     bySpelc.set(spelc, set);
   };
 
@@ -203,8 +219,13 @@ export function electeurMatchesAdherent(
   if (!spelc) return false;
   const set = adherentSets.get(spelc);
   if (!set) return false;
-  if (set.has(`${nomNorm}|${prenomNorm}`)) return true;
-  if (nomNaissanceNorm && nomNaissanceNorm !== nomNorm && set.has(`${nomNaissanceNorm}|${prenomNorm}`)) return true;
+  if (set.has(`${nomNorm}|${prenomNorm}`) || set.has(`${collapseHyphens(nomNorm)}|${prenomNorm}`)) return true;
+  if (
+    nomNaissanceNorm &&
+    nomNaissanceNorm !== nomNorm &&
+    (set.has(`${nomNaissanceNorm}|${prenomNorm}`) || set.has(`${collapseHyphens(nomNaissanceNorm)}|${prenomNorm}`))
+  )
+    return true;
   return false;
 }
 
@@ -237,13 +258,17 @@ interface EmargementIdentity {
   nom_naissance_norm: string | null;
 }
 
-/** Les deux (ou une seule, si pas de nom de naissance) clés "nom|prénom"
- * d'une identité, pour construire ou interroger un set d'identités en
+/** Les clés "nom|prénom" d'une identité (nom d'usage, nom de naissance s'il
+ * diffère, et pour chacun la variante tiret/espace confondus — voir
+ * collapseHyphens), pour construire ou interroger un set d'identités en
  * tenant compte du nom de naissance de part et d'autre. */
-function identityKeys(nomNorm: string, nomNaissanceNorm: string | null, prenomNorm: string): string[] {
-  const keys = [`${nomNorm}|${prenomNorm}`];
-  if (nomNaissanceNorm && nomNaissanceNorm !== nomNorm) keys.push(`${nomNaissanceNorm}|${prenomNorm}`);
-  return keys;
+export function identityKeys(nomNorm: string, nomNaissanceNorm: string | null, prenomNorm: string): string[] {
+  const noms = new Set<string>([nomNorm, collapseHyphens(nomNorm)]);
+  if (nomNaissanceNorm && nomNaissanceNorm !== nomNorm) {
+    noms.add(nomNaissanceNorm);
+    noms.add(collapseHyphens(nomNaissanceNorm));
+  }
+  return [...noms].map((n) => `${n}|${prenomNorm}`);
 }
 
 /** Un adhérent (nom ET, si renseigné, nom de naissance) a-t-il une

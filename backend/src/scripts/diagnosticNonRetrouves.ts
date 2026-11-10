@@ -20,7 +20,7 @@
  */
 import { db, migrate } from "../db/index.js";
 import { currentImportIds } from "../services/stats.js";
-import { getFuzzyMatchThreshold, prenomCompatible } from "../services/fuzzyMatching.js";
+import { getFuzzyMatchThreshold, identityKeys, prenomCompatible } from "../services/fuzzyMatching.js";
 
 migrate();
 
@@ -81,12 +81,6 @@ function nomsCompatibles(
     (Boolean(aNomNaissanceNorm) && cmp(aNomNaissanceNorm!, eNomNorm)) ||
     (Boolean(aNomNaissanceNorm) && Boolean(eNomNaissanceNorm) && cmp(aNomNaissanceNorm!, eNomNaissanceNorm!))
   );
-}
-
-function identityKeys(nomNorm: string, nomNaissanceNorm: string | null, prenomNorm: string): string[] {
-  const keys = [`${nomNorm}|${prenomNorm}`];
-  if (nomNaissanceNorm && nomNaissanceNorm !== nomNorm) keys.push(`${nomNaissanceNorm}|${prenomNorm}`);
-  return keys;
 }
 
 let totalNonRetrouves = 0;
