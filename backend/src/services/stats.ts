@@ -1,5 +1,10 @@
 import { db } from "../db/index.js";
-import { adherentExistsClause, buildAdherentIdentitySets, electeurMatchesAdherent } from "./fuzzyMatching.js";
+import {
+  adherentContactSelectFragment,
+  adherentExistsClause,
+  buildAdherentIdentitySets,
+  electeurMatchesAdherent,
+} from "./fuzzyMatching.js";
 
 export type Scope = "national" | "academique";
 
@@ -437,7 +442,11 @@ export function scrutinsByEtablissement(filter: ScrutinsFilter): ScrutinsByEtabl
     .prepare(
       `SELECT e.nom, e.prenom, COALESCE(e.affectation, 'Non renseigné') AS affectation, e.scrutin_type AS scrutinType,
               e.votant, e.date_emargement AS dateEmargement, e.spelc, e.academie, e.degre
-              ${showAdherentStatus ? `, CASE WHEN ${adherentExists} THEN 1 ELSE 0 END AS isAdherent` : ""}
+              ${
+                showAdherentStatus
+                  ? `, CASE WHEN ${adherentExists} THEN 1 ELSE 0 END AS isAdherent, ${adherentContactSelectFragment("e", "adherent")}`
+                  : ""
+              }
        FROM emargements e WHERE ${where}`
     )
     .all(...params) as (Record<string, unknown> & { nom: string; prenom: string; affectation: string })[];

@@ -120,6 +120,32 @@ export function adherentExistsClause(): string {
 }
 
 /**
+ * Fragment SQL : mail et mobile de l'adhérent correspondant à l'électeur
+ * (alias "e"), s'il y en a un — même règle de correspondance que
+ * adherentExistsClause() (exact d'abord, rapprochement approximatif validé
+ * en repli), mais renvoie la valeur plutôt qu'un simple booléen. Utilisé
+ * pour l'export Excel de l'onglet Scrutins (coordonnées de l'adhérent),
+ * où le périmètre est déjà réduit à un seul Spelc — pas adapté à un scan
+ * à l'échelle nationale (voir buildAdherentIdentitySets pour ce cas).
+ */
+export function adherentContactSelectFragment(e: string, alias: string): string {
+  return `
+    COALESCE(
+      (SELECT ad.mail FROM adherents ad WHERE ad.spelc = ${e}.spelc AND ${nomMatchClause("ad", e)} AND ad.prenom_norm = ${e}.prenom_norm LIMIT 1),
+      (SELECT ad2.mail FROM adherent_fuzzy_matches fm INNER JOIN adherents ad2 ON ad2.id = fm.adherent_id
+       WHERE fm.status = 'valide' AND ad2.spelc = ${e}.spelc
+         AND fm.candidate_nom_norm = ${e}.nom_norm AND fm.candidate_prenom_norm = ${e}.prenom_norm LIMIT 1)
+    ) AS ${alias}Mail,
+    COALESCE(
+      (SELECT ad.mobile FROM adherents ad WHERE ad.spelc = ${e}.spelc AND ${nomMatchClause("ad", e)} AND ad.prenom_norm = ${e}.prenom_norm LIMIT 1),
+      (SELECT ad2.mobile FROM adherent_fuzzy_matches fm INNER JOIN adherents ad2 ON ad2.id = fm.adherent_id
+       WHERE fm.status = 'valide' AND ad2.spelc = ${e}.spelc
+         AND fm.candidate_nom_norm = ${e}.nom_norm AND fm.candidate_prenom_norm = ${e}.prenom_norm LIMIT 1)
+    ) AS ${alias}Mobile
+  `;
+}
+
+/**
  * Équivalent de adherentExistsClause(), mais calculé une fois en mémoire
  * (un Set d'identités "nom_norm|prenom_norm" par Spelc) plutôt que par une
  * sous-requête SQL corrélée réévaluée à chaque ligne — nécessaire pour les

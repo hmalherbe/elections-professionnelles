@@ -19,7 +19,15 @@ export function buildScrutinsByEtablissementWorkbook(
     views: [{ state: "frozen", ySplit: 1 }],
   });
 
-  const headers = ["Établissement", "Nom", "Prénom", "Scrutin", "Statut", ...(showAdherentColumn ? ["Adhérent"] : []), "Émargement"];
+  const headers = [
+    "Établissement",
+    "Nom",
+    "Prénom",
+    "Scrutin",
+    "Statut",
+    ...(showAdherentColumn ? ["Adhérent", "Mail (adhérent)", "Mobile (adhérent)"] : []),
+    "Émargement",
+  ];
   const headerRow = sheet.addRow(headers);
   headerRow.font = { name: "Arial", bold: true };
   headerRow.eachCell((cell) => {
@@ -32,7 +40,7 @@ export function buildScrutinsByEtablissementWorkbook(
     { width: 18 },
     { width: 16 },
     { width: 14 },
-    ...(showAdherentColumn ? [{ width: 12 }] : []),
+    ...(showAdherentColumn ? [{ width: 12 }, { width: 28 }, { width: 16 }] : []),
     { width: 20 },
   ];
 
@@ -49,6 +57,8 @@ export function buildScrutinsByEtablissementWorkbook(
         votant: number;
         dateEmargement: string | null;
         isAdherent?: number;
+        adherentMail?: string | null;
+        adherentMobile?: string | null;
       };
       const values = [
         "",
@@ -56,7 +66,9 @@ export function buildScrutinsByEtablissementWorkbook(
         row.prenom,
         row.scrutinType ?? "Non défini",
         row.votant ? "Votant" : "Non votant",
-        ...(showAdherentColumn ? [row.isAdherent ? "Adhérent" : "Non adhérent"] : []),
+        ...(showAdherentColumn
+          ? [row.isAdherent ? "Adhérent" : "Non adhérent", row.adherentMail ?? "", row.adherentMobile ?? ""]
+          : []),
         row.dateEmargement ? new Date(row.dateEmargement).toLocaleString("fr-FR") : "",
       ];
       const detailRow = sheet.addRow(values);
