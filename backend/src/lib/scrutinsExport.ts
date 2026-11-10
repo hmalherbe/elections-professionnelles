@@ -1,5 +1,5 @@
 import ExcelJS from "exceljs";
-import type { EtablissementRow, ScrutinsByEtablissementResult } from "../services/stats.js";
+import type { AcademieNode, EtablissementRow, ScrutinsByEtablissementResult } from "../services/stats.js";
 
 /**
  * Construit le classeur Excel du détail par établissement (bouton "Export
@@ -113,6 +113,88 @@ export function buildEtablissementsWorkbook(rows: EtablissementRow[]): ExcelJS.W
     row.font = { name: "Arial" };
     row.getCell(4).numFmt = "0.0%";
     row.getCell(7).numFmt = "0.0%";
+  }
+
+  return wb;
+}
+
+/**
+ * Classeur Excel du TCD "Participation par académie" de la Vue nationale
+ * (bouton "Export Excel" de cet onglet) : une ligne par académie (niveau
+ * 0, en gras), puis une ligne par Spelc de cette académie (niveau 1,
+ * repliable via le plan Excel natif — "+"/"-" dans la marge), conservant
+ * la même hiérarchie académie -> Spelc que le tableau de l'application
+ * (voir services/stats.ts#participationTreeNational).
+ */
+export function buildParticipationTreeWorkbook(tree: AcademieNode[]): ExcelJS.Workbook {
+  const wb = new ExcelJS.Workbook();
+  const sheet = wb.addWorksheet("Participation par académie", {
+    properties: { outlineLevelRow: 1, outlineProperties: { summaryBelow: false, summaryRight: false } },
+    views: [{ state: "frozen", ySplit: 1 }],
+  });
+
+  const headers = [
+    "Académie / Spelc",
+    "Inscrits",
+    "Votants",
+    "Taux de participation",
+    "Taux CCMI (1er degré)",
+    "Taux CCMA (2nd degré)",
+    "Taux adhérents CCMI",
+    "Taux adhérents CCMA",
+  ];
+  const headerRow = sheet.addRow(headers);
+  headerRow.font = { name: "Arial", bold: true };
+  headerRow.eachCell((cell) => {
+    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE2E8F0" } };
+  });
+  sheet.columns = [
+    { width: 30 },
+    { width: 12 },
+    { width: 12 },
+    { width: 18 },
+    { width: 18 },
+    { width: 18 },
+    { width: 18 },
+    { width: 18 },
+  ];
+
+  const percentCols = [4, 5, 6, 7, 8];
+  const addDataRow = (
+    label: string,
+    row: Pick<
+      AcademieNode,
+      | "inscrits"
+      | "votants"
+      | "taux"
+      | "tauxCcmi"
+      | "tauxCcma"
+      | "adherentsTauxCcmi"
+      | "adherentsTauxCcma"
+    >,
+    outlineLevel: 0 | 1,
+    bold: boolean
+  ) => {
+    const sheetRow = sheet.addRow([
+      label,
+      row.inscrits,
+      row.votants,
+      row.taux,
+      row.tauxCcmi,
+      row.tauxCcma,
+      row.adherentsTauxCcmi,
+      row.adherentsTauxCcma,
+    ]);
+    sheetRow.font = { name: "Arial", bold };
+    sheetRow.outlineLevel = outlineLevel;
+    for (const col of percentCols) sheetRow.getCell(col).numFmt = "0.0%";
+  };
+
+  for (const academie of tree) {
+    addDataRow(academie.label, academie, 0, true);
+    for (const spelc of academie.spelcs) {
+      addDataRow(`    ${spelc.label}`, spelc, 1, false);
+    }
   }
 
   return wb;

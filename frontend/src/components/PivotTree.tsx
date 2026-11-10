@@ -1,5 +1,6 @@
 import { Fragment, useState } from "react";
 import { Card } from "./Card";
+import { api } from "../lib/api";
 import { formatPercent } from "../lib/colors";
 import type { AcademieNode, ParticipationRow } from "../lib/types";
 
@@ -45,6 +46,7 @@ export function PivotTree({ tree }: { tree: AcademieNode[] }) {
   const [open, setOpen] = useState<Set<string>>(new Set());
   const [sortKey, setSortKey] = useState<SortKey>("label");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [exporting, setExporting] = useState(false);
 
   function toggle(label: string) {
     setOpen((prev) => {
@@ -53,6 +55,12 @@ export function PivotTree({ tree }: { tree: AcademieNode[] }) {
       else next.add(label);
       return next;
     });
+  }
+
+  const allOpen = tree.length > 0 && tree.every((n) => open.has(n.label));
+
+  function toggleAll() {
+    setOpen(allOpen ? new Set() : new Set(tree.map((n) => n.label)));
   }
 
   function toggleSort(key: SortKey) {
@@ -64,10 +72,41 @@ export function PivotTree({ tree }: { tree: AcademieNode[] }) {
     }
   }
 
+  async function exportExcel() {
+    setExporting(true);
+    try {
+      await api.download("/stats/participation-tree/export", "participation-par-academie.xlsx");
+    } finally {
+      setExporting(false);
+    }
+  }
+
   const sortedTree = sortNodes(tree, sortKey, sortDir);
 
   return (
-    <Card title="Participation par académie (cascade par Spelc)">
+    <Card
+      title="Participation par académie (cascade par Spelc)"
+      action={
+        <div className="flex gap-2">
+          <button
+            type="button"
+            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 disabled:opacity-60"
+            disabled={tree.length === 0}
+            onClick={toggleAll}
+          >
+            {allOpen ? "Plier tout" : "Déplier tout"}
+          </button>
+          <button
+            type="button"
+            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 disabled:opacity-60"
+            disabled={exporting || tree.length === 0}
+            onClick={exportExcel}
+          >
+            {exporting ? "Export…" : "Export Excel"}
+          </button>
+        </div>
+      }
+    >
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>

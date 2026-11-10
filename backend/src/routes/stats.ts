@@ -10,7 +10,11 @@ import {
   scrutinsTab,
   type Scope,
 } from "../services/stats.js";
-import { buildEtablissementsWorkbook, buildScrutinsByEtablissementWorkbook } from "../lib/scrutinsExport.js";
+import {
+  buildEtablissementsWorkbook,
+  buildParticipationTreeWorkbook,
+  buildScrutinsByEtablissementWorkbook,
+} from "../lib/scrutinsExport.js";
 
 const router = Router();
 router.use(requireAuth);
@@ -53,6 +57,24 @@ router.get("/participation-tree", (req, res) => {
     return;
   }
   res.json({ tree: participationTreeNational() });
+});
+
+/**
+ * Export Excel du TCD "Participation par académie" de la Vue nationale
+ * (bouton "Export Excel" de cet onglet) — mêmes droits que
+ * /participation-tree, voir lib/scrutinsExport.ts.
+ */
+router.get("/participation-tree/export", async (req, res) => {
+  if (req.user!.role !== "admin_general") {
+    res.status(403).json({ error: "Réservé à l'admin général." });
+    return;
+  }
+  const wb = buildParticipationTreeWorkbook(participationTreeNational());
+
+  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  res.setHeader("Content-Disposition", `attachment; filename="participation-par-academie.xlsx"`);
+  await wb.xlsx.write(res);
+  res.end();
 });
 
 router.get("/camembert", (req, res) => {
