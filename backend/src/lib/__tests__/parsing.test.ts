@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { classifyDegre } from "../degre.js";
-import { extractDepartement, extractDepartementFromRne } from "../departement.js";
+import { extractDepartement, extractDepartementFromCodePostal, extractDepartementFromRne } from "../departement.js";
 import { parseDateEmargement } from "../dateEmargement.js";
 
 describe("classifyDegre", () => {
@@ -92,6 +92,29 @@ describe("extractDepartementFromRne", () => {
     expect(extractDepartementFromRne("751234A")).toBeNull();
     expect(extractDepartementFromRne("0751234")).toBeNull();
     expect(extractDepartementFromRne("075123AB")).toBeNull();
+  });
+});
+
+describe("extractDepartementFromCodePostal", () => {
+  it("dérive un département métropolitain d'un code postal déjà isolé", () => {
+    expect(extractDepartementFromCodePostal("30100")).toBe("30");
+    expect(extractDepartementFromCodePostal("06500")).toBe("06");
+  });
+
+  it("dérive un département d'outre-mer (3 chiffres)", () => {
+    expect(extractDepartementFromCodePostal("97404")).toBe("974");
+  });
+
+  it("reconstitue le zéro initial perdu sur une valeur numérique à 4 chiffres", () => {
+    expect(extractDepartementFromCodePostal(1500)).toBe("01");
+    expect(extractDepartementFromCodePostal("6130")).toBe("06");
+  });
+
+  it("retourne null pour une valeur absente ou non reconnue", () => {
+    expect(extractDepartementFromCodePostal(null)).toBeNull();
+    expect(extractDepartementFromCodePostal(undefined)).toBeNull();
+    expect(extractDepartementFromCodePostal("")).toBeNull();
+    expect(extractDepartementFromCodePostal("ABCDE")).toBeNull();
   });
 });
 

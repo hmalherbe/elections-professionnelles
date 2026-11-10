@@ -4,7 +4,7 @@ import {
   parseEmargementsJson,
   type RawEmargementItem,
 } from "../parsers/emargements.js";
-import { extractDepartement, extractDepartementFromRne } from "../lib/departement.js";
+import { extractDepartement, extractDepartementFromCodePostal, extractDepartementFromRne } from "../lib/departement.js";
 import { lookupDepartement } from "./reference.js";
 import type { Degre } from "../lib/degre.js";
 import dayjs from "dayjs";
@@ -36,10 +36,11 @@ export function getAcademieScrutins(academie: string | null): { type1d: string |
 
 /**
  * Vérifie que le premier électeur du fichier correspond bien à l'académie
- * visée par cet import académique, via le code postal de son champ
- * "affectation" (même résolution département -> académie qu'à l'import
- * réel, voir buildEmargementRow) — garde-fou contre un fichier de la
- * mauvaise académie importé par erreur. Retourne l'académie détectée si
+ * visée par cet import académique, via son code postal — champ "codePostal"
+ * (fichier des électeurs) ou à repérer dans le texte libre "affectation"
+ * (fichier d'émargement), même résolution département -> académie qu'à
+ * l'import réel, voir buildEmargementRow() — garde-fou contre un fichier de
+ * la mauvaise académie importé par erreur. Retourne l'académie détectée si
  * elle diffère de celle attendue ; null si elle correspond, ou si elle n'a
  * pas pu être déterminée (aucun code postal reconnu, ou département absent
  * du référentiel) — dans ce cas on laisse passer, faute de pouvoir se
@@ -48,7 +49,10 @@ export function getAcademieScrutins(academie: string | null): { type1d: string |
 export function detectAcademieMismatch(items: RawEmargementItem[], expectedAcademie: string): string | null {
   if (items.length === 0) return null;
   const first = items[0];
-  const departement = extractDepartementFromRne(first.rne) ?? extractDepartement(first.affectation);
+  const departement =
+    extractDepartementFromRne(first.rne) ??
+    extractDepartementFromCodePostal(first.codePostal) ??
+    extractDepartement(first.affectation);
   const detected = departement ? lookupDepartement(departement)?.academie ?? null : null;
   return detected && detected !== expectedAcademie ? detected : null;
 }

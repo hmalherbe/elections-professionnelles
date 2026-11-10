@@ -1,5 +1,5 @@
 import { classifyDegre, type Degre } from "../lib/degre.js";
-import { extractDepartement, extractDepartementFromRne } from "../lib/departement.js";
+import { extractDepartement, extractDepartementFromCodePostal, extractDepartementFromRne } from "../lib/departement.js";
 import { parseDateEmargement } from "../lib/dateEmargement.js";
 import { normalizeName } from "../lib/normalize.js";
 import { lookupDepartement, soleSpelcForAcademie } from "../services/reference.js";
@@ -26,11 +26,62 @@ export interface RawEmargementItem {
    * Spelc sous l'autre nom (voir services/fuzzyMatching.ts).
    */
   nomNaissance?: string | null;
+  /**
+   * Code postal de l'établissement, tel que fourni directement et déjà
+   * isolé par le fichier des électeurs CCMMEP 2026 (champ "codePostal") —
+   * contrairement à "affectation" (texte libre contenant un code postal à
+   * y repérer), utilisé par le fichier d'émargement. Les deux formats
+   * doivent fonctionner de concert : voir normalizeRawItem() et
+   * buildEmargementRow() ci-dessous.
+   */
+  codePostal?: string | number | null;
 }
 
 export interface RawEmargementFile {
   totalCount?: number;
-  items: RawEmargementItem[];
+  items: Record<string, unknown>[];
+}
+
+/**
+ * Deux formats de fichier national CCMMEP coexistent et doivent tous les
+ * deux être importables :
+ *   - le fichier d'émargement (qui du 3 au 10 décembre portera les votes du
+ *     jour — pour l'instant, en l'absence de ces fichiers réels, le format
+ *     de test 2022 : nom/prenom/corps/affectation/dateEmargement/
+ *     referenceBulletin, le département se déduisant d'un code postal à
+ *     repérer dans le texte libre "affectation") ;
+ *   - le fichier des électeurs (la liste d'éligibilité, disponible avant le
+ *     3 décembre, en l'absence des fichiers d'émargement quotidiens réels :
+ *     matricule/nomFamille/nomUsage/prenom/nomCol/nomEtab/codePostal/
+ *     statut/civilite, le département se déduisant directement du champ
+ *     codePostal, déjà isolé).
+ * Détecté ligne à ligne (présence de nomUsage, qui n'existe pas dans le
+ * premier format) plutôt que pour le fichier entier : robuste même si un
+ * futur fichier d'émargement réel reprend les noms de champs du fichier
+ * des électeurs (nomUsage/nomCol/nomEtab/codePostal) en y ajoutant
+ * dateEmargement/referenceBulletin — repris tels quels s'ils sont présents,
+ * quel que soit le format par ailleurs.
+ */
+function normalizeRawItem(raw: Record<string, unknown>): RawEmargementItem {
+  const str = (v: unknown): string | null => (v == null || v === "" ? null : String(v));
+
+  if ("nomUsage" in raw || "nomCol" in raw || "nomEtab" in raw || "codePostal" in raw) {
+    const nom = str(raw.nomUsage) ?? "";
+    const nomFamille = str(raw.nomFamille);
+    return {
+      nom,
+      prenom: str(raw.prenom) ?? "",
+      dateEmargement: (raw.dateEmargement as string | null | undefined) ?? null,
+      corps: str(raw.nomCol),
+      affectation: str(raw.nomEtab),
+      referenceBulletin: (raw.referenceBulletin as string | null | undefined) ?? null,
+      rne: (raw.rne as string | null | undefined) ?? null,
+      nomNaissance: nomFamille && nomFamille !== nom ? nomFamille : null,
+      codePostal: (raw.codePostal as string | number | null | undefined) ?? null,
+    };
+  }
+
+  return raw as unknown as RawEmargementItem;
 }
 
 export interface EmargementRow {
@@ -54,9 +105,9 @@ export interface EmargementRow {
 
 export function parseEmargementsJson(raw: unknown): RawEmargementItem[] {
   if (raw && typeof raw === "object" && Array.isArray((raw as RawEmargementFile).items)) {
-    return (raw as RawEmargementFile).items;
+    return (raw as RawEmargementFile).items.map(normalizeRawItem);
   }
-  if (Array.isArray(raw)) return raw as RawEmargementItem[];
+  if (Array.isArray(raw)) return (raw as Record<string, unknown>[]).map(normalizeRawItem);
   throw new Error("Format JSON inattendu : un champ 'items' (tableau) est requis.");
 }
 
@@ -76,11 +127,15 @@ export interface BuildRowOptions {
 }
 
 export function buildEmargementRow(item: RawEmargementItem, options: BuildRowOptions = {}): EmargementRow {
-  // Le RNE/UAI, quand il est fourni, est un champ structuré et dédié : plus
-  // fiable que la recherche d'un code postal dans le texte libre
-  // `affectation`, qui reste donc le repli si le RNE est absent ou que son
-  // format n'a pas été reconnu.
-  const departement = extractDepartementFromRne(item.rne) ?? extractDepartement(item.affectation);
+  // Priorité aux champs structurés et dédiés — RNE, puis codePostal (fichier
+  // des électeurs 2026) — sur la recherche d'un code postal dans le texte
+  // libre `affectation` (fichier d'émargement), en repli si les deux
+  // premiers sont absents ou n'ont pas été reconnus. Les deux formats de
+  // fichier fonctionnent ainsi de concert via la même fonction.
+  const departement =
+    extractDepartementFromRne(item.rne) ??
+    extractDepartementFromCodePostal(item.codePostal) ??
+    extractDepartement(item.affectation);
   const lookup = lookupDepartement(departement);
   const degre = options.forcedDegre ?? classifyDegre(item.corps);
   const academie = options.forcedAcademie ?? lookup?.academie ?? null;

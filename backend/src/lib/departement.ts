@@ -41,6 +41,24 @@ export function extractDepartement(affectation: string | null | undefined): stri
 }
 
 /**
+ * Dérive le département à partir d'un champ code postal déjà isolé et
+ * dédié (pas à repérer dans un texte libre, à la différence de
+ * extractDepartement()) — ex. le champ "codePostal" du fichier des
+ * électeurs CCMMEP 2026, distinct de "affectation" (texte libre) utilisé
+ * par le fichier d'émargement. Même repli sur 4 chiffres (zéro initial
+ * reconstitué) que extractDepartement(), pour la même raison : la valeur
+ * peut arriver numérique en amont (JSON), perdant le zéro initial des
+ * départements métropolitains 01 à 09.
+ */
+export function extractDepartementFromCodePostal(codePostal: string | number | null | undefined): string | null {
+  if (codePostal == null || codePostal === "") return null;
+  const raw = String(codePostal).trim();
+  if (/^\d{5}$/.test(raw)) return departementFromPostalCode(raw);
+  if (/^\d{4}$/.test(raw)) return departementFromPostalCode(`0${raw}`);
+  return null;
+}
+
+/**
  * Extrait le département à partir du code RNE/UAI de l'établissement (ex :
  * "0751234A" pour un établissement parisien). Structure du code : les 3
  * premiers chiffres codent le département (zéro initial pour la métropole,
