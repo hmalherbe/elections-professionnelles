@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classifyDegre } from "../degre.js";
+import { classifyDegre, classifyDegreAvecEtablissement, classifyDegreFromEtablissementName } from "../degre.js";
 import { extractDepartement, extractDepartementFromCodePostal, extractDepartementFromRne } from "../departement.js";
 import { parseDateEmargement } from "../dateEmargement.js";
 
@@ -40,6 +40,36 @@ describe("classifyDegre", () => {
     expect(classifyDegre("Professeurs chaires sup étab class mod tech EN")).toBe("2D");
     expect(classifyDegre("agent contractuel second degré")).toBe("2D");
     expect(classifyDegre("Enseignant contractuel alternant 2d degré privé")).toBe("2D");
+  });
+});
+
+describe("classifyDegreFromEtablissementName", () => {
+  it("classe 2D via collège ou lycée", () => {
+    expect(classifyDegreFromEtablissementName("Collège Jean Moulin")).toBe("2D");
+    expect(classifyDegreFromEtablissementName("Lycée général et technologique Fénelon")).toBe("2D");
+  });
+
+  it("classe 1D via école (élémentaire ou primaire)", () => {
+    expect(classifyDegreFromEtablissementName("École élémentaire Sainte-Marie")).toBe("1D");
+    expect(classifyDegreFromEtablissementName("École primaire privée Saint-Joseph")).toBe("1D");
+  });
+
+  it("ne tranche jamais au hasard quand le nom ne permet pas de conclure", () => {
+    expect(classifyDegreFromEtablissementName("ITEP L'essor la forêt")).toBe("INDETERMINE");
+    expect(classifyDegreFromEtablissementName(null)).toBe("INDETERMINE");
+  });
+});
+
+describe("classifyDegreAvecEtablissement", () => {
+  it("priorise le corps sur l'établissement quand il tranche", () => {
+    expect(classifyDegreAvecEtablissement("Professeurs certifiés ens privé EN", "École X")).toBe("2D");
+    expect(classifyDegreAvecEtablissement("Professeurs écoles ens privé EN", "Collège Y")).toBe("1D");
+  });
+
+  it("se replie sur l'établissement quand le corps est ambigu, sans tirage aléatoire", () => {
+    expect(classifyDegreAvecEtablissement("maître délégué", "Lycée Z")).toBe("2D");
+    expect(classifyDegreAvecEtablissement("maître délégué", "École W")).toBe("1D");
+    expect(classifyDegreAvecEtablissement("maître délégué", "ITEP L'essor la forêt")).toBe("INDETERMINE");
   });
 });
 

@@ -6,7 +6,7 @@ import {
 } from "../parsers/emargements.js";
 import { extractDepartement, extractDepartementFromCodePostal, extractDepartementFromRne } from "../lib/departement.js";
 import { lookupDepartement } from "./reference.js";
-import type { Degre } from "../lib/degre.js";
+import { classifyDegreAvecEtablissement, type Degre } from "../lib/degre.js";
 import dayjs from "dayjs";
 
 export interface ImportResult {
@@ -55,6 +55,36 @@ export function detectAcademieMismatch(items: RawEmargementItem[], expectedAcade
     extractDepartement(first.affectation);
   const detected = departement ? lookupDepartement(departement)?.academie ?? null : null;
   return detected && detected !== expectedAcademie ? detected : null;
+}
+
+/**
+ * Vérifie que le fichier académique importé correspond bien au degré
+ * attendu (1D ou 2D) — garde-fou contre le fichier du mauvais degré importé
+ * par erreur (ex. un fichier 2nd degré déposé comme 1er degré, ou
+ * l'inverse). Classe chaque électeur par son corps (champ "corps"/"nomCol")
+ * puis, en repli, le nom de son établissement ("affectation"/"nomEtab") —
+ * "école élémentaire/primaire" -> 1D, "collège"/"lycée" -> 2D — SANS tirage
+ * aléatoire (voir classifyDegreAvecEtablissement) : contrairement à
+ * detectAcademieMismatch(), qui ne regarde que le premier électeur, ici
+ * TOUS les électeurs du fichier sont classés, et seule une majorité
+ * cohérente pour l'AUTRE degré déclenche l'erreur — un seul électeur
+ * ambigu ou mal renseigné ne doit jamais bloquer un fichier par ailleurs
+ * cohérent. Retourne le degré détecté (en toutes lettres) si une majorité
+ * des électeurs dont le degré a pu être déterminé pointent vers l'autre
+ * degré que celui attendu ; null sinon (fichier cohérent, ou pas assez
+ * d'électeurs déterminables pour se prononcer).
+ */
+export function detectDegreMismatch(items: RawEmargementItem[], expectedDegre: "1D" | "2D"): string | null {
+  let same = 0;
+  let other = 0;
+  for (const item of items) {
+    const degre = classifyDegreAvecEtablissement(item.corps, item.affectation);
+    if (degre === "INDETERMINE") continue;
+    if (degre === expectedDegre) same++;
+    else other++;
+  }
+  if (other <= same) return null;
+  return expectedDegre === "1D" ? "2nd degré" : "1er degré";
 }
 
 export function runImport(raw: unknown, ctx: ImportContext): ImportResult {

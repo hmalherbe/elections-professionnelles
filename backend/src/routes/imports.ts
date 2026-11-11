@@ -2,7 +2,13 @@ import { Router } from "express";
 import multer from "multer";
 import { db } from "../db/index.js";
 import { requireAuth, requireRole, canAccessAcademie } from "../middleware/auth.js";
-import { runImport, defaultSnapshotDate, findCrossDegreDuplicates, detectAcademieMismatch } from "../services/imports.js";
+import {
+  runImport,
+  defaultSnapshotDate,
+  findCrossDegreDuplicates,
+  detectAcademieMismatch,
+  detectDegreMismatch,
+} from "../services/imports.js";
 import { parseEmargementsJson } from "../parsers/emargements.js";
 import { buildElecteursAcademiques, deleteElecteursAcademiques } from "../services/electeursAcademiques.js";
 
@@ -65,6 +71,15 @@ router.post(
       if (detectedAcademie) {
         res.status(400).json({
           error: `Ce fichier semble correspondre à l'académie de ${detectedAcademie} (d'après le code postal du premier électeur), pas à ${academie}. Vérifiez le fichier importé.`,
+        });
+        return;
+      }
+      const detectedDegre = detectDegreMismatch(items, degre as "1D" | "2D");
+      if (detectedDegre) {
+        res.status(400).json({
+          error: `Ce fichier semble correspondre au ${detectedDegre} (d'après le corps et l'établissement des électeurs), pas au ${
+            degre === "1D" ? "1er degré" : "2nd degré"
+          } attendu. Vérifiez le fichier importé.`,
         });
         return;
       }

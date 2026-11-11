@@ -38,3 +38,37 @@ export function classifyDegre(corps: string | null | undefined): Degre {
   if (is2D && !is1D) return "2D";
   return "INDETERMINE";
 }
+
+/**
+ * Degré via le seul nom de l'établissement (collège/lycée -> 2D, école
+ * élémentaire/primaire -> 1D), SANS repli aléatoire — contrairement à
+ * classifyDegreFromEtablissement() (services/electeursAcademiques.ts), qui
+ * a besoin d'un résultat binaire garanti pour répartir un électeur dans un
+ * fichier CCMI ou CCMA généré hors ligne. Ici (détection d'un fichier
+ * académique importé avec le mauvais degré, voir
+ * services/imports.ts#detectDegreMismatch), laisser "INDETERMINE" quand
+ * l'établissement ne permet pas de conclure est préférable à une
+ * classification arbitraire.
+ */
+export function classifyDegreFromEtablissementName(etablissement: string | null | undefined): Degre {
+  if (!etablissement) return "INDETERMINE";
+  const n = stripAccents(etablissement).toLowerCase();
+  if (n.includes("college") || n.includes("lycee")) return "2D";
+  if (n.includes("ecole")) return "1D";
+  return "INDETERMINE";
+}
+
+/**
+ * Degré combiné, sans tirage aléatoire : le corps d'abord (classifyDegre,
+ * plus fiable quand il tranche), le nom de l'établissement en repli
+ * (classifyDegreFromEtablissementName) pour les corps ambigus (ex. "maître
+ * délégué", utilisé indifféremment dans les deux degrés).
+ */
+export function classifyDegreAvecEtablissement(
+  corps: string | null | undefined,
+  etablissement: string | null | undefined
+): Degre {
+  const viaCorps = classifyDegre(corps);
+  if (viaCorps !== "INDETERMINE") return viaCorps;
+  return classifyDegreFromEtablissementName(etablissement);
+}
