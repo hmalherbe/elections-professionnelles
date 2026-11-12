@@ -79,12 +79,17 @@ router.get("/participation-tree/export", async (req, res) => {
   res.end();
 });
 
+function parseDegre(req: Request): "1D" | "2D" | null {
+  const d = req.query.degre as string | undefined;
+  return d === "1D" || d === "2D" ? d : null;
+}
+
 router.get("/camembert", (req, res) => {
   const scope = (req.query.scope as Scope) ?? "national";
   const academie = (req.query.academie as string) || null;
   const spelc = (req.query.spelc as string) || null;
   if (!checkScopeAccess(req, res, scope, academie, spelc)) return;
-  res.json(camembert({ scope, academie, spelc }));
+  res.json(camembert({ scope, academie, spelc, degre: parseDegre(req) }));
 });
 
 router.get("/courbe", (req, res) => {
@@ -92,7 +97,7 @@ router.get("/courbe", (req, res) => {
   const academie = (req.query.academie as string) || null;
   const spelc = (req.query.spelc as string) || null;
   if (!checkScopeAccess(req, res, scope, academie, spelc)) return;
-  res.json({ points: courbeCumulative({ scope, academie, spelc }) });
+  res.json({ points: courbeCumulative({ scope, academie, spelc, degre: parseDegre(req) }) });
 });
 
 /**
@@ -105,7 +110,7 @@ router.get("/camembert-adherents", (req, res) => {
   const academie = (req.query.academie as string) || null;
   const spelc = (req.query.spelc as string) || null;
   if (!checkScopeAccess(req, res, scope, academie, spelc)) return;
-  res.json(camembertAdherents({ scope, academie, spelc }));
+  res.json(camembertAdherents({ scope, academie, spelc, degre: parseDegre(req) }));
 });
 
 router.get("/courbe-adherents", (req, res) => {
@@ -113,7 +118,7 @@ router.get("/courbe-adherents", (req, res) => {
   const academie = (req.query.academie as string) || null;
   const spelc = (req.query.spelc as string) || null;
   if (!checkScopeAccess(req, res, scope, academie, spelc)) return;
-  res.json({ points: courbeCumulativeAdherents({ scope, academie, spelc }) });
+  res.json({ points: courbeCumulativeAdherents({ scope, academie, spelc, degre: parseDegre(req) }) });
 });
 
 router.get("/scrutins", (req, res) => {

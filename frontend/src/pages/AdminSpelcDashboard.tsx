@@ -60,37 +60,58 @@ export function AdminSpelcDashboard() {
 }
 
 function VueSpelc({ spelc, scope }: { spelc: string; scope: "national" | "academique" }) {
-  const [camembert, setCamembert] = useState({ votants: 0, nonVotants: 0 });
+  const [camembert, setCamembert] = useState({ votants: 0, nonVotants: 0, academie: null as string | null });
   const [camembertAdherents, setCamembertAdherents] = useState({ votants: 0, nonVotants: 0 });
   const [courbe, setCourbe] = useState<CourbePoint[]>([]);
   const [courbeAdherents, setCourbeAdherents] = useState<CourbePoint[]>([]);
+  const [degre, setDegre] = useState<"" | "1D" | "2D">("");
 
   useEffect(() => {
-    api.get<{ votants: number; nonVotants: number }>(`/stats/camembert${qs({ scope, spelc })}`).then(setCamembert);
     api
-      .get<{ votants: number; nonVotants: number }>(`/stats/camembert-adherents${qs({ scope, spelc })}`)
+      .get<{ votants: number; nonVotants: number; academie: string | null }>(`/stats/camembert${qs({ scope, spelc, degre })}`)
+      .then(setCamembert);
+    api
+      .get<{ votants: number; nonVotants: number }>(`/stats/camembert-adherents${qs({ scope, spelc, degre })}`)
       .then(setCamembertAdherents);
-    api.get<{ points: CourbePoint[] }>(`/stats/courbe${qs({ scope, spelc })}`).then((r) => setCourbe(r.points));
+    api.get<{ points: CourbePoint[] }>(`/stats/courbe${qs({ scope, spelc, degre })}`).then((r) => setCourbe(r.points));
     api
-      .get<{ points: CourbePoint[] }>(`/stats/courbe-adherents${qs({ scope, spelc })}`)
+      .get<{ points: CourbePoint[] }>(`/stats/courbe-adherents${qs({ scope, spelc, degre })}`)
       .then((r) => setCourbeAdherents(r.points));
-  }, [scope, spelc]);
+  }, [scope, spelc, degre]);
 
   return (
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-      <CamembertCard title={`Participation — Spelc ${spelc} (territoire)`} votants={camembert.votants} nonVotants={camembert.nonVotants} />
-      <CourbeCard
-        title="Courbe de participation cumulée"
-        points={courbe}
-        pointsSecondaire={courbeAdherents}
-        labelPrincipale="Territoire"
-        labelSecondaire="Adhérents"
-      />
-      <CamembertCard
-        title={`Participation des adhérents — Spelc ${spelc}`}
-        votants={camembertAdherents.votants}
-        nonVotants={camembertAdherents.nonVotants}
-      />
+    <div className="space-y-4">
+      <div className="flex items-center gap-2">
+        <label className="text-xs font-medium text-slate-500">Degré :</label>
+        <select
+          className="rounded-md border border-slate-300 px-2 py-1 text-sm"
+          value={degre}
+          onChange={(e) => setDegre(e.target.value as "" | "1D" | "2D")}
+        >
+          <option value="">Tous les degrés</option>
+          <option value="1D">1er degré</option>
+          <option value="2D">2nd degré</option>
+        </select>
+      </div>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <CamembertCard
+          title={`Participation — Académie ${camembert.academie ?? "—"}`}
+          votants={camembert.votants}
+          nonVotants={camembert.nonVotants}
+        />
+        <CourbeCard
+          title="Courbe de participation cumulée"
+          points={courbe}
+          pointsSecondaire={courbeAdherents}
+          labelPrincipale="Académie"
+          labelSecondaire="Adhérents"
+        />
+        <CamembertCard
+          title={`Participation des adhérents — Spelc ${spelc}`}
+          votants={camembertAdherents.votants}
+          nonVotants={camembertAdherents.nonVotants}
+        />
+      </div>
     </div>
   );
 }

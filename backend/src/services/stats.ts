@@ -210,6 +210,8 @@ export interface ScopeFilter {
   scope: Scope;
   academie?: string | null;
   spelc?: string | null;
+  /** Restreint au 1er ou au 2nd degré ; omis ou null = les deux degrés. */
+  degre?: "1D" | "2D" | null;
 }
 
 /**
@@ -242,17 +244,22 @@ function whereForScope(filter: ScopeFilter, ids: number[]): { clause: string; pa
     parts.push("academie = ?");
     params.push(filter.academie);
   }
+  if (filter.degre) {
+    parts.push("degre = ?");
+    params.push(filter.degre);
+  }
   return { clause: parts.join(" AND "), params };
 }
 
-export function camembert(filter: ScopeFilter): { votants: number; nonVotants: number } {
-  const ids = currentImportIds(filter.scope, effectiveAcademie(filter));
-  if (ids.length === 0) return { votants: 0, nonVotants: 0 };
+export function camembert(filter: ScopeFilter): { votants: number; nonVotants: number; academie: string | null } {
+  const academie = effectiveAcademie(filter);
+  const ids = currentImportIds(filter.scope, academie);
+  if (ids.length === 0) return { votants: 0, nonVotants: 0, academie };
   const { clause, params } = whereForScope(filter, ids);
   const row = db
     .prepare(`SELECT COUNT(*) AS total, SUM(votant) AS votants FROM emargements WHERE ${clause}`)
     .get(...params) as { total: number; votants: number };
-  return { votants: row.votants ?? 0, nonVotants: (row.total ?? 0) - (row.votants ?? 0) };
+  return { votants: row.votants ?? 0, nonVotants: (row.total ?? 0) - (row.votants ?? 0), academie };
 }
 
 /**
