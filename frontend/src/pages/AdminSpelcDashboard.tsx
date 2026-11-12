@@ -95,19 +95,19 @@ function VueSpelc({ spelc, scope }: { spelc: string; scope: "national" | "academ
       </div>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <CamembertCard
-          title={`Participation — Académie ${camembert.academie ?? "—"}`}
+          title={`Participation — ${camembert.academie ?? "—"}`}
           votants={camembert.votants}
           nonVotants={camembert.nonVotants}
         />
         <CourbeCard
-          title="Courbe de participation cumulée"
+          title={`Courbe de participation cumulée de l'académie ${camembert.academie ?? "—"}`}
           points={courbe}
           pointsSecondaire={courbeAdherents}
           labelPrincipale="Académie"
           labelSecondaire="Adhérents"
         />
         <CamembertCard
-          title={`Participation des adhérents — Spelc ${spelc}`}
+          title={`Participation des adhérents — ${spelc}`}
           votants={camembertAdherents.votants}
           nonVotants={camembertAdherents.nonVotants}
         />
