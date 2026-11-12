@@ -255,6 +255,23 @@ export function camembert(filter: ScopeFilter): { votants: number; nonVotants: n
   return { votants: row.votants ?? 0, nonVotants: (row.total ?? 0) - (row.votants ?? 0) };
 }
 
+/**
+ * Même chose que camembert(), restreint aux électeurs reconnus comme
+ * adhérents d'un Spelc (voir adherentExistsClause) — la "Vue Spelc" d'un
+ * admin Spelc affiche ce résultat sous celui de camembert() (qui, lui,
+ * compte tous les électeurs rattachés au territoire du Spelc, adhérents ou
+ * non), pour qu'il voie aussi la participation propre à ses adhérents.
+ */
+export function camembertAdherents(filter: ScopeFilter): { votants: number; nonVotants: number } {
+  const ids = currentImportIds(filter.scope, effectiveAcademie(filter));
+  if (ids.length === 0) return { votants: 0, nonVotants: 0 };
+  const { clause, params } = whereForScope(filter, ids);
+  const row = db
+    .prepare(`SELECT COUNT(*) AS total, SUM(e.votant) AS votants FROM emargements e WHERE ${clause} AND ${adherentExistsClause()}`)
+    .get(...params) as { total: number; votants: number };
+  return { votants: row.votants ?? 0, nonVotants: (row.total ?? 0) - (row.votants ?? 0) };
+}
+
 export interface CourbePoint {
   date: string;
   inscrits: number;
@@ -282,6 +299,38 @@ export function courbeCumulative(filter: ScopeFilter): CourbePoint[] {
     .prepare(
       `SELECT substr(date_emargement, 1, 10) AS day, COUNT(*) AS count
        FROM emargements WHERE ${clause} AND date_emargement IS NOT NULL
+       GROUP BY day ORDER BY day`
+    )
+    .all(...params) as { day: string; count: number }[];
+
+  let cumulativeVotants = 0;
+  return dayRows.map((r) => {
+    cumulativeVotants += r.count;
+    return {
+      date: r.day,
+      inscrits,
+      votants: cumulativeVotants,
+      taux: inscrits ? cumulativeVotants / inscrits : 0,
+    };
+  });
+}
+
+/** Même chose que courbeCumulative(), restreint aux adhérents — voir camembertAdherents(). */
+export function courbeCumulativeAdherents(filter: ScopeFilter): CourbePoint[] {
+  const ids = currentImportIds(filter.scope, effectiveAcademie(filter));
+  if (ids.length === 0) return [];
+  const { clause, params } = whereForScope(filter, ids);
+  const adherentExists = adherentExistsClause();
+
+  const totalRow = db
+    .prepare(`SELECT COUNT(*) AS total FROM emargements e WHERE ${clause} AND ${adherentExists}`)
+    .get(...params) as { total: number };
+  const inscrits = totalRow.total ?? 0;
+
+  const dayRows = db
+    .prepare(
+      `SELECT substr(e.date_emargement, 1, 10) AS day, COUNT(*) AS count
+       FROM emargements e WHERE ${clause} AND ${adherentExists} AND e.date_emargement IS NOT NULL
        GROUP BY day ORDER BY day`
     )
     .all(...params) as { day: string; count: number }[];

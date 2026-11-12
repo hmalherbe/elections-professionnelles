@@ -3,7 +3,9 @@ import { db } from "../db/index.js";
 import { requireAuth, canAccessAcademie, canAccessSpelc } from "../middleware/auth.js";
 import {
   camembert,
+  camembertAdherents,
   courbeCumulative,
+  courbeCumulativeAdherents,
   participationParEtablissement,
   participationTreeNational,
   scrutinsByEtablissement,
@@ -91,6 +93,27 @@ router.get("/courbe", (req, res) => {
   const spelc = (req.query.spelc as string) || null;
   if (!checkScopeAccess(req, res, scope, academie, spelc)) return;
   res.json({ points: courbeCumulative({ scope, academie, spelc }) });
+});
+
+/**
+ * Mêmes données que /camembert et /courbe, restreintes aux adhérents d'un
+ * Spelc (voir services/stats.ts#camembertAdherents) — utilisé par la "Vue
+ * Spelc" d'un admin Spelc, en complément du territoire entier.
+ */
+router.get("/camembert-adherents", (req, res) => {
+  const scope = (req.query.scope as Scope) ?? "national";
+  const academie = (req.query.academie as string) || null;
+  const spelc = (req.query.spelc as string) || null;
+  if (!checkScopeAccess(req, res, scope, academie, spelc)) return;
+  res.json(camembertAdherents({ scope, academie, spelc }));
+});
+
+router.get("/courbe-adherents", (req, res) => {
+  const scope = (req.query.scope as Scope) ?? "national";
+  const academie = (req.query.academie as string) || null;
+  const spelc = (req.query.spelc as string) || null;
+  if (!checkScopeAccess(req, res, scope, academie, spelc)) return;
+  res.json({ points: courbeCumulativeAdherents({ scope, academie, spelc }) });
 });
 
 router.get("/scrutins", (req, res) => {

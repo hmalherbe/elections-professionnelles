@@ -61,17 +61,36 @@ export function AdminSpelcDashboard() {
 
 function VueSpelc({ spelc, scope }: { spelc: string; scope: "national" | "academique" }) {
   const [camembert, setCamembert] = useState({ votants: 0, nonVotants: 0 });
+  const [camembertAdherents, setCamembertAdherents] = useState({ votants: 0, nonVotants: 0 });
   const [courbe, setCourbe] = useState<CourbePoint[]>([]);
+  const [courbeAdherents, setCourbeAdherents] = useState<CourbePoint[]>([]);
 
   useEffect(() => {
     api.get<{ votants: number; nonVotants: number }>(`/stats/camembert${qs({ scope, spelc })}`).then(setCamembert);
+    api
+      .get<{ votants: number; nonVotants: number }>(`/stats/camembert-adherents${qs({ scope, spelc })}`)
+      .then(setCamembertAdherents);
     api.get<{ points: CourbePoint[] }>(`/stats/courbe${qs({ scope, spelc })}`).then((r) => setCourbe(r.points));
+    api
+      .get<{ points: CourbePoint[] }>(`/stats/courbe-adherents${qs({ scope, spelc })}`)
+      .then((r) => setCourbeAdherents(r.points));
   }, [scope, spelc]);
 
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-      <CamembertCard title={`Participation — Spelc ${spelc}`} votants={camembert.votants} nonVotants={camembert.nonVotants} />
-      <CourbeCard title="Courbe de participation cumulée" points={courbe} />
+      <CamembertCard title={`Participation — Spelc ${spelc} (territoire)`} votants={camembert.votants} nonVotants={camembert.nonVotants} />
+      <CourbeCard
+        title="Courbe de participation cumulée"
+        points={courbe}
+        pointsSecondaire={courbeAdherents}
+        labelPrincipale="Territoire"
+        labelSecondaire="Adhérents"
+      />
+      <CamembertCard
+        title={`Participation des adhérents — Spelc ${spelc}`}
+        votants={camembertAdherents.votants}
+        nonVotants={camembertAdherents.nonVotants}
+      />
     </div>
   );
 }
