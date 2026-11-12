@@ -100,10 +100,10 @@ function VueSpelc({ spelc, scope }: { spelc: string; scope: "national" | "academ
           nonVotants={camembert.nonVotants}
         />
         <CourbeCard
-          title={`Courbe de participation cumulée de l'académie ${camembert.academie ?? "—"}`}
+          title={`Courbe de participation de l'académie ${camembert.academie ?? "—"}`}
           points={courbe}
           pointsSecondaire={courbeAdherents}
-          labelPrincipale="Académie"
+          labelPrincipale={camembert.academie ?? "Académie"}
           labelSecondaire="Adhérents"
         />
         <CamembertCard
