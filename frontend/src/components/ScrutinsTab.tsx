@@ -66,6 +66,7 @@ export function ScrutinsTab({ scope, academie, spelc, allowAdherentFilter, group
           votant: votant || undefined,
           adherent: allowAdherentFilter ? adherent || undefined : undefined,
           scrutinType: scrutinType || undefined,
+          affectation: etablissement || undefined,
           limit: String(PAGE_SIZE),
           offset: String(page * PAGE_SIZE),
         })}`
@@ -116,23 +117,21 @@ export function ScrutinsTab({ scope, academie, spelc, allowAdherentFilter, group
             ))}
           </select>
         </div>
-        {groupByEtablissement && (
-          <div>
-            <label className="block text-xs font-medium text-slate-500">Établissement</label>
-            <select
-              className="mt-1 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-              value={etablissement}
-              onChange={(e) => setEtablissement(e.target.value)}
-            >
-              <option value="">Tous</option>
-              {(groupedData?.etablissementOptions ?? []).map((et) => (
-                <option key={et} value={et}>
-                  {et}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
+        <div>
+          <label className="block text-xs font-medium text-slate-500">Établissement</label>
+          <select
+            className="mt-1 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+            value={etablissement}
+            onChange={(e) => setEtablissement(e.target.value)}
+          >
+            <option value="">Tous</option>
+            {(groupByEtablissement ? groupedData?.etablissementOptions : flatData?.etablissementOptions)?.map((et) => (
+              <option key={et} value={et}>
+                {et}
+              </option>
+            ))}
+          </select>
+        </div>
         <div>
           <label className="block text-xs font-medium text-slate-500">Votant / Non votant</label>
           <select
@@ -197,19 +196,20 @@ export function ScrutinsTab({ scope, academie, spelc, allowAdherentFilter, group
             <table className="w-full text-sm">
               <thead className="sticky top-0 bg-white">
                 <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-500">
-                  <th className="py-2 pr-4">Nom</th>
+                  <th className="py-2 pr-4">Établissement</th>
+                  <th className="px-4 py-2">Nom</th>
                   <th className="px-4 py-2">Prénom</th>
                   <th className="px-4 py-2">Scrutin</th>
                   <th className="px-4 py-2">Statut</th>
                   {allowAdherentFilter && <th className="px-4 py-2">Adhérent</th>}
                   <th className="px-4 py-2">Émargement</th>
-                  <th className="px-4 py-2">Établissement</th>
                 </tr>
               </thead>
               <tbody>
                 {(flatData?.rows ?? []).map((r, i) => (
                   <tr key={i} className="border-b border-slate-100">
-                    <td className="py-1.5 pr-4">{r.nom}</td>
+                    <td className="py-1.5 pr-4 text-slate-500">{r.affectation ?? "—"}</td>
+                    <td className="px-4 py-1.5">{r.nom}</td>
                     <td className="px-4 py-1.5">{r.prenom}</td>
                     <td className="px-4 py-1.5">{r.scrutinType ?? "—"}</td>
                     <td className="px-4 py-1.5">
@@ -231,7 +231,6 @@ export function ScrutinsTab({ scope, academie, spelc, allowAdherentFilter, group
                     <td className="px-4 py-1.5 text-slate-500">
                       {r.dateEmargement ? new Date(r.dateEmargement).toLocaleString("fr-FR") : "—"}
                     </td>
-                    <td className="px-4 py-1.5 text-slate-500">{r.affectation ?? "—"}</td>
                   </tr>
                 ))}
               </tbody>

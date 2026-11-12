@@ -366,29 +366,32 @@ export interface ScrutinsResult {
   groups: { scrutinType: string; total: number; votants: number }[];
   rows: Record<string, unknown>[];
   totalRows: number;
+  /** Établissements disponibles sous les mêmes filtres (hors le filtre établissement
+   * lui-même), pour le sélecteur dédié — voir scrutinsByEtablissement. */
+  etablissementOptions: string[];
 }
 
 export function scrutinsTab(filter: ScrutinsFilter, limit = 200, offset = 0): ScrutinsResult {
   const ids = currentImportIds(filter.scope, effectiveAcademie(filter));
-  if (ids.length === 0) return { groups: [], rows: [], totalRows: 0 };
+  if (ids.length === 0) return { groups: [], rows: [], totalRows: 0, etablissementOptions: [] };
 
-  const parts = [`e.import_id IN (${idsPlaceholder(ids)})`];
-  const params: unknown[] = [...ids];
+  const baseParts = [`e.import_id IN (${idsPlaceholder(ids)})`];
+  const baseParams: unknown[] = [...ids];
   if (filter.spelc) {
-    parts.push("e.spelc = ?");
-    params.push(filter.spelc);
+    baseParts.push("e.spelc = ?");
+    baseParams.push(filter.spelc);
   } else if (filter.academie) {
     // Même correctif que whereForScope() : sans lui, une académie sans Spelc
     // précisé verrait les émargements de toute la France en scope national.
-    parts.push("e.academie = ?");
-    params.push(filter.academie);
+    baseParts.push("e.academie = ?");
+    baseParams.push(filter.academie);
   }
   if (filter.scrutinType) {
-    parts.push("e.scrutin_type = ?");
-    params.push(filter.scrutinType);
+    baseParts.push("e.scrutin_type = ?");
+    baseParams.push(filter.scrutinType);
   }
-  if (filter.votant === "votant") parts.push("e.votant = 1");
-  if (filter.votant === "non_votant") parts.push("e.votant = 0");
+  if (filter.votant === "votant") baseParts.push("e.votant = 1");
+  if (filter.votant === "non_votant") baseParts.push("e.votant = 0");
 
   // Le rapprochement adhérent n'a de sens qu'une fois filtré sur un Spelc précis
   // (les adhérents sont déclarés par Spelc). On l'exprime en EXISTS (plutôt
@@ -396,9 +399,25 @@ export function scrutinsTab(filter: ScrutinsFilter, limit = 200, offset = 0): Sc
   // adhérents partagent le même nom/prénom au sein d'un Spelc.
   const adherentExists = adherentExistsClause();
   const showAdherentStatus = Boolean(filter.spelc);
-  if (filter.spelc && filter.adherent === "oui") parts.push(adherentExists);
-  else if (filter.spelc && filter.adherent === "non") parts.push(`NOT ${adherentExists}`);
+  if (filter.spelc && filter.adherent === "oui") baseParts.push(adherentExists);
+  else if (filter.spelc && filter.adherent === "non") baseParts.push(`NOT ${adherentExists}`);
 
+  const whereForOptions = baseParts.join(" AND ");
+  const etablissementOptions = (
+    db
+      .prepare(
+        `SELECT DISTINCT COALESCE(e.affectation, 'Non renseigné') AS etab
+         FROM emargements e WHERE ${whereForOptions} ORDER BY etab`
+      )
+      .all(...baseParams) as { etab: string }[]
+  ).map((r) => r.etab);
+
+  const parts = [...baseParts];
+  const params = [...baseParams];
+  if (filter.affectation) {
+    parts.push("COALESCE(e.affectation, 'Non renseigné') = ?");
+    params.push(filter.affectation);
+  }
   const where = parts.join(" AND ");
 
   const groups = db
@@ -417,11 +436,12 @@ export function scrutinsTab(filter: ScrutinsFilter, limit = 200, offset = 0): Sc
       `SELECT e.nom, e.prenom, e.scrutin_type AS scrutinType, e.votant, e.date_emargement AS dateEmargement,
               e.affectation, e.spelc, e.academie, e.degre
               ${showAdherentStatus ? `, CASE WHEN ${adherentExists} THEN 1 ELSE 0 END AS isAdherent` : ""}
-       FROM emargements e WHERE ${where} ORDER BY e.nom, e.prenom LIMIT ? OFFSET ?`
+       FROM emargements e WHERE ${where}
+       ORDER BY COALESCE(e.affectation, 'Non renseigné'), e.nom, e.prenom LIMIT ? OFFSET ?`
     )
     .all(...params, limit, offset) as Record<string, unknown>[];
 
-  return { groups, rows, totalRows: totalRow.c };
+  return { groups, rows, totalRows: totalRow.c, etablissementOptions };
 }
 
 export interface ScrutinsByEtablissementGroup {

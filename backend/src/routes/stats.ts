@@ -129,9 +129,10 @@ router.get("/scrutins", (req, res) => {
   const scrutinType = (req.query.scrutinType as string) || null;
   const votant = (req.query.votant as "votant" | "non_votant") || null;
   const adherent = (req.query.adherent as "oui" | "non") || null;
+  const affectation = (req.query.affectation as string) || null;
   const limit = Math.min(Number(req.query.limit) || 200, 1000);
   const offset = Number(req.query.offset) || 0;
-  res.json(scrutinsTab({ scope, academie, spelc, scrutinType, votant, adherent }, limit, offset));
+  res.json(scrutinsTab({ scope, academie, spelc, scrutinType, votant, adherent, affectation }, limit, offset));
 });
 
 router.get("/scrutins-par-etablissement", (req, res) => {
