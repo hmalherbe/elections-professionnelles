@@ -57,8 +57,8 @@ export function CourbeCard({
   labelPrincipale?: string;
   labelSecondaire?: string;
 }) {
-  const data = pointsSecondaire ? mergeCourbes(points, pointsSecondaire) : points;
   const aDeuxCourbes = Boolean(pointsSecondaire);
+  const data = mergeCourbes(points, pointsSecondaire ?? []);
 
   return (
     <Card title={title} subtitle="Taux de participation cumulé par jour">
