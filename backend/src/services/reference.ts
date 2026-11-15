@@ -1,5 +1,6 @@
 import { db } from "../db/index.js";
 import { loadWorkbook, rowsAsObjects, normalizeCellValue } from "../lib/xlsx.js";
+import { stripAccents } from "../lib/normalize.js";
 
 function normDept(value: unknown): string {
   return String(value).trim().padStart(2, "0");
@@ -47,11 +48,22 @@ export async function loadDepartementsWorkbook(buffer: Buffer): Promise<{ depart
     const txSpelc = db.transaction((r: Record<string, unknown>[]) => {
       db.prepare("DELETE FROM ref_spelc").run();
       for (const row of r) {
-        const values = Object.values(row);
-        const spelc = values[0];
-        const accord = values[1];
-        const academie = values[2];
-        if (spelc == null) continue;
+        // Colonnes retrouvées par leur en-tête (plutôt que par position) :
+        // une colonne "Accord du Spelc..." retirée du fichier décale sinon
+        // "Academie" en position 2 au lieu de 3, et la fait lire comme vide
+        // sans aucune erreur (voir "Spelc introuvable dans le référentiel
+        // académie" malgré un Spelc bien présent dans le fichier).
+        const keys = Object.keys(row).reduce<Record<string, unknown>>((acc, k) => {
+          acc[stripAccents(k).toLowerCase().trim()] = row[k];
+          return acc;
+        }, {});
+        const spelcKey = Object.keys(keys).find((k) => k.includes("spelc") && !k.includes("accord"));
+        const academieKey = Object.keys(keys).find((k) => k.includes("academ"));
+        const accordKey = Object.keys(keys).find((k) => k.includes("accord"));
+        const spelc = spelcKey ? keys[spelcKey] : null;
+        const academie = academieKey ? keys[academieKey] : null;
+        const accord = accordKey ? keys[accordKey] : null;
+        if (spelc == null || String(spelc).trim() === "") continue;
         insertSpelc.run(String(spelc).trim(), String(accord ?? "").trim(), String(academie ?? "").trim());
         spelcCount++;
       }
