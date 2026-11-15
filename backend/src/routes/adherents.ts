@@ -158,6 +158,10 @@ router.post("/import-all", requireRole("admin_general"), upload.single("file"), 
         errors.push({ row: idx + 2, message: `Spelc inconnu : "${spelc}".` });
         return;
       }
+      if (!nom || !prenom) {
+        errors.push({ row: idx + 2, message: "Nom et/ou prénom manquant(s) — ligne ignorée." });
+        return;
+      }
       const arr = bySpelc.get(spelc) ?? [];
       arr.push(row);
       bySpelc.set(spelc, arr);
@@ -177,7 +181,7 @@ router.post("/import-all", requireRole("admin_general"), upload.single("file"), 
           const mail = keys["mail"] ?? keys["email"];
           const mobile = sanitizeMobile(keys["mobile"] ?? keys["numero de mobile"] ?? keys["numéro de mobile"]);
           const nomNaissance = keys["nom de naissance"] ?? keys["nom_naissance"];
-          if (!nom || !prenom) continue;
+          // nom/prénom déjà validés dans la boucle de regroupement ci-dessus.
           insert.run(
             spelc,
             String(nom).trim(),
@@ -255,7 +259,19 @@ router.post("/fuzzy-matches/refresh", requireRole("admin_spelc", "admin_general"
     res.status(400).json({ error: "Spelc requis." });
     return;
   }
-  if (!canAccessSpelc(req.user!, spelcAcademie(spelc), spelc)) {
+  const academie = spelcAcademie(spelc);
+  // refreshFuzzyCandidates()/listUnmatchedAdherents() (services/fuzzyMatching.ts)
+  // ont besoin de cette académie pour retrouver les émargements courants du
+  // Spelc : sans elle, elles renvoient silencieusement des listes vides (0
+  // partout), ce qui ressemble à "tout va bien" alors que le calcul n'a
+  // même pas eu lieu — on préfère une erreur explicite.
+  if (!academie) {
+    res.status(400).json({
+      error: `Spelc "${spelc}" introuvable dans le référentiel académie (onglet Référentiels) — impossible de rechercher les rapprochements.`,
+    });
+    return;
+  }
+  if (!canAccessSpelc(req.user!, academie, spelc)) {
     res.status(403).json({ error: "Accès non autorisé à ce Spelc." });
     return;
   }
@@ -273,7 +289,15 @@ router.get("/fuzzy-matches/unmatched", requireRole("admin_spelc", "admin_general
     res.status(400).json({ error: "Paramètre spelc requis." });
     return;
   }
-  if (!canAccessSpelc(req.user!, spelcAcademie(spelc), spelc)) {
+  const academie = spelcAcademie(spelc);
+  // Même garde-fou que /fuzzy-matches/refresh ci-dessus.
+  if (!academie) {
+    res.status(400).json({
+      error: `Spelc "${spelc}" introuvable dans le référentiel académie (onglet Référentiels) — impossible de lister les adhérents non retrouvés.`,
+    });
+    return;
+  }
+  if (!canAccessSpelc(req.user!, academie, spelc)) {
     res.status(403).json({ error: "Accès non autorisé à ce Spelc." });
     return;
   }

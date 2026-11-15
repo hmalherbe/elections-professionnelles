@@ -323,12 +323,14 @@ function UnmatchedAdherentsPanel({ spelc }: { spelc: string }) {
   const [adherents, setAdherents] = useState<UnmatchedAdherent[] | null>(null);
   const [electeurs, setElecteurs] = useState<{ nom: string; prenom: string }[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<"tous" | UnmatchedAdherent["status"]>("tous");
   const [selection, setSelection] = useState<Record<number, string>>({});
   const [associating, setAssociating] = useState<number | null>(null);
 
   async function load() {
     setLoading(true);
+    setError(null);
     try {
       const [adherentsRes, electeursRes] = await Promise.all([
         api.get<{ adherents: UnmatchedAdherent[] }>(`/adherents/fuzzy-matches/unmatched${qs({ spelc })}`),
@@ -336,6 +338,8 @@ function UnmatchedAdherentsPanel({ spelc }: { spelc: string }) {
       ]);
       setAdherents(adherentsRes.adherents);
       setElecteurs(electeursRes.electeurs);
+    } catch (err) {
+      setError((err as Error).message);
     } finally {
       setLoading(false);
     }
@@ -371,6 +375,7 @@ function UnmatchedAdherentsPanel({ spelc }: { spelc: string }) {
       title="Détail des adhérents non retrouvés"
       subtitle="Qui sont les adhérents sans correspondance exacte dans les émargements, et pourquoi (le cas échéant) aucune suggestion ne leur a été proposée."
     >
+      {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
       {adherents === null ? (
         <button
           className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 disabled:opacity-60"
