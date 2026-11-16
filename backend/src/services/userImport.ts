@@ -31,10 +31,11 @@ function getField(row: Record<string, unknown>, ...names: string[]): string {
 }
 
 /**
- * Import en masse de comptes admin Spelc / admin académique depuis un
+ * Import en masse de comptes admin général / Spelc / académique depuis un
  * fichier CSV ou Excel. Colonnes attendues (insensibles à la casse/accents) :
- * type_admin (spelc|academique), nom, prenom, email, spelc, academie
- * (spelc requis si type_admin=spelc, academie requis si type_admin=academique).
+ * type_admin (general|spelc|academique), nom, prenom, email, spelc, academie
+ * (spelc requis si type_admin=spelc, academie requis si type_admin=academique,
+ * aucun des deux pour type_admin=general).
  * Mot de passe fixe DEFAULT_IMPORTED_PASSWORD, à changer à la 1re connexion.
  */
 export async function importUsersFromFile(buffer: Buffer, filename: string): Promise<ImportUsersResult> {
@@ -74,13 +75,15 @@ export async function importUsersFromFile(buffer: Buffer, filename: string): Pro
 
     if (!typeAdmin && !nom && !prenom && !email) return; // ligne vide
 
-    let role: "admin_spelc" | "admin_academique";
-    if (typeAdmin === "spelc") {
+    let role: "admin_general" | "admin_spelc" | "admin_academique";
+    if (typeAdmin === "general" || typeAdmin === "général") {
+      role = "admin_general";
+    } else if (typeAdmin === "spelc") {
       role = "admin_spelc";
     } else if (typeAdmin === "academique" || typeAdmin === "académique") {
       role = "admin_academique";
     } else {
-      errors.push({ row: rowNum, message: `type_admin invalide ("${typeAdmin}") : attendu "spelc" ou "academique".` });
+      errors.push({ row: rowNum, message: `type_admin invalide ("${typeAdmin}") : attendu "general", "spelc" ou "academique".` });
       return;
     }
     if (!nom || !prenom || !email) {
@@ -96,7 +99,7 @@ export async function importUsersFromFile(buffer: Buffer, filename: string): Pro
         errors.push({ row: rowNum, message: `Spelc inconnu : "${spelc}" (charger le référentiel avant l'import).` });
         return;
       }
-    } else {
+    } else if (role === "admin_academique") {
       if (!academie) {
         errors.push({ row: rowNum, message: "academie requise pour type_admin=academique." });
         return;

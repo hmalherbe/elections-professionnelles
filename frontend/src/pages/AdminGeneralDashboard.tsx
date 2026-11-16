@@ -1070,12 +1070,13 @@ function UsersPanel() {
       </Card>
 
       <FileUploadCard
-        title="Importer des admins Spelc / académiques (CSV ou Excel)"
+        title="Importer des admins général / Spelc / académiques (CSV ou Excel)"
         subtitle={
           "Mot de passe attribué à chaque compte créé : \"ElectionsCCM2026\" (à changer à la première connexion). " +
-          "Les Spelc/académies doivent déjà exister dans les référentiels (onglet Référentiels)."
+          "Les Spelc/académies doivent déjà exister dans les référentiels (onglet Référentiels). " +
+          "Spelc/academie non requis pour type_admin=general."
         }
-        expectedColumns={["type_admin (spelc|academique)", "nom", "prenom", "email", "spelc", "academie"]}
+        expectedColumns={["type_admin (general|spelc|academique)", "nom", "prenom", "email", "spelc", "academie"]}
         accept=".csv,.xlsx"
         onUpload={async (file) => {
           const fd = new FormData();
