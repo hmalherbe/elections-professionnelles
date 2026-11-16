@@ -23,7 +23,12 @@ export function Login() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
+    <div className="relative flex min-h-screen items-center justify-center bg-slate-50 px-4">
+      <img
+        src="/banniere-ccm2026.png"
+        alt="Votez 2 fois Spelc — CCM 2026"
+        className="absolute left-4 top-4 h-auto w-64 sm:w-80"
+      />
       <div className="w-full max-w-sm rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
         <h1 className="text-lg font-semibold text-slate-900">Élections professionnelles 2026</h1>
         <p className="mb-6 text-sm text-slate-500">Suivi des scrutins CCMMEP et académiques · 3 au 10 décembre 2026</p>
