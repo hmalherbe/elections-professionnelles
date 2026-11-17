@@ -113,8 +113,29 @@ router.put("/users/:id", (req, res) => {
   }
 });
 
+/**
+ * Supprime un compte admin Spelc/académique. Un compte qui a déjà importé
+ * un fichier, déposé un document ou envoyé une relance est référencé par
+ * imported_by/uploaded_by/created_by/owner_user_id dans d'autres tables
+ * (clé étrangère vers users, sans cascade) : supprimer l'utilisateur sans y
+ * toucher d'abord violerait cette contrainte et échouerait silencieusement
+ * côté client (DELETE jamais appelé en pratique avant ce correctif, mais le
+ * bouton "Supprimer" ne montrait aucune erreur). On détache donc ces
+ * historiques du compte avant de le supprimer : à NULL pour les tables où
+ * la colonne l'autorise, réattribués à l'admin général qui effectue la
+ * suppression pour relance_tracking.owner_user_id (NOT NULL).
+ */
 router.delete("/users/:id", (req, res) => {
-  db.prepare("DELETE FROM users WHERE id = ? AND role != 'admin_general'").run(req.params.id);
+  const targetId = Number(req.params.id);
+  const tx = db.transaction(() => {
+    db.prepare("UPDATE imports SET imported_by = NULL WHERE imported_by = ?").run(targetId);
+    db.prepare("UPDATE adherents SET uploaded_by = NULL WHERE uploaded_by = ?").run(targetId);
+    db.prepare("UPDATE documents SET uploaded_by = NULL WHERE uploaded_by = ?").run(targetId);
+    db.prepare("UPDATE document_folders SET created_by = NULL WHERE created_by = ?").run(targetId);
+    db.prepare("UPDATE relance_tracking SET owner_user_id = ? WHERE owner_user_id = ?").run(req.user!.id, targetId);
+    db.prepare("DELETE FROM users WHERE id = ? AND role != 'admin_general'").run(targetId);
+  });
+  tx();
   res.status(204).end();
 });
 

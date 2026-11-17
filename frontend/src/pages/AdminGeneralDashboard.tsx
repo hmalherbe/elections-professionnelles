@@ -982,6 +982,7 @@ function UsersPanel() {
       </Card>
 
       <Card title="Comptes existants">
+        {error && <p className="mb-2 text-sm text-red-600">{error}</p>}
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-500">
@@ -1055,8 +1056,14 @@ function UsersPanel() {
                     <button
                       className="text-xs text-red-600 hover:underline"
                       onClick={async () => {
-                        await api.delete(`/admin/users/${u.id}`);
-                        refresh();
+                        if (!confirm(`Supprimer le compte "${u.email}" ?`)) return;
+                        setError(null);
+                        try {
+                          await api.delete(`/admin/users/${u.id}`);
+                          refresh();
+                        } catch (err) {
+                          setError((err as Error).message);
+                        }
                       }}
                     >
                       Supprimer
