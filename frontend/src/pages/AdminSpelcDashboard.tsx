@@ -498,17 +498,17 @@ interface RelanceTrackingRow {
   statusLabel: "ok" | "echec" | "en_attente";
 }
 
-interface BrevoPlanEntry {
+export interface BrevoPlanEntry {
   type: string;
   credits: number;
   creditsType: string;
 }
 
-function findSmsCredits(plan: BrevoPlanEntry[] | null): number | null {
+export function findSmsCredits(plan: BrevoPlanEntry[] | null): number | null {
   return plan?.find((p) => p.type.toLowerCase().includes("sms"))?.credits ?? null;
 }
 
-function findMailCredits(plan: BrevoPlanEntry[] | null): number | null {
+export function findMailCredits(plan: BrevoPlanEntry[] | null): number | null {
   return plan?.find((p) => !p.type.toLowerCase().includes("sms"))?.credits ?? null;
 }
 

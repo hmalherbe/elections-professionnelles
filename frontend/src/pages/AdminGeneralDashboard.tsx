@@ -8,6 +8,7 @@ import { DocumentsPanel } from "../components/DocumentsPanel";
 import { FileUploadCard } from "../components/FileUploadCard";
 import { PivotTree } from "../components/PivotTree";
 import { ScrutinsTab } from "../components/ScrutinsTab";
+import { findMailCredits, findSmsCredits, type BrevoPlanEntry } from "./AdminSpelcDashboard";
 import { api } from "../lib/api";
 import { CATEGORICAL } from "../lib/colors";
 import type { AcademieNode, AcademieScrutin, CourbePoint, ImportRecord, ManagedUser, RelanceDailyPoint } from "../lib/types";
@@ -647,10 +648,15 @@ function StatistiquesRelancesPanel() {
   const [open, setOpen] = useState<Set<string>>(new Set());
   const [selectedSpelc, setSelectedSpelc] = useState(TOUS_SPELC);
   const [smsQuotas, setSmsQuotas] = useState<{ spelc: string; credits: number }[]>([]);
+  const [plan, setPlan] = useState<BrevoPlanEntry[] | null>(null);
 
   useEffect(() => {
     api.get<{ rows: RelanceDailyPoint[] }>("/admin/relance-stats").then((r) => setRows(r.rows));
     api.get<{ rows: { spelc: string; credits: number }[] }>("/admin/sms-quotas").then((r) => setSmsQuotas(r.rows));
+    api
+      .get<{ plan: BrevoPlanEntry[] }>("/brevo/account")
+      .then((r) => setPlan(r.plan))
+      .catch(() => setPlan(null));
   }, []);
 
   function toggle(date: string) {
@@ -717,8 +723,45 @@ function StatistiquesRelancesPanel() {
         : null
       : (smsQuotas.find((q) => q.spelc === selectedSpelc)?.credits ?? null);
 
+  const mailCredits = findMailCredits(plan);
+  const smsCredits = findSmsCredits(plan);
+
   return (
     <div className="space-y-4">
+      <Card title="Crédits Brevo restants">
+        <div className="flex flex-wrap items-center gap-6">
+          <div>
+            <p className="text-xs font-medium text-slate-500">Crédits mail restants</p>
+            <p className="text-lg font-semibold text-slate-900">
+              {mailCredits !== null ? mailCredits.toLocaleString("fr-FR") : "—"}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs font-medium text-slate-500">Crédits SMS restants</p>
+            <p className="text-lg font-semibold text-slate-900">
+              {smsCredits !== null ? smsCredits.toLocaleString("fr-FR") : "—"}
+            </p>
+          </div>
+          <a
+            href="https://app.brevo.com/"
+            target="_blank"
+            rel="noreferrer"
+            className="ml-auto rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700"
+          >
+            Acheter des crédits SMS
+          </a>
+        </div>
+        {plan === null && (
+          <p className="mt-2 text-xs text-slate-400">
+            Crédits indisponibles (clé API Brevo non configurée, ou injoignable).
+          </p>
+        )}
+        <p className="mt-2 text-xs text-slate-400">
+          Le bouton ouvre votre compte Brevo : menu du compte (en bas à gauche) → "Mon forfait" → achat de crédits
+          SMS prépayés.
+        </p>
+      </Card>
+
       <Card
         title="Relances par jour et par Spelc"
         subtitle="Relances réelles uniquement (hors envois de test). Cliquez sur un jour pour voir le détail par Spelc."
