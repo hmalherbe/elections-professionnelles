@@ -743,7 +743,7 @@ function StatistiquesRelancesPanel() {
             </p>
           </div>
           <a
-            href="https://app.brevo.com/"
+            href="https://app.brevo.com/billing/account/customize/message-credits?headerContent=false"
             target="_blank"
             rel="noreferrer"
             className="ml-auto rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700"
@@ -756,10 +756,6 @@ function StatistiquesRelancesPanel() {
             Crédits indisponibles (clé API Brevo non configurée, ou injoignable).
           </p>
         )}
-        <p className="mt-2 text-xs text-slate-400">
-          Le bouton ouvre votre compte Brevo : menu du compte (en bas à gauche) → "Mon forfait" → achat de crédits
-          SMS prépayés.
-        </p>
       </Card>
 
       <Card
