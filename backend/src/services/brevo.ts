@@ -96,7 +96,7 @@ export async function sendBrevoEmails(payload: SendEmailPayload): Promise<BrevoS
           Accept: "application/json",
         },
         body: JSON.stringify({
-          sender: { email: "no-reply@spelc.fr", name: "SPELC" },
+          sender: { email: "federation@spelc.fr", name: "Spelc" },
           to: [recipient],
           subject: payload.subject,
           htmlContent: payload.htmlContent,
