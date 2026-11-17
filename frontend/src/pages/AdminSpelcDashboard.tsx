@@ -921,6 +921,13 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
         </p>
 
         {(() => {
+          // Masqué pendant qu'un résultat de mail/SMS de test est affiché :
+          // ce bandeau concerne les crédits nécessaires à la VRAIE campagne
+          // (tous les adhérents non-votants), sans rapport avec l'envoi d'un
+          // simple mail/SMS de test — mais son rafraîchissement des crédits
+          // (voir sendTestMail/sendTestSms) pouvait le faire apparaître au
+          // même moment, laissant croire qu'il parlait du test.
+          if (testMailMsg || testSmsMsg) return null;
           if (!preview || !plan) return null;
           const mailCredits = findMailCredits(plan);
           const smsCredits = findSmsCredits(plan);
