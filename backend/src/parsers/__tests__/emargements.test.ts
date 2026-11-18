@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseEmargementsJson } from "../emargements.js";
+import { composeEtablissement, parseEmargementsJson } from "../emargements.js";
 
 describe("parseEmargementsJson — les deux formats fonctionnent de concert", () => {
   it("reconnaît le format d'émargement (nom/prenom/corps/affectation) tel quel", () => {
@@ -93,5 +93,24 @@ describe("parseEmargementsJson — les deux formats fonctionnent de concert", ()
     const items = parseEmargementsJson([{ nomUsage: "SEUL", prenom: "Un", codePostal: "13001" }]);
     expect(items).toHaveLength(1);
     expect(items[0].nom).toBe("SEUL");
+  });
+});
+
+describe("composeEtablissement — nom d'établissement complété par ville/codePostal", () => {
+  it("ajoute la ville quand le fichier la fournit", () => {
+    expect(composeEtablissement("ECOLE Y", "Nice", "06500")).toBe("ECOLE Y - Nice");
+  });
+
+  it("se replie sur le code postal quand la ville est absente", () => {
+    expect(composeEtablissement("ECOLE Y", null, "06500")).toBe("ECOLE Y - 06500");
+    expect(composeEtablissement("ECOLE Y", undefined, 6500)).toBe("ECOLE Y - 6500");
+  });
+
+  it("laisse l'établissement tel quel si ni ville ni codePostal ne sont disponibles", () => {
+    expect(composeEtablissement("COLLEGE X 30100 ALES", null, null)).toBe("COLLEGE X 30100 ALES");
+  });
+
+  it("n'invente pas d'établissement quand affectation est absente", () => {
+    expect(composeEtablissement(null, "Nice", "06500")).toBeNull();
   });
 });

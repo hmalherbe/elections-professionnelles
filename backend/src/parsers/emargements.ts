@@ -35,6 +35,15 @@ export interface RawEmargementItem {
    * buildEmargementRow() ci-dessous.
    */
   codePostal?: string | number | null;
+  /**
+   * Ville de l'établissement, si le fichier la fournit — ajoutée au nom de
+   * l'établissement affiché (colonne "Établissement" des onglets Scrutins /
+   * Participation par établissement) sous la forme "<nom> - <ville>", en
+   * repli sur "<nom> - <codePostal>" si la ville est absente (voir
+   * buildEmargementRow). Aucun des deux formats connus ne la fournit
+   * aujourd'hui, mais le champ est prêt si un futur fichier CCMMEP l'ajoute.
+   */
+  ville?: string | null;
 }
 
 export interface RawEmargementFile {
@@ -78,6 +87,7 @@ function normalizeRawItem(raw: Record<string, unknown>): RawEmargementItem {
       rne: (raw.rne as string | null | undefined) ?? null,
       nomNaissance: nomFamille && nomFamille !== nom ? nomFamille : null,
       codePostal: (raw.codePostal as string | number | null | undefined) ?? null,
+      ville: str(raw.ville),
     };
   }
 
@@ -126,6 +136,24 @@ export interface BuildRowOptions {
   scrutinTypeFor2D?: string;
 }
 
+/**
+ * Nom d'établissement affiché (colonne "Établissement" des onglets Scrutins
+ * / Participation par établissement) : complété par la ville si le fichier
+ * la fournit, sinon par le code postal — utile pour distinguer deux
+ * établissements homonymes de communes différentes. N'allonge "affectation"
+ * dans aucun des deux cas quand ni l'une ni l'autre ne sont disponibles
+ * (ex. fichier d'émargement, sans codePostal dédié).
+ */
+export function composeEtablissement(
+  affectation: string | null | undefined,
+  ville: string | null | undefined,
+  codePostal: string | number | null | undefined
+): string | null {
+  if (!affectation) return null;
+  const suffix = ville || (codePostal != null && codePostal !== "" ? String(codePostal) : null);
+  return suffix ? `${affectation} - ${suffix}` : affectation;
+}
+
 export function buildEmargementRow(item: RawEmargementItem, options: BuildRowOptions = {}): EmargementRow {
   // Priorité aux champs structurés et dédiés — RNE, puis codePostal (fichier
   // des électeurs 2026) — sur la recherche d'un code postal dans le texte
@@ -153,6 +181,7 @@ export function buildEmargementRow(item: RawEmargementItem, options: BuildRowOpt
   }
 
   const dateEmargement = parseDateEmargement(item.dateEmargement);
+  const affectation = composeEtablissement(item.affectation, item.ville, item.codePostal);
 
   return {
     academie,
@@ -166,7 +195,7 @@ export function buildEmargementRow(item: RawEmargementItem, options: BuildRowOpt
     nomNaissanceNorm: item.nomNaissance ? normalizeName(item.nomNaissance) : null,
     dateEmargement,
     corps: item.corps ?? null,
-    affectation: item.affectation ?? null,
+    affectation,
     departement,
     spelc,
     referenceBulletin: item.referenceBulletin ?? null,
