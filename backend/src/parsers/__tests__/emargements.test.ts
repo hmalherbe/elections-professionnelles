@@ -101,9 +101,15 @@ describe("composeEtablissement — nom d'établissement complété par ville/cod
     expect(composeEtablissement("ECOLE Y", "Nice", "06500")).toBe("ECOLE Y - Nice");
   });
 
-  it("se replie sur le code postal quand la ville est absente", () => {
+  it("déduit la ville du code postal quand le fichier ne la fournit pas, s'il ne correspond qu'à une seule commune", () => {
+    // 06000 Nice : une seule commune pour ce code postal (référentiel INSEE/DGFiP).
+    expect(composeEtablissement("ECOLE Y", null, "06000")).toBe("ECOLE Y - Nice");
+    expect(composeEtablissement("ECOLE Y", undefined, 6000)).toBe("ECOLE Y - Nice"); // code postal numérique (zéro initial reconstitué)
+  });
+
+  it("se replie sur le code postal brut quand il correspond à plusieurs communes (cas fréquent en zone rurale)", () => {
+    // 06500 : plusieurs communes partagent ce code postal, aucune ville fiable à afficher.
     expect(composeEtablissement("ECOLE Y", null, "06500")).toBe("ECOLE Y - 06500");
-    expect(composeEtablissement("ECOLE Y", undefined, 6500)).toBe("ECOLE Y - 6500");
   });
 
   it("laisse l'établissement tel quel si ni ville ni codePostal ne sont disponibles", () => {

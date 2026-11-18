@@ -2,6 +2,7 @@ import { classifyDegre, type Degre } from "../lib/degre.js";
 import { extractDepartement, extractDepartementFromCodePostal, extractDepartementFromRne } from "../lib/departement.js";
 import { parseDateEmargement } from "../lib/dateEmargement.js";
 import { normalizeName } from "../lib/normalize.js";
+import { villeFromCodePostal } from "../lib/villeFromCodePostal.js";
 import { lookupDepartement, soleSpelcForAcademie } from "../services/reference.js";
 
 export interface RawEmargementItem {
@@ -138,11 +139,13 @@ export interface BuildRowOptions {
 
 /**
  * Nom d'établissement affiché (colonne "Établissement" des onglets Scrutins
- * / Participation par établissement) : complété par la ville si le fichier
- * la fournit, sinon par le code postal — utile pour distinguer deux
- * établissements homonymes de communes différentes. N'allonge "affectation"
- * dans aucun des deux cas quand ni l'une ni l'autre ne sont disponibles
- * (ex. fichier d'émargement, sans codePostal dédié).
+ * / Participation par établissement) : complété par la ville, par ordre de
+ * préférence — celle du fichier si fournie, sinon celle déduite du code
+ * postal via villeFromCodePostal() (uniquement quand ce code postal ne
+ * correspond qu'à une seule commune : voir ce module), sinon le code postal
+ * brut en dernier repli. N'allonge "affectation" dans aucun cas quand rien
+ * de tout cela n'est disponible (ex. fichier d'émargement, sans codePostal
+ * dédié).
  */
 export function composeEtablissement(
   affectation: string | null | undefined,
@@ -150,7 +153,10 @@ export function composeEtablissement(
   codePostal: string | number | null | undefined
 ): string | null {
   if (!affectation) return null;
-  const suffix = ville || (codePostal != null && codePostal !== "" ? String(codePostal) : null);
+  const suffix =
+    ville ||
+    villeFromCodePostal(codePostal) ||
+    (codePostal != null && codePostal !== "" ? String(codePostal) : null);
   return suffix ? `${affectation} - ${suffix}` : affectation;
 }
 
