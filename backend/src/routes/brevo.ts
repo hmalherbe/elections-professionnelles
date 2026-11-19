@@ -403,13 +403,20 @@ router.get("/campaigns/preview", requireRole("admin_spelc"), (req, res) => {
   const smsLimit = clampSmsLimit(req.query.smsLimit);
 
   const adherents = matchedAdherents(spelc);
+  // Total réel d'adhérents n'ayant pas encore voté, sans tenir compte des
+  // limites d'envoi ni de la disponibilité d'un mail/mobile (contrairement à
+  // mailRecipients/smsRecipients ci-dessous) : la question "combien reste-t-il
+  // à relancer ?" doit rester vraie même quand la prochaine campagne, plus
+  // limitée, n'en touchera qu'une partie.
+  const restantARelancer = adherents.filter(needsRelance).length;
+
   let mailRecipients = (testMode ? adherents : adherents.filter((r) => r.mail)).filter(needsRelance);
   if (testMode) mailRecipients = mailRecipients.slice(0, testLimit);
 
   let smsRecipients = (testMode ? adherents : adherents.filter((r) => r.mobile)).filter(needsRelance);
   smsRecipients = smsRecipients.slice(0, smsLimit);
 
-  res.json({ mailRecipients: mailRecipients.length, smsRecipients: smsRecipients.length });
+  res.json({ mailRecipients: mailRecipients.length, smsRecipients: smsRecipients.length, restantARelancer });
 });
 
 router.post("/campaigns/email", requireRole("admin_spelc"), async (req, res) => {

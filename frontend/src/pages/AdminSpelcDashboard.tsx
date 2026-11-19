@@ -560,7 +560,9 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
   const [trackingChecking, setTrackingChecking] = useState(false);
   const [trackingTypeFilter, setTrackingTypeFilter] = useState<"all" | "mail" | "sms">("all");
   const [trackingClearMsg, setTrackingClearMsg] = useState<string | null>(null);
-  const [preview, setPreview] = useState<{ mailRecipients: number; smsRecipients: number } | null>(null);
+  const [preview, setPreview] = useState<{ mailRecipients: number; smsRecipients: number; restantARelancer: number } | null>(
+    null
+  );
   const [smsQuota, setSmsQuota] = useState<{
     quota: number | null;
     used: number;
@@ -660,7 +662,7 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
   // aux crédits Brevo restants pour avertir avant l'envoi plutôt qu'après.
   useEffect(() => {
     api
-      .get<{ mailRecipients: number; smsRecipients: number }>(
+      .get<{ mailRecipients: number; smsRecipients: number; restantARelancer: number }>(
         `/brevo/campaigns/preview${qs({ testMode: testMode ? "true" : undefined, testLimit: String(testMailLimit), smsLimit: String(smsLimit) })}`
       )
       .then(setPreview)
@@ -706,6 +708,16 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
 
   return (
     <div className="space-y-4">
+      <Card title="Adhérents restants à relancer">
+        <p className="text-2xl font-semibold text-slate-900">
+          {preview ? preview.restantARelancer.toLocaleString("fr-FR") : "—"}
+        </p>
+        <p className="text-sm text-slate-500">
+          Adhérents de ce Spelc n'ayant pas encore voté (scrutin national et/ou local), quels que soient leurs
+          coordonnées et les réglages d'envoi ci-dessous.
+        </p>
+      </Card>
+
       {!relanceOnly && (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <LogoUploadCard
