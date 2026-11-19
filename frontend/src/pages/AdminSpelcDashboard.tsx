@@ -139,10 +139,15 @@ interface FuzzyMatch {
 }
 
 function AdherentsPanel({ spelc }: { spelc: string }) {
-  const [adherents, setAdherents] = useState<Adherent[]>([]);
+  const [adherents, setAdherents] = useState<Adherent[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   function refresh() {
-    api.get<{ adherents: Adherent[] }>(`/adherents${qs({ spelc })}`).then((r) => setAdherents(r.adherents));
+    setError(null);
+    api
+      .get<{ adherents: Adherent[] }>(`/adherents${qs({ spelc })}`)
+      .then((r) => setAdherents(r.adherents))
+      .catch((err) => setError((err as Error).message));
   }
   useEffect(refresh, [spelc]);
 
@@ -161,7 +166,8 @@ function AdherentsPanel({ spelc }: { spelc: string }) {
           return `${res.count} adhérents importés.`;
         }}
       />
-      <Card title="Adhérents" subtitle={`${adherents.length} adhérents`}>
+      {error && <p className="text-sm text-red-600">Erreur lors du chargement des adhérents : {error}</p>}
+      <Card title="Adhérents" subtitle={`${adherents?.length ?? (error ? "—" : "0")} adhérents`}>
         <div className="max-h-96 overflow-auto">
           <table className="w-full text-sm">
             <thead className="sticky top-0 bg-white">
@@ -174,7 +180,7 @@ function AdherentsPanel({ spelc }: { spelc: string }) {
               </tr>
             </thead>
             <tbody>
-              {adherents.map((a) => (
+              {(adherents ?? []).map((a) => (
                 <tr key={a.id} className="border-b border-slate-100">
                   <td className="py-1.5 pr-4">{a.nom}</td>
                   <td className="px-4 py-1.5 text-slate-500">{a.nom_naissance ?? "—"}</td>
