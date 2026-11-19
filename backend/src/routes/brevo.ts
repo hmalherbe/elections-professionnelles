@@ -427,6 +427,33 @@ router.get("/campaigns/preview", requireRole("admin_spelc"), (req, res) => {
   res.json({ mailRecipients: mailRecipients.length, smsRecipients: smsRecipients.length, restantARelancer });
 });
 
+/**
+ * Date/heure du dernier import académique (1er et 2nd degré) de l'académie
+ * de ce Spelc — pour que l'admin Spelc sache si le fichier d'émargement
+ * utilisé pour cibler ses relances est à jour, directement depuis cette
+ * page (sans avoir à aller vérifier l'onglet Imports de l'admin académique).
+ */
+router.get("/last-imports", requireRole("admin_spelc"), (req, res) => {
+  const spelc = req.user!.spelc!;
+  const academie = spelcAcademie(spelc);
+  if (!academie) {
+    res.json({ degre1D: null, degre2D: null });
+    return;
+  }
+  const ids = currentImportIds("academique", academie);
+  if (ids.length === 0) {
+    res.json({ degre1D: null, degre2D: null });
+    return;
+  }
+  const rows = db
+    .prepare(`SELECT degre, imported_at FROM imports WHERE id IN (${ids.map(() => "?").join(",")})`)
+    .all(...ids) as { degre: string; imported_at: string }[];
+  res.json({
+    degre1D: rows.find((r) => r.degre === "1D")?.imported_at ?? null,
+    degre2D: rows.find((r) => r.degre === "2D")?.imported_at ?? null,
+  });
+});
+
 router.post("/campaigns/email", requireRole("admin_spelc"), async (req, res) => {
   const spelc = req.user!.spelc!;
   const { tag, onlyNonVotants = true, testMode, testLimit } = req.body ?? {};

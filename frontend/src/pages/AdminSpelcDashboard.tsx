@@ -563,6 +563,7 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
   const [preview, setPreview] = useState<{ mailRecipients: number; smsRecipients: number; restantARelancer: number } | null>(
     null
   );
+  const [lastImports, setLastImports] = useState<{ degre1D: string | null; degre2D: string | null } | null>(null);
   const [smsQuota, setSmsQuota] = useState<{
     quota: number | null;
     used: number;
@@ -639,6 +640,10 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
 
   function refreshAll() {
     refreshCredits();
+    api
+      .get<{ degre1D: string | null; degre2D: string | null }>("/brevo/last-imports")
+      .then(setLastImports)
+      .catch(() => setLastImports(null));
     api.get<{ subject: string; body: string }>(`/brevo/templates/email${qs({ spelc })}`).then(setEmailTemplate);
     api.get<{ body: string }>(`/brevo/templates/sms${qs({ spelc })}`).then(setSmsTemplate);
     api
@@ -716,6 +721,20 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
           Adhérents de ce Spelc n'ayant pas encore voté (scrutin national et/ou local), quels que soient leurs
           coordonnées et les réglages d'envoi ci-dessous.
         </p>
+        <div className="mt-3 flex flex-wrap gap-6 border-t border-slate-100 pt-3 text-sm">
+          <div>
+            <p className="text-xs font-medium text-slate-500">Dernier import 1er degré</p>
+            <p className="text-slate-700">
+              {lastImports?.degre1D ? parseSqliteUtc(lastImports.degre1D).toLocaleString("fr-FR") : "Aucun import"}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs font-medium text-slate-500">Dernier import 2nd degré</p>
+            <p className="text-slate-700">
+              {lastImports?.degre2D ? parseSqliteUtc(lastImports.degre2D).toLocaleString("fr-FR") : "Aucun import"}
+            </p>
+          </div>
+        </div>
       </Card>
 
       {!relanceOnly && (
