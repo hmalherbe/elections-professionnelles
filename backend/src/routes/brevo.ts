@@ -403,12 +403,20 @@ router.get("/campaigns/preview", requireRole("admin_spelc"), (req, res) => {
   const smsLimit = clampSmsLimit(req.query.smsLimit);
 
   const adherents = matchedAdherents(spelc);
-  // Total réel d'adhérents n'ayant pas encore voté, sans tenir compte des
-  // limites d'envoi ni de la disponibilité d'un mail/mobile (contrairement à
-  // mailRecipients/smsRecipients ci-dessous) : la question "combien reste-t-il
-  // à relancer ?" doit rester vraie même quand la prochaine campagne, plus
-  // limitée, n'en touchera qu'une partie.
-  const restantARelancer = adherents.filter(needsRelance).length;
+  // Total adhérents de ce Spelc, moins ceux CONFIRMÉS votants (retrouvés dans
+  // les émargements ET votant=1) — pas "retrouvés et non-votants" comme
+  // needsRelance() : tant qu'aucun fichier d'émargement n'a été importé, ou
+  // qu'un adhérent n'y est pas retrouvé (rapprochement en échec), on ne peut
+  // pas le confirmer votant, donc il doit toujours compter comme restant à
+  // relancer — alors que needsRelance() exige d'abord d'être retrouvé, et
+  // renverrait 0 dans ce cas (aucun fichier importé = personne "retrouvé").
+  // Reste purement informatif : ne change pas le ciblage réel des envois
+  // (mailRecipients/smsRecipients ci-dessous, inchangés).
+  const confirmedVoters = adherents.filter(
+    (r) => (Boolean(r.nationalMatched) && Boolean(r.votantNational)) || (Boolean(r.localMatched) && Boolean(r.votantLocal))
+  ).length;
+  const totalAdherents = (db.prepare("SELECT COUNT(*) AS c FROM adherents WHERE spelc = ?").get(spelc) as { c: number }).c;
+  const restantARelancer = totalAdherents - confirmedVoters;
 
   let mailRecipients = (testMode ? adherents : adherents.filter((r) => r.mail)).filter(needsRelance);
   if (testMode) mailRecipients = mailRecipients.slice(0, testLimit);
