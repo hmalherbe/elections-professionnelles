@@ -83,3 +83,15 @@ export function buildLogoHtml(logoRef: string | null): string {
   const src = logoRef.startsWith("/") ? `${publicBaseUrl()}${logoRef}` : logoRef;
   return `<div style="margin-bottom:16px;text-align:center;"><img src="${src}" alt="Logo" style="max-height:80px;max-width:280px;" /></div>`;
 }
+
+/**
+ * Bannière pleine largeur (ex. champ {{logo_rugby}}) : contrairement à
+ * buildLogoHtml (pensé pour un petit logo, plafonné en hauteur), l'image
+ * occupe toute la largeur de la colonne du mail (voir EMAIL_COLUMN_WIDTH,
+ * lib/emailLayout.ts), hauteur proportionnelle — adapté à un visuel de
+ * campagne large plutôt qu'à un logo.
+ */
+export function buildBannerHtml(assetPath: string, alt: string): string {
+  const src = `${publicBaseUrl()}${assetPath}`;
+  return `<div style="margin-bottom:16px;text-align:center;"><img src="${src}" alt="${alt}" style="width:100%;max-width:600px;height:auto;display:block;margin:0 auto;" /></div>`;
+}

@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { db } from "../db/index.js";
+import dayjs from "dayjs";
 import { requireAuth, requireRole, canAccessSpelc } from "../middleware/auth.js";
 import { renderTemplate, type TemplateFields } from "../lib/template.js";
 import { wrapEmailHtml, ensureSiteLink } from "../lib/emailLayout.js";
@@ -7,7 +8,7 @@ import { sendBrevoEmails, sendBrevoSms, fetchAccountInfo, getBrevoApiKey } from 
 import { currentImportIds } from "../services/stats.js";
 import { getTestContactSettings } from "../services/settings.js";
 import { getSpelcSettings, updateSpelcSettings } from "../services/spelcSettings.js";
-import { buildLogoHtml, buildSocialLinksHtml, type SocialLinks } from "../lib/socialLinks.js";
+import { buildLogoHtml, buildBannerHtml, buildSocialLinksHtml, type SocialLinks } from "../lib/socialLinks.js";
 import { appendRelanceLog } from "../lib/relanceLog.js";
 import {
   insertRelanceTracking,
@@ -25,10 +26,27 @@ import { smsQuotaStatus } from "../services/smsQuota.js";
 /** Préfixe le tag Brevo d'une campagne SMS par le nom du Spelc, pour que les
  * envois de chaque Spelc soient identifiables à la fois dans le tableau de
  * bord Brevo et dans le suivi interne (qui utilise déjà `scope`, indépendant
- * du tag, pour le calcul du plafond de crédits — voir services/smsQuota.ts). */
+ * du tag, pour le calcul du plafond de crédits — voir services/smsQuota.ts).
+ * Utilisé uniquement pour le SMS de test (tag fixe "test-modele") : les
+ * campagnes réelles ont désormais un tag entièrement généré, voir
+ * campagneTagAuto() ci-dessous. */
 function smsCampagneTag(spelc: string, tag: string): string {
   return `${spelc}-${tag}`;
 }
+
+/**
+ * Tag de campagne d'une relance réelle (mail ou SMS) — généré automatiquement,
+ * plus de saisie libre par l'admin Spelc : "relance-mail-<date>-<Spelc>" ou
+ * "relance-SMS-<date>-<Spelc>", daté du jour de l'envoi.
+ */
+function campagneTagAuto(kind: "mail" | "sms", spelc: string): string {
+  const date = dayjs().format("YYYY-MM-DD");
+  return kind === "mail" ? `relance-mail-${date}-${spelc}` : `relance-SMS-${date}-${spelc}`;
+}
+
+/** Bannière de campagne nationale fixe (champ {{logo_rugby}}), image-baked
+ * (backend/assets), pas de gestion par l'admin Spelc. */
+const RUGBY_BANNER_PATH = "/api/assets/logo/rugby.png";
 
 /** Démo "relance-only" : pas de gestion de logo par l'admin (voir
  * AdminSpelcDashboard.tsx), donc le logo du Spelc fédéral est fixe, ajouté en
@@ -36,25 +54,6 @@ function smsCampagneTag(spelc: string, tag: string): string {
  * qui ne le référence plus depuis qu'il a été vidé). */
 function withDemoLogo(html: string): string {
   return isRelanceOnly() ? buildLogoHtml("/api/assets/logo/spelc.png") + html : html;
-}
-
-const MAX_TEST_RECIPIENTS = 20;
-const DEFAULT_TEST_RECIPIENTS = 3;
-
-function clampTestLimit(value: unknown): number {
-  const n = Number(value);
-  if (!Number.isFinite(n) || n < 1) return DEFAULT_TEST_RECIPIENTS;
-  return Math.min(Math.floor(n), MAX_TEST_RECIPIENTS);
-}
-
-/** Plafond d'envoi SMS (réel ou test) pour éviter de consommer tous les crédits d'un coup. */
-const MAX_SMS_SEND_LIMIT = 500;
-const DEFAULT_SMS_SEND_LIMIT = 20;
-
-function clampSmsLimit(value: unknown): number {
-  const n = Number(value);
-  if (!Number.isFinite(n) || n < 1) return DEFAULT_SMS_SEND_LIMIT;
-  return Math.min(Math.floor(n), MAX_SMS_SEND_LIMIT);
 }
 
 const router = Router();
@@ -308,7 +307,8 @@ function templateFieldsFor(r: Recipient, spelc: string): TemplateFields {
     // alias conservés pour compatibilité avec d'anciens modèles
     scrutin: scrutinLocal,
     votant: votantLocal,
-    logo: buildLogoHtml(settings.logoDataUri),
+    logo_spelc: buildLogoHtml(settings.logoDataUri),
+    logo_rugby: buildBannerHtml(RUGBY_BANNER_PATH, "Transformez l'essai ! Votez 2 fois Spelc"),
     reseaux_sociaux: buildSocialLinksHtml(settings.socialLinks),
   };
 }
@@ -465,17 +465,13 @@ router.post("/templates/sms/test", requireRole("admin_spelc", "admin_general"), 
 });
 
 /**
- * Nombre de destinataires que toucherait réellement une campagne avec les
- * réglages actuels (mode test + limites incluses) — calculé avec exactement
- * la même logique de ciblage que les envois réels ci-dessous, pour que
- * l'admin Spelc puisse comparer ce nombre à ses crédits Brevo restants avant
- * de lancer l'envoi plutôt que de le découvrir après coup.
+ * Nombre de destinataires que toucherait réellement une campagne — calculé
+ * avec exactement la même logique de ciblage que les envois réels ci-dessous,
+ * pour que l'admin Spelc puisse comparer ce nombre à ses crédits Brevo
+ * restants avant de lancer l'envoi plutôt que de le découvrir après coup.
  */
 router.get("/campaigns/preview", requireRole("admin_spelc"), (req, res) => {
   const spelc = req.user!.spelc!;
-  const testMode = req.query.testMode === "true";
-  const testLimit = clampTestLimit(req.query.testLimit);
-  const smsLimit = clampSmsLimit(req.query.smsLimit);
 
   const adherents = matchedAdherents(spelc);
   // Tant qu'aucun fichier d'émargement n'a été importé, matchedAdherents()
@@ -490,11 +486,8 @@ router.get("/campaigns/preview", requireRole("admin_spelc"), (req, res) => {
   const totalAdherents = (db.prepare("SELECT COUNT(*) AS c FROM adherents WHERE spelc = ?").get(spelc) as { c: number }).c;
   const restantARelancer = adherents.length === 0 ? totalAdherents : adherents.filter(needsRelance).length;
 
-  let mailRecipients = (testMode ? adherents : adherents.filter((r) => r.mail)).filter(needsRelance);
-  if (testMode) mailRecipients = mailRecipients.slice(0, testLimit);
-
-  let smsRecipients = (testMode ? adherents : adherents.filter((r) => r.mobile)).filter(needsRelance);
-  smsRecipients = smsRecipients.slice(0, smsLimit);
+  const mailRecipients = adherents.filter((r) => r.mail).filter(needsRelance);
+  const smsRecipients = adherents.filter((r) => r.mobile).filter(needsRelance);
 
   res.json({ mailRecipients: mailRecipients.length, smsRecipients: smsRecipients.length, restantARelancer });
 });
@@ -528,7 +521,7 @@ router.get("/last-imports", requireRole("admin_spelc"), (req, res) => {
 
 router.post("/campaigns/email", requireRole("admin_spelc"), async (req, res) => {
   const spelc = req.user!.spelc!;
-  const { tag, onlyNonVotants = true, testMode, testLimit } = req.body ?? {};
+  const { onlyNonVotants = true } = req.body ?? {};
   const apiKey = getBrevoApiKey();
   if (!apiKey) {
     res.status(400).json({ error: "Clé API Brevo non configurée (contactez l'administrateur général)." });
@@ -541,18 +534,12 @@ router.post("/campaigns/email", requireRole("admin_spelc"), async (req, res) => 
     res.status(400).json({ error: "Aucun modèle de mail configuré." });
     return;
   }
-  const testEmail = testMode ? resolveTestContact(spelc).testEmail : null;
-  if (testMode && !testEmail) {
-    res.status(400).json({ error: "Renseigner votre mail." });
-    return;
-  }
 
-  let recipients = testMode ? matchedAdherents(spelc) : matchedAdherents(spelc).filter((r) => r.mail);
+  let recipients = matchedAdherents(spelc).filter((r) => r.mail);
   if (onlyNonVotants) recipients = recipients.filter(needsRelance);
-  if (testMode) recipients = recipients.slice(0, clampTestLimit(testLimit));
 
   const to = recipients.map((r) => ({
-    email: testMode ? String(testEmail) : r.mail!,
+    email: r.mail!,
     name: `${r.prenom} ${r.nom}`,
     nom: r.nom,
     prenom: r.prenom,
@@ -560,7 +547,7 @@ router.post("/campaigns/email", requireRole("admin_spelc"), async (req, res) => 
     html: wrapEmailHtml(withDemoLogo(renderTemplate(ensureSiteLink(template.body), templateFieldsFor(r, spelc)))),
   }));
 
-  const campagneTag = (tag ?? "relance") + (testMode ? "-test" : "");
+  const campagneTag = campagneTagAuto("mail", spelc);
 
   // Brevo n'acceptant pas un contenu par destinataire en un seul appel groupé sans template,
   // on envoie chaque email individuellement avec son contenu personnalisé.
@@ -572,7 +559,7 @@ router.post("/campaigns/email", requireRole("admin_spelc"), async (req, res) => 
       to: [{ email: item.email, name: item.name }],
       subject: item.subject,
       htmlContent: item.html,
-      tag: tag ?? "relance",
+      tag: campagneTag,
     });
     sent += result.sent;
     errors += result.errors;
@@ -585,7 +572,7 @@ router.post("/campaigns/email", requireRole("admin_spelc"), async (req, res) => 
       nom: item.nom,
       prenom: item.prenom,
       contact: item.email,
-      testMode: Boolean(testMode),
+      testMode: false,
       success: result.sent > 0,
     });
     insertRelanceTracking({
@@ -596,7 +583,7 @@ router.post("/campaigns/email", requireRole("admin_spelc"), async (req, res) => 
       nom: item.nom,
       prenom: item.prenom,
       contact: item.email,
-      testMode: Boolean(testMode),
+      testMode: false,
       sendOk: result.sent > 0,
       messageId: result.messageId,
       errorMessage: result.errorMessage,
@@ -608,14 +595,14 @@ router.post("/campaigns/email", requireRole("admin_spelc"), async (req, res) => 
 
 router.post("/campaigns/sms", requireRole("admin_spelc"), async (req, res) => {
   const spelc = req.user!.spelc!;
-  const { tag, onlyNonVotants = true, testMode, smsLimit } = req.body ?? {};
+  const { onlyNonVotants = true } = req.body ?? {};
   const apiKey = getBrevoApiKey();
   if (!apiKey) {
     res.status(400).json({ error: "Clé API Brevo non configurée (contactez l'administrateur général)." });
     return;
   }
-  const quotaStatus = smsQuotaStatus(spelc);
-  if (quotaStatus.reached) {
+  if (smsQuotaStatus(spelc).reached) {
+    const quotaStatus = smsQuotaStatus(spelc);
     res.status(400).json({
       error: `Plafond de crédits SMS atteint pour ce Spelc (${quotaStatus.used}/${quotaStatus.quota}) : plus aucune campagne SMS possible.`,
     });
@@ -628,23 +615,27 @@ router.post("/campaigns/sms", requireRole("admin_spelc"), async (req, res) => {
     res.status(400).json({ error: "Aucun modèle de SMS configuré." });
     return;
   }
-  const testMobile = testMode ? resolveTestContact(spelc).testMobile : null;
-  if (testMode && !testMobile) {
-    res.status(400).json({ error: "Renseigner le numéro de mobile." });
-    return;
-  }
 
-  let recipients = testMode ? matchedAdherents(spelc) : matchedAdherents(spelc).filter((r) => r.mobile);
+  let recipients = matchedAdherents(spelc).filter((r) => r.mobile);
   if (onlyNonVotants) recipients = recipients.filter(needsRelance);
-  recipients = recipients.slice(0, clampSmsLimit(smsLimit));
 
-  const campagneTag = smsCampagneTag(spelc, (tag ?? "relance") + (testMode ? "-test" : ""));
+  const campagneTag = campagneTagAuto("sms", spelc);
   const smsSender = resolveSmsSender(spelc);
   let sent = 0;
   let errors = 0;
+  // Plus de plafond manuel par envoi (voir AdminSpelcDashboard.tsx) : on
+  // vérifie le plafond de crédits SMS du Spelc (services/smsQuota.ts) avant
+  // CHAQUE envoi plutôt qu'une seule fois au début, pour ne jamais le
+  // dépasser au fil d'une campagne qui toucherait plus de destinataires que
+  // de crédits restants.
+  let quotaReached = false;
   for (const r of recipients) {
+    if (smsQuotaStatus(spelc).reached) {
+      quotaReached = true;
+      break;
+    }
     const content = renderTemplate(template.body, templateFieldsFor(r, spelc));
-    const contact = testMode ? String(testMobile) : r.mobile!;
+    const contact = r.mobile!;
     const result = await sendBrevoSms({
       apiKey,
       recipients: [normalizeFrenchMobile(contact)],
@@ -663,7 +654,7 @@ router.post("/campaigns/sms", requireRole("admin_spelc"), async (req, res) => {
       nom: r.nom,
       prenom: r.prenom,
       contact,
-      testMode: Boolean(testMode),
+      testMode: false,
       success: result.sent > 0,
     });
     insertRelanceTracking({
@@ -674,14 +665,14 @@ router.post("/campaigns/sms", requireRole("admin_spelc"), async (req, res) => {
       nom: r.nom,
       prenom: r.prenom,
       contact: normalizeFrenchMobile(contact),
-      testMode: Boolean(testMode),
+      testMode: false,
       sendOk: result.sent > 0,
       messageId: result.messageId,
       errorMessage: result.errorMessage,
     });
   }
 
-  res.status(201).json({ sent, errors, total: recipients.length });
+  res.status(201).json({ sent, errors, total: recipients.length, quotaReached });
 });
 
 /**

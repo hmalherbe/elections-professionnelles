@@ -7,7 +7,6 @@ import { Ccm2022ResultsTab } from "../components/Ccm2022ResultsTab";
 import { CourbeCard } from "../components/CourbeCard";
 import { EtablissementsTab } from "../components/EtablissementsTab";
 import { FileUploadCard } from "../components/FileUploadCard";
-import { LogoUploadCard } from "../components/LogoUploadCard";
 import { ScopeToggle } from "../components/ScopeToggle";
 import { ScrutinsTab } from "../components/ScrutinsTab";
 import { SocialLinksEditor } from "../components/SocialLinksEditor";
@@ -538,19 +537,14 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
   const [smsTemplate, setSmsTemplate] = useState({ body: "" });
   const [mailRows, setMailRows] = useState<RelanceMail[]>([]);
   const [smsRows, setSmsRows] = useState<RelanceSms[]>([]);
-  const [campagneTag, setCampagneTag] = useState("relance-1");
   const [message, setMessage] = useState<string | null>(null);
   const [plan, setPlan] = useState<BrevoPlanEntry[] | null>(null);
-  const [testMode, setTestMode] = useState(false);
-  const [testMailLimit, setTestMailLimit] = useState(3);
-  const [smsLimit, setSmsLimit] = useState(20);
   const [spelcSettings, setSpelcSettings] = useState<{
-    logoDataUri: string | null;
     socialLinks: SocialLinks;
     testEmail: string | null;
     testMobile: string | null;
     smsSender: string | null;
-  }>({ logoDataUri: null, socialLinks: {}, testEmail: null, testMobile: null, smsSender: null });
+  }>({ socialLinks: {}, testEmail: null, testMobile: null, smsSender: null });
   const [ownTestEmail, setOwnTestEmail] = useState("");
   const [ownTestMobile, setOwnTestMobile] = useState("");
   const [ownSmsSender, setOwnSmsSender] = useState("");
@@ -654,7 +648,6 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
     api.get<{ body: string }>(`/brevo/templates/sms${qs({ spelc })}`).then(setSmsTemplate);
     api
       .get<{
-        logoDataUri: string | null;
         socialLinks: SocialLinks;
         testEmail: string | null;
         testMobile: string | null;
@@ -669,16 +662,14 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
   }
   useEffect(refreshAll, [spelc]);
 
-  // Nombre de destinataires réellement ciblés par les réglages actuels — comparé
-  // aux crédits Brevo restants pour avertir avant l'envoi plutôt qu'après.
+  // Nombre de destinataires réellement ciblés par la campagne — comparé aux
+  // crédits Brevo restants pour avertir avant l'envoi plutôt qu'après.
   useEffect(() => {
     api
-      .get<{ mailRecipients: number; smsRecipients: number; restantARelancer: number }>(
-        `/brevo/campaigns/preview${qs({ testMode: testMode ? "true" : undefined, testLimit: String(testMailLimit), smsLimit: String(smsLimit) })}`
-      )
+      .get<{ mailRecipients: number; smsRecipients: number; restantARelancer: number }>("/brevo/campaigns/preview")
       .then(setPreview)
       .catch(() => setPreview(null));
-  }, [spelc, testMode, testMailLimit, smsLimit]);
+  }, [spelc]);
 
   async function sendTestMail() {
     setTestMailBusy(true);
@@ -744,23 +735,13 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
       </Card>
 
       {!relanceOnly && (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <LogoUploadCard
-            title="Logo (entête des mails)"
-            currentLogo={spelcSettings.logoDataUri}
-            onSave={async (dataUri) => {
-              await api.put("/brevo/spelc-settings", { spelc, logoDataUri: dataUri });
-              setSpelcSettings((s) => ({ ...s, logoDataUri: dataUri }));
-            }}
-          />
-          <SocialLinksEditor
-            value={spelcSettings.socialLinks}
-            onSave={async (links) => {
-              await api.put("/brevo/spelc-settings", { spelc, socialLinks: links });
-              setSpelcSettings((s) => ({ ...s, socialLinks: links }));
-            }}
-          />
-        </div>
+        <SocialLinksEditor
+          value={spelcSettings.socialLinks}
+          onSave={async (links) => {
+            await api.put("/brevo/spelc-settings", { spelc, socialLinks: links });
+            setSpelcSettings((s) => ({ ...s, socialLinks: links }));
+          }}
+        />
       )}
 
       <Card
@@ -826,10 +807,9 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
           </>
         ) : (
           <>
-            Pour vos mails comme pour vos SMS de relance, vous pouvez : choisir un logo personnalisé en entête
-            (ci-dessus), recharger votre modèle enregistré (bouton « Charger le modèle »), et personnaliser le
-            contenu avec des champs dynamiques ({"{{nom}}"}, {"{{prenom}}"}, statut de vote…) comme dans un
-            publipostage.
+            Pour vos mails comme pour vos SMS de relance, vous pouvez : recharger votre modèle enregistré (bouton
+            « Charger le modèle »), et personnaliser le contenu avec des champs dynamiques ({"{{nom}}"},{" "}
+            {"{{prenom}}"}, statut de vote, logos…) comme dans un publipostage.
           </>
         )}
       </p>
@@ -841,7 +821,7 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
             relanceOnly
               ? "Champs : {{nom}} {{prenom}}"
               : "Champs : {{nom}} {{prenom}} {{scrutin_local}} · {{CCMMEP_non_votant}} {{scrutin_local_non_votant}} · " +
-                "{{logo}} {{reseaux_sociaux}} · {{#if expr}}…{{else}}…{{/if}} avec expr combinant and/or/not(...), ex. " +
+                "{{logo_spelc}} {{logo_rugby}} {{reseaux_sociaux}} · {{#if expr}}…{{else}}…{{/if}} avec expr combinant and/or/not(...), ex. " +
                 "\"CCMMEP_non_votant and not(scrutin_local_non_votant)\""
           }
         >
@@ -925,38 +905,8 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
 
       <Card
         title="Envoyer une campagne de relance"
-        subtitle="Ciblage : adhérents non-votants au scrutin local"
+        subtitle="Ciblage : adhérents non-votants au scrutin local. Le tag de campagne est généré automatiquement (relance-mail-AAAA-MM-JJ-<Spelc> / relance-SMS-AAAA-MM-JJ-<Spelc>)."
       >
-        <div className="flex flex-wrap items-end gap-3">
-          <div>
-            <label className="block text-xs font-medium text-slate-500">Tag de campagne</label>
-            <input
-              className="mt-1 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-              value={campagneTag}
-              onChange={(e) => setCampagneTag(e.target.value)}
-            />
-          </div>
-          <label className="flex items-center gap-2 pb-1.5 text-sm text-slate-600">
-            <input type="checkbox" checked={testMode} onChange={(e) => setTestMode(e.target.checked)} />
-            Mode test
-          </label>
-          <div>
-            <label className="block text-xs font-medium text-slate-500">Limite d'envoi SMS</label>
-            <input
-              type="number"
-              min={1}
-              max={500}
-              className="mt-1 w-32 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-              value={smsLimit}
-              onChange={(e) => setSmsLimit(Number(e.target.value))}
-            />
-          </div>
-        </div>
-        <p className="mt-1 text-xs text-slate-500">
-          La limite d'envoi SMS s'applique aussi bien en mode test qu'en envoi réel, pour ne pas consommer plus de
-          crédits que prévu.
-        </p>
-
         {(() => {
           // Masqué pendant qu'un résultat de mail/SMS de test est affiché :
           // ce bandeau concerne les crédits nécessaires à la VRAIE campagne
@@ -1005,27 +955,6 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
           </div>
         )}
 
-        {testMode && (
-          <div className="mt-3 grid grid-cols-1 gap-3 rounded-md border border-amber-200 bg-amber-50 p-3">
-            <p className="text-xs text-amber-800">
-              En mode test, les mails/SMS sont envoyés au mail/mobile de test configuré par l'admin général (pas aux
-              vrais adhérents), en utilisant le contenu personnalisé des N premiers adhérents ciblés — utile pour
-              vérifier le rendu du modèle sans consommer de crédits sur de vraies personnes.
-            </p>
-            <div className="max-w-[10rem]">
-              <label className="block text-xs font-medium text-slate-500">Nombre de mails à envoyer</label>
-              <input
-                type="number"
-                min={1}
-                max={20}
-                className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-                value={testMailLimit}
-                onChange={(e) => setTestMailLimit(Number(e.target.value))}
-              />
-            </div>
-          </div>
-        )}
-
         <div className="mt-3 flex flex-wrap items-center gap-3">
           <button
             className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700"
@@ -1035,11 +964,10 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
                 // avec le contenu affiché à l'écran) : on l'enregistre d'abord pour
                 // que ce qui vient d'être saisi soit bien pris en compte.
                 await api.put("/brevo/templates/email", { spelc, ...emailTemplate });
-                const res = await api.post<{ sent: number; errors: number; total: number }>("/brevo/campaigns/email", {
-                  tag: campagneTag,
-                  testMode,
-                  testLimit: testMailLimit,
-                });
+                const res = await api.post<{ sent: number; errors: number; total: number }>(
+                  "/brevo/campaigns/email",
+                  {}
+                );
                 setMessage(`Mails : ${res.sent}/${res.total} envoyés, ${res.errors} erreurs.`);
                 reloadTracking();
                 refreshCredits();
@@ -1063,12 +991,14 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
             onClick={async () => {
               try {
                 await api.put("/brevo/templates/sms", { spelc, body: smsTemplate.body });
-                const res = await api.post<{ sent: number; errors: number; total: number }>("/brevo/campaigns/sms", {
-                  tag: campagneTag,
-                  testMode,
-                  smsLimit,
-                });
-                setMessage(`SMS : ${res.sent}/${res.total} envoyés, ${res.errors} erreurs.`);
+                const res = await api.post<{ sent: number; errors: number; total: number; quotaReached: boolean }>(
+                  "/brevo/campaigns/sms",
+                  {}
+                );
+                setMessage(
+                  `SMS : ${res.sent}/${res.total} envoyés, ${res.errors} erreurs.` +
+                    (res.quotaReached ? " Plafond de crédits SMS atteint en cours d'envoi : campagne interrompue." : "")
+                );
                 reloadTracking();
                 refreshCredits();
                 refreshSmsQuota();
