@@ -71,17 +71,20 @@ export function buildSocialLinksHtml(links: SocialLinks): string {
   return `<div style="margin-top:24px;padding-top:12px;border-top:1px solid #e2e8f0;font-size:12px;color:#64748b;">Suivez-nous : ${items}</div>`;
 }
 
-/** Taille fixe du logo Spelc en entête de mail (voir buildLogoHtml) : les
- * attributs width/height (en plus du style) sont la façon la plus fiable de
- * figer une taille en HTML mail, y compris sur les clients qui chargent
- * l'image après le rendu initial (évite un redimensionnement visible). */
+/** Taille fixe du logo Spelc en entête de mail (voir buildLogoHtml). */
 const LOGO_SIZE_PX = 250;
 
-/** Logo en tête de mail, centré horizontalement (text-align sur le conteneur
- * : la propriété CSS la plus fiable pour un centrage universel en HTML mail,
- * y compris sur les clients qui ignorent flexbox/margin:auto sur un <img>).
- * Taille fixée à LOGO_SIZE_PX x LOGO_SIZE_PX (quel que soit le format
- * d'origine de l'image envoyée par le Spelc). */
+/**
+ * Logo en tête de mail, centré horizontalement, taille fixée à
+ * LOGO_SIZE_PX x LOGO_SIZE_PX quel que soit le format d'origine de l'image
+ * envoyée par le Spelc. Certains clients (notamment Thunderbird) redimensionnent
+ * une image selon sa taille intrinsèque malgré des attributs width/height ou un
+ * style width/height classiques : on utilise donc la technique "bulletproof"
+ * standard en HTML mail — cellule de tableau à taille fixe (width/height en
+ * attributs, respectés beaucoup plus largement qu'une propriété CSS) +
+ * attributs ET style !important sur l'image elle-même + display:block (évite
+ * l'espace blanc sous l'image dû à son alignement inline par défaut).
+ */
 export function buildLogoHtml(logoRef: string | null): string {
   if (!logoRef) return "";
   // logoRef est soit un chemin relatif /api/uploads/logos/... (nouveaux
@@ -90,9 +93,12 @@ export function buildLogoHtml(logoRef: string | null): string {
   // conservée telle quelle pour ne pas casser l'existant.
   const src = logoRef.startsWith("/") ? `${publicBaseUrl()}${logoRef}` : logoRef;
   return (
-    `<div style="margin-bottom:16px;text-align:center;">` +
+    `<table role="presentation" align="center" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto 16px auto;">` +
+    `<tr><td width="${LOGO_SIZE_PX}" height="${LOGO_SIZE_PX}" align="center" valign="middle" ` +
+    `style="width:${LOGO_SIZE_PX}px;height:${LOGO_SIZE_PX}px;">` +
     `<img src="${src}" alt="Logo" width="${LOGO_SIZE_PX}" height="${LOGO_SIZE_PX}" ` +
-    `style="width:${LOGO_SIZE_PX}px;height:${LOGO_SIZE_PX}px;" /></div>`
+    `style="display:block;width:${LOGO_SIZE_PX}px !important;height:${LOGO_SIZE_PX}px !important;" />` +
+    `</td></tr></table>`
   );
 }
 
