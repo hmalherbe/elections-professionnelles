@@ -5,7 +5,6 @@ import { renderTemplate, type TemplateFields } from "../lib/template.js";
 import { wrapEmailHtml, ensureSiteLink } from "../lib/emailLayout.js";
 import { sendBrevoEmails, sendBrevoSms, fetchAccountInfo, getBrevoApiKey } from "../services/brevo.js";
 import { currentImportIds } from "../services/stats.js";
-import { fuzzyValidatedJoinExtra } from "../services/fuzzyMatching.js";
 import { getTestContactSettings } from "../services/settings.js";
 import { getSpelcSettings, updateSpelcSettings } from "../services/spelcSettings.js";
 import { buildLogoHtml, buildSocialLinksHtml, type SocialLinks } from "../lib/socialLinks.js";
@@ -185,11 +184,59 @@ interface Recipient {
   nationalMatched: number;
 }
 
+interface EmargementIdentityRow {
+  nom_norm: string;
+  prenom_norm: string;
+  votant: number;
+  scrutin_type: string | null;
+}
+
+/** Émargements de ce seul Spelc (local ou national) pour les imports donnés
+ * — jamais tout l'import national : voir la note sur buildAdherentIdentitySets
+ * (services/fuzzyMatching.ts) sur le coût d'une sous-requête corrélée réévaluée
+ * pour chaque ligne d'un import national de plusieurs centaines de milliers
+ * d'électeurs. Ce filtre `spelc = ?` (indexé) élimine ce risque dès la
+ * requête : le reste de l'appariement se fait ensuite en mémoire, sur un
+ * volume borné à ce seul Spelc. */
+function loadEmargementIdentities(spelc: string, importIds: number[]): EmargementIdentityRow[] {
+  if (importIds.length === 0) return [];
+  const placeholders = importIds.map(() => "?").join(",");
+  return db
+    .prepare(`SELECT nom_norm, prenom_norm, votant, scrutin_type FROM emargements WHERE spelc = ? AND import_id IN (${placeholders})`)
+    .all(spelc, ...importIds) as EmargementIdentityRow[];
+}
+
+/** Index "nom_norm|prenom_norm" -> vote agrégé (votant si AU MOINS une ligne
+ * votante, dernier scrutin_type non nul rencontré) — équivalent du
+ * MAX(el.votant)/MAX(el.scrutin_type) GROUP BY de l'ancienne requête SQL. */
+function indexEmargements(rows: EmargementIdentityRow[]): Map<string, { votant: number; scrutinType: string | null }> {
+  const map = new Map<string, { votant: number; scrutinType: string | null }>();
+  for (const r of rows) {
+    const key = `${r.nom_norm}|${r.prenom_norm}`;
+    const existing = map.get(key);
+    if (existing) {
+      if (r.votant) existing.votant = 1;
+      if (r.scrutin_type) existing.scrutinType = r.scrutin_type;
+    } else {
+      map.set(key, { votant: r.votant ? 1 : 0, scrutinType: r.scrutin_type ?? null });
+    }
+  }
+  return map;
+}
+
 /**
  * Adhérents du Spelc, croisés par nom/prénom à la fois avec le scrutin
  * national CCMMEP et avec les scrutins locaux (1D+2D) — nécessaire pour les
  * champs de template CCMMEP_non_votant / scrutin_local_non_votant /
- * scrutin_local.
+ * scrutin_local. Rapprochement exact ET approximatif validé (comme avant),
+ * mais calculé en mémoire plutôt que par une sous-requête SQL corrélée par
+ * ligne (voir loadEmargementIdentities ci-dessus) : avec le fichier national
+ * CCMMEP (toutes académies, potentiellement des centaines de milliers de
+ * lignes), l'ancienne requête — un LEFT JOIN dont la condition ON mêle une
+ * égalité ET un OR EXISTS corrélé à l'adhérent — empêchait SQLite d'utiliser
+ * l'index sur emargements(spelc, ...) et finissait par scanner l'intégralité
+ * de la table national pour chaque adhérent, d'où un temps de réponse de
+ * plusieurs dizaines de secondes.
  */
 function matchedAdherents(spelc: string): Recipient[] {
   const academie = spelcAcademie(spelc);
@@ -198,26 +245,54 @@ function matchedAdherents(spelc: string): Recipient[] {
   const nationalImportIds = currentImportIds("national", null);
   if (localImportIds.length === 0 && nationalImportIds.length === 0) return [];
 
-  const localPlaceholders = localImportIds.length ? localImportIds.map(() => "?").join(",") : "NULL";
-  const nationalPlaceholders = nationalImportIds.length ? nationalImportIds.map(() => "?").join(",") : "NULL";
+  const adherentRows = db
+    .prepare("SELECT id, nom, prenom, mail, mobile, nom_norm, prenom_norm FROM adherents WHERE spelc = ?")
+    .all(spelc) as { id: number; nom: string; prenom: string; mail: string | null; mobile: string | null; nom_norm: string; prenom_norm: string }[];
+  if (adherentRows.length === 0) return [];
 
-  return db
+  const fuzzyByAdherent = new Map<number, { nom_norm: string; prenom_norm: string }[]>();
+  const ids = adherentRows.map((a) => a.id);
+  const idPlaceholders = ids.map(() => "?").join(",");
+  const fuzzyRows = db
     .prepare(
-      `SELECT a.nom, a.prenom, a.mail, a.mobile,
-              MAX(el.votant) AS votantLocal,
-              MAX(el.scrutin_type) AS scrutinLocal,
-              MAX(en.votant) AS votantNational,
-              MAX(CASE WHEN el.id IS NOT NULL THEN 1 ELSE 0 END) AS localMatched,
-              MAX(CASE WHEN en.id IS NOT NULL THEN 1 ELSE 0 END) AS nationalMatched
-       FROM adherents a
-       LEFT JOIN emargements el ON el.spelc = a.spelc AND el.import_id IN (${localPlaceholders})
-         AND ((el.nom_norm = a.nom_norm AND el.prenom_norm = a.prenom_norm) ${fuzzyValidatedJoinExtra("el")})
-       LEFT JOIN emargements en ON en.spelc = a.spelc AND en.import_id IN (${nationalPlaceholders})
-         AND ((en.nom_norm = a.nom_norm AND en.prenom_norm = a.prenom_norm) ${fuzzyValidatedJoinExtra("en")})
-       WHERE a.spelc = ?
-       GROUP BY a.id`
+      `SELECT adherent_id, candidate_nom_norm, candidate_prenom_norm FROM adherent_fuzzy_matches
+       WHERE status = 'valide' AND adherent_id IN (${idPlaceholders})`
     )
-    .all(...localImportIds, ...nationalImportIds, spelc) as Recipient[];
+    .all(...ids) as { adherent_id: number; candidate_nom_norm: string; candidate_prenom_norm: string }[];
+  for (const r of fuzzyRows) {
+    const arr = fuzzyByAdherent.get(r.adherent_id) ?? [];
+    arr.push({ nom_norm: r.candidate_nom_norm, prenom_norm: r.candidate_prenom_norm });
+    fuzzyByAdherent.set(r.adherent_id, arr);
+  }
+
+  const localIndex = indexEmargements(loadEmargementIdentities(spelc, localImportIds));
+  const nationalIndex = indexEmargements(loadEmargementIdentities(spelc, nationalImportIds));
+
+  function lookup(a: { id: number; nom_norm: string; prenom_norm: string }, index: Map<string, { votant: number; scrutinType: string | null }>) {
+    const exact = index.get(`${a.nom_norm}|${a.prenom_norm}`);
+    if (exact) return exact;
+    for (const candidate of fuzzyByAdherent.get(a.id) ?? []) {
+      const viaFuzzy = index.get(`${candidate.nom_norm}|${candidate.prenom_norm}`);
+      if (viaFuzzy) return viaFuzzy;
+    }
+    return null;
+  }
+
+  return adherentRows.map((a) => {
+    const local = lookup(a, localIndex);
+    const national = lookup(a, nationalIndex);
+    return {
+      nom: a.nom,
+      prenom: a.prenom,
+      mail: a.mail,
+      mobile: a.mobile,
+      votantLocal: local ? local.votant : null,
+      scrutinLocal: local ? local.scrutinType : null,
+      votantNational: national ? national.votant : null,
+      localMatched: local ? 1 : 0,
+      nationalMatched: national ? 1 : 0,
+    };
+  });
 }
 
 function templateFieldsFor(r: Recipient, spelc: string): TemplateFields {

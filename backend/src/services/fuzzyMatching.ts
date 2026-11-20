@@ -248,20 +248,6 @@ export function electeurMatchesAdherent(
   return false;
 }
 
-/**
- * Condition supplémentaire (à ajouter avec OR) à l'intérieur d'un LEFT JOIN
- * emargements AS <emargAlias> déjà joint sur l'adhérent aliasé "a" — étend
- * le rapprochement exact à tout rapprochement approximatif validé pour cet
- * adhérent précis.
- */
-export function fuzzyValidatedJoinExtra(emargAlias: string): string {
-  return `OR EXISTS (
-    SELECT 1 FROM adherent_fuzzy_matches fm
-    WHERE fm.adherent_id = a.id AND fm.status = 'valide'
-      AND fm.candidate_nom_norm = ${emargAlias}.nom_norm AND fm.candidate_prenom_norm = ${emargAlias}.prenom_norm
-  )`;
-}
-
 interface AdherentForMatching {
   id: number;
   nom_norm: string;
