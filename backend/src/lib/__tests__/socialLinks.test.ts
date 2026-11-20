@@ -6,11 +6,13 @@ describe("buildLogoHtml", () => {
     expect(buildLogoHtml(null)).toBe("");
   });
 
-  it("préfixe un chemin relatif par PUBLIC_BASE_URL et plafonne la taille", () => {
+  it("préfixe un chemin relatif par PUBLIC_BASE_URL et fixe la taille à 250x250", () => {
     const html = buildLogoHtml("/api/uploads/logos/mon-spelc.png");
     expect(html).toContain("/api/uploads/logos/mon-spelc.png");
-    expect(html).toContain("max-height:80px");
-    expect(html).toContain("max-width:280px");
+    expect(html).toContain('width="250"');
+    expect(html).toContain('height="250"');
+    expect(html).toContain("width:250px");
+    expect(html).toContain("height:250px");
   });
 
   it("conserve une data URI historique telle quelle", () => {
