@@ -403,20 +403,17 @@ router.get("/campaigns/preview", requireRole("admin_spelc"), (req, res) => {
   const smsLimit = clampSmsLimit(req.query.smsLimit);
 
   const adherents = matchedAdherents(spelc);
-  // Total adhérents de ce Spelc, moins ceux CONFIRMÉS votants (retrouvés dans
-  // les émargements ET votant=1) — pas "retrouvés et non-votants" comme
-  // needsRelance() : tant qu'aucun fichier d'émargement n'a été importé, ou
-  // qu'un adhérent n'y est pas retrouvé (rapprochement en échec), on ne peut
-  // pas le confirmer votant, donc il doit toujours compter comme restant à
-  // relancer — alors que needsRelance() exige d'abord d'être retrouvé, et
-  // renverrait 0 dans ce cas (aucun fichier importé = personne "retrouvé").
-  // Reste purement informatif : ne change pas le ciblage réel des envois
-  // (mailRecipients/smsRecipients ci-dessous, inchangés).
-  const confirmedVoters = adherents.filter(
-    (r) => (Boolean(r.nationalMatched) && Boolean(r.votantNational)) || (Boolean(r.localMatched) && Boolean(r.votantLocal))
-  ).length;
+  // Tant qu'aucun fichier d'émargement n'a été importé, matchedAdherents()
+  // renvoie [] (voir plus haut) : on ne peut encore confirmer ni vote ni
+  // rapprochement pour personne, donc tout le monde reste à relancer — le
+  // total des adhérents uploadés. Dès qu'un import existe, matchedAdherents()
+  // renvoie une ligne par adhérent (retrouvé ou non), et needsRelance() exige
+  // d'être retrouvé (exact ou rapprochement validé) ET non-votant : un
+  // adhérent jamais retrouvé n'est donc plus compté, pour rester cohérent
+  // avec le ciblage réel des envois (mailRecipients/smsRecipients
+  // ci-dessous, qui appliquent déjà ce même filtre).
   const totalAdherents = (db.prepare("SELECT COUNT(*) AS c FROM adherents WHERE spelc = ?").get(spelc) as { c: number }).c;
-  const restantARelancer = totalAdherents - confirmedVoters;
+  const restantARelancer = adherents.length === 0 ? totalAdherents : adherents.filter(needsRelance).length;
 
   let mailRecipients = (testMode ? adherents : adherents.filter((r) => r.mail)).filter(needsRelance);
   if (testMode) mailRecipients = mailRecipients.slice(0, testLimit);
