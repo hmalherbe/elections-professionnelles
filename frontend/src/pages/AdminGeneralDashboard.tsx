@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { Bar, BarChart, CartesianGrid, Legend, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { CamembertCard } from "../components/CamembertCard";
 import { Card } from "../components/Card";
@@ -345,7 +345,6 @@ function ImportsPanel() {
         L'historique plus bas liste tous les imports, nationaux et académiques confondus.
       </div>
       <AcademiqueImportsPanel />
-      <HorodatageImportsPanel />
       <Card title="Historique des imports">
         <table className="w-full text-sm">
           <thead>
@@ -390,102 +389,6 @@ interface LastImportByAcademie {
   imported2D: string | null;
 }
 
-type HorodatageSortKey = "academie" | "imported1D" | "imported2D";
-type SortDir = "asc" | "desc";
-
-/**
- * Date/heure du dernier import, par académie et par degré (1er/2nd) — vue
- * d'ensemble complémentaire à "Import académique, académie par académie"
- * ci-dessus, pour voir d'un coup d'œil quelles académies n'ont pas encore
- * importé ou dont l'import commence à dater. Tri par colonne (académie ou
- * l'une des deux dates), ascendant/descendant au clic sur l'en-tête.
- */
-function HorodatageImportsPanel() {
-  const [rows, setRows] = useState<LastImportByAcademie[]>([]);
-  const [sortKey, setSortKey] = useState<HorodatageSortKey>("academie");
-  const [sortDir, setSortDir] = useState<SortDir>("asc");
-
-  useEffect(() => {
-    api.get<{ academies: LastImportByAcademie[] }>("/imports/last-by-academie").then((r) => setRows(r.academies));
-  }, []);
-
-  function toggleSort(key: HorodatageSortKey) {
-    if (key === sortKey) {
-      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    } else {
-      setSortKey(key);
-      setSortDir("asc");
-    }
-  }
-
-  const sorted = useMemo(() => {
-    const copy = [...rows];
-    copy.sort((a, b) => {
-      let cmp: number;
-      if (sortKey === "academie") {
-        cmp = a.academie.localeCompare(b.academie);
-      } else {
-        const av = a[sortKey];
-        const bv = b[sortKey];
-        // Sans import, la date est inconnue (ni "ancienne" ni "récente") : on la
-        // place toujours en fin de liste, quel que soit le sens du tri, plutôt
-        // que de la faire sauter en tête en mode descendant.
-        if (av === null && bv === null) cmp = 0;
-        else if (av === null) return 1;
-        else if (bv === null) return -1;
-        else cmp = av.localeCompare(bv); // format SQLite "YYYY-MM-DD HH:MM:SS" : comparable tel quel
-      }
-      return sortDir === "asc" ? cmp : -cmp;
-    });
-    return copy;
-  }, [rows, sortKey, sortDir]);
-
-  function headerLabel(key: HorodatageSortKey, label: string) {
-    const arrow = sortKey === key ? (sortDir === "asc" ? " ▲" : " ▼") : "";
-    return (
-      <th
-        className="cursor-pointer select-none px-4 py-2 first:pl-0 hover:text-slate-700"
-        onClick={() => toggleSort(key)}
-      >
-        {label}
-        {arrow}
-      </th>
-    );
-  }
-
-  return (
-    <Card
-      title="Horodatage des imports"
-      subtitle="Date et heure du dernier import, par académie et par degré. Cliquez sur un en-tête pour trier (par ordre chronologique croissant ou décroissant)."
-    >
-      <div className="max-h-96 overflow-auto">
-        <table className="w-full text-sm">
-          <thead className="sticky top-0 bg-white">
-            <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-500">
-              {headerLabel("academie", "Académie")}
-              {headerLabel("imported1D", "Dernier import 1er degré")}
-              {headerLabel("imported2D", "Dernier import 2nd degré")}
-            </tr>
-          </thead>
-          <tbody>
-            {sorted.map((r) => (
-              <tr key={r.academie} className="border-b border-slate-100">
-                <td className="py-1.5 pr-4 font-medium text-slate-700">{r.academie}</td>
-                <td className="px-4 py-1.5 text-slate-600">
-                  {r.imported1D ? parseSqliteUtc(r.imported1D).toLocaleString("fr-FR") : "Aucun import"}
-                </td>
-                <td className="px-4 py-1.5 text-slate-600">
-                  {r.imported2D ? parseSqliteUtc(r.imported2D).toLocaleString("fr-FR") : "Aucun import"}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </Card>
-  );
-}
-
 type ImportStatus = { type: "ok" | "error"; message: string };
 
 /**
@@ -499,10 +402,24 @@ function AcademiqueImportsPanel() {
   const [rows, setRows] = useState<AcademieScrutin[]>([]);
   const [busy, setBusy] = useState<Record<string, boolean>>({});
   const [status, setStatus] = useState<Record<string, ImportStatus>>({});
+  const [lastImports, setLastImports] = useState<Record<string, LastImportByAcademie>>({});
+
+  function refreshLastImports() {
+    api
+      .get<{ academies: LastImportByAcademie[] }>("/imports/last-by-academie")
+      .then((r) => setLastImports(Object.fromEntries(r.academies.map((a) => [a.academie, a]))));
+  }
 
   useEffect(() => {
     api.get<{ academieScrutins: AcademieScrutin[] }>("/admin/reference/academie-scrutins").then((r) => setRows(r.academieScrutins));
+    refreshLastImports();
   }, []);
+
+  /** Nom du scrutin, avec la date/heure du dernier import entre parenthèses
+   * quand il y en a un (voir /imports/last-by-academie) — ex. "CCMI (21/11/2026 14:32:00)". */
+  function labelWithTimestamp(label: string, importedAt: string | null | undefined): string {
+    return importedAt ? `${label} (${parseSqliteUtc(importedAt).toLocaleString("fr-FR")})` : label;
+  }
 
   async function handleUpload(academie: string, degre: "1D" | "2D", file: File) {
     const key = `${academie}-${degre}`;
@@ -527,6 +444,7 @@ function AcademiqueImportsPanel() {
         message += ` Attention : ${res.crossDegreDuplicates.length} doublon(s) 1er/2nd degré.`;
       }
       setStatus((s) => ({ ...s, [key]: { type: "ok", message } }));
+      refreshLastImports();
     } catch (err) {
       setStatus((s) => ({ ...s, [key]: { type: "error", message: (err as Error).message } }));
     } finally {
@@ -539,7 +457,7 @@ function AcademiqueImportsPanel() {
   return (
     <Card
       title="Import académique, académie par académie"
-      subtitle="Fichier JSON des émargements du scrutin 1er ou 2nd degré (mêmes champs que le fichier CCMMEP), journée du jour."
+      subtitle="Fichier JSON des émargements du scrutin 1er ou 2nd degré (mêmes champs que le fichier CCMMEP), journée du jour. Date et heure du dernier import entre parenthèses."
     >
       <div className="max-h-96 overflow-auto">
         <table className="w-full text-sm">
@@ -556,7 +474,7 @@ function AcademiqueImportsPanel() {
                 <td className="py-2 pr-4 font-medium text-slate-700">{r.academie}</td>
                 <td className="px-4 py-2">
                   <ImportCell
-                    label={r.type1d || "1er degré"}
+                    label={labelWithTimestamp(r.type1d || "1er degré", lastImports[r.academie]?.imported1D)}
                     busy={!!busy[`${r.academie}-1D`]}
                     status={status[`${r.academie}-1D`]}
                     onFile={(file) => handleUpload(r.academie, "1D", file)}
@@ -564,7 +482,7 @@ function AcademiqueImportsPanel() {
                 </td>
                 <td className="px-4 py-2">
                   <ImportCell
-                    label={r.type2d || "2nd degré"}
+                    label={labelWithTimestamp(r.type2d || "2nd degré", lastImports[r.academie]?.imported2D)}
                     busy={!!busy[`${r.academie}-2D`]}
                     status={status[`${r.academie}-2D`]}
                     onFile={(file) => handleUpload(r.academie, "2D", file)}
