@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { Bar, BarChart, CartesianGrid, Legend, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { CamembertCard } from "../components/CamembertCard";
 import { Card } from "../components/Card";
@@ -11,6 +11,7 @@ import { ScrutinsTab } from "../components/ScrutinsTab";
 import { findMailCredits, findSmsCredits, type BrevoPlanEntry } from "./AdminSpelcDashboard";
 import { api } from "../lib/api";
 import { CATEGORICAL } from "../lib/colors";
+import { parseSqliteUtc } from "../lib/date";
 import type { AcademieNode, AcademieScrutin, CourbePoint, ImportRecord, ManagedUser, RelanceDailyPoint } from "../lib/types";
 
 const TABS = [
@@ -344,6 +345,7 @@ function ImportsPanel() {
         L'historique plus bas liste tous les imports, nationaux et académiques confondus.
       </div>
       <AcademiqueImportsPanel />
+      <HorodatageImportsPanel />
       <Card title="Historique des imports">
         <table className="w-full text-sm">
           <thead>
@@ -379,6 +381,108 @@ function ImportsPanel() {
         </table>
       </Card>
     </div>
+  );
+}
+
+interface LastImportByAcademie {
+  academie: string;
+  imported1D: string | null;
+  imported2D: string | null;
+}
+
+type HorodatageSortKey = "academie" | "imported1D" | "imported2D";
+type SortDir = "asc" | "desc";
+
+/**
+ * Date/heure du dernier import, par académie et par degré (1er/2nd) — vue
+ * d'ensemble complémentaire à "Import académique, académie par académie"
+ * ci-dessus, pour voir d'un coup d'œil quelles académies n'ont pas encore
+ * importé ou dont l'import commence à dater. Tri par colonne (académie ou
+ * l'une des deux dates), ascendant/descendant au clic sur l'en-tête.
+ */
+function HorodatageImportsPanel() {
+  const [rows, setRows] = useState<LastImportByAcademie[]>([]);
+  const [sortKey, setSortKey] = useState<HorodatageSortKey>("academie");
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
+
+  useEffect(() => {
+    api.get<{ academies: LastImportByAcademie[] }>("/imports/last-by-academie").then((r) => setRows(r.academies));
+  }, []);
+
+  function toggleSort(key: HorodatageSortKey) {
+    if (key === sortKey) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+  }
+
+  const sorted = useMemo(() => {
+    const copy = [...rows];
+    copy.sort((a, b) => {
+      let cmp: number;
+      if (sortKey === "academie") {
+        cmp = a.academie.localeCompare(b.academie);
+      } else {
+        const av = a[sortKey];
+        const bv = b[sortKey];
+        // Sans import, la date est inconnue (ni "ancienne" ni "récente") : on la
+        // place toujours en fin de liste, quel que soit le sens du tri, plutôt
+        // que de la faire sauter en tête en mode descendant.
+        if (av === null && bv === null) cmp = 0;
+        else if (av === null) return 1;
+        else if (bv === null) return -1;
+        else cmp = av.localeCompare(bv); // format SQLite "YYYY-MM-DD HH:MM:SS" : comparable tel quel
+      }
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+    return copy;
+  }, [rows, sortKey, sortDir]);
+
+  function headerLabel(key: HorodatageSortKey, label: string) {
+    const arrow = sortKey === key ? (sortDir === "asc" ? " ▲" : " ▼") : "";
+    return (
+      <th
+        className="cursor-pointer select-none px-4 py-2 first:pl-0 hover:text-slate-700"
+        onClick={() => toggleSort(key)}
+      >
+        {label}
+        {arrow}
+      </th>
+    );
+  }
+
+  return (
+    <Card
+      title="Horodatage des imports"
+      subtitle="Date et heure du dernier import, par académie et par degré. Cliquez sur un en-tête pour trier (par ordre chronologique croissant ou décroissant)."
+    >
+      <div className="max-h-96 overflow-auto">
+        <table className="w-full text-sm">
+          <thead className="sticky top-0 bg-white">
+            <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-500">
+              {headerLabel("academie", "Académie")}
+              {headerLabel("imported1D", "Dernier import 1er degré")}
+              {headerLabel("imported2D", "Dernier import 2nd degré")}
+            </tr>
+          </thead>
+          <tbody>
+            {sorted.map((r) => (
+              <tr key={r.academie} className="border-b border-slate-100">
+                <td className="py-1.5 pr-4 font-medium text-slate-700">{r.academie}</td>
+                <td className="px-4 py-1.5 text-slate-600">
+                  {r.imported1D ? parseSqliteUtc(r.imported1D).toLocaleString("fr-FR") : "Aucun import"}
+                </td>
+                <td className="px-4 py-1.5 text-slate-600">
+                  {r.imported2D ? parseSqliteUtc(r.imported2D).toLocaleString("fr-FR") : "Aucun import"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Card>
   );
 }
 

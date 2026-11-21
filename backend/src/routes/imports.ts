@@ -150,6 +150,27 @@ router.delete("/:id", requireRole("admin_academique", "admin_general"), (req, re
   res.status(204).end();
 });
 
+/**
+ * Date/heure du dernier import académique (1er et 2nd degré), pour chaque
+ * académie du référentiel (voir ref_academie_scrutins) — y compris celles
+ * sans aucun import encore (imported1D/imported2D à null), pour que la carte
+ * "Horodatage des imports" de l'admin général liste toutes les académies et
+ * pas seulement celles déjà importées.
+ */
+router.get("/last-by-academie", requireRole("admin_general"), (_req, res) => {
+  const rows = db
+    .prepare(
+      `SELECT
+         a.academie,
+         (SELECT MAX(i.imported_at) FROM imports i WHERE i.scope = 'academique' AND i.academie = a.academie AND i.degre = '1D') AS imported1D,
+         (SELECT MAX(i.imported_at) FROM imports i WHERE i.scope = 'academique' AND i.academie = a.academie AND i.degre = '2D') AS imported2D
+       FROM ref_academie_scrutins a
+       ORDER BY a.academie`
+    )
+    .all();
+  res.json({ academies: rows });
+});
+
 const VOTANTS_SUBQUERY = `(SELECT SUM(e.votant) FROM emargements e WHERE e.import_id = i.id) AS votants`;
 
 router.get("/", (req, res) => {
