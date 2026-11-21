@@ -9,8 +9,16 @@ function normDept(value: unknown): string {
 /**
  * Fichier "Département - Spelc / Académie" : on utilise la feuille qui
  * contient les 3 colonnes (Département, Spelc de rattachement, Académie).
- * Une feuille annexe (accord du Spelc pour traiter les données) est
- * chargée dans ref_spelc si présente.
+ * Une feuille annexe ("Feuil1"/"Accord"), si présente, alimente ref_spelc —
+ * mais UNIQUEMENT la liste des noms de Spelc connus (utilisée pour valider
+ * les imports groupés d'adhérents/comptes, voir routes/adherents.ts et
+ * services/userImport.ts) : ses éventuelles colonnes "Académie"/"Accord" ne
+ * sont plus lues. L'académie d'un Spelc est déterminée à partir de
+ * ref_departements (spelcAcademies(), ci-dessous), qui représente
+ * correctement un Spelc à cheval sur plusieurs académies — une seule valeur
+ * par Spelc (l'ancienne colonne "Académie" de cette feuille annexe) ne le
+ * pouvait pas. "Accord" n'est affiché ni utilisé nulle part dans
+ * l'application.
  *
  * Remplacement intégral à chaque chargement (table vidée avant réinsertion,
  * dans la même transaction) : ce fichier est la source de vérité unique, et
@@ -41,30 +49,25 @@ export async function loadDepartementsWorkbook(buffer: Buffer): Promise<{ depart
   txDept(deptRows);
 
   let spelcCount = 0;
-  const accordSheet = wb.worksheets.find((s) => /accord/i.test(s.name) || /feuil1/i.test(s.name));
-  if (accordSheet) {
-    const rows = rowsAsObjects(accordSheet);
-    const insertSpelc = db.prepare("INSERT INTO ref_spelc (spelc, accord, academie) VALUES (?, ?, ?)");
+  const spelcSheet = wb.worksheets.find((s) => /accord/i.test(s.name) || /feuil1/i.test(s.name));
+  if (spelcSheet) {
+    const rows = rowsAsObjects(spelcSheet);
+    // accord/academie restent NOT NULL en base (voir db/index.ts) mais ne
+    // sont plus renseignés : placeholders vides, jamais lus ailleurs.
+    const insertSpelc = db.prepare("INSERT INTO ref_spelc (spelc, accord, academie) VALUES (?, '', '')");
     const txSpelc = db.transaction((r: Record<string, unknown>[]) => {
       db.prepare("DELETE FROM ref_spelc").run();
       for (const row of r) {
-        // Colonnes retrouvées par leur en-tête (plutôt que par position) :
-        // une colonne "Accord du Spelc..." retirée du fichier décale sinon
-        // "Academie" en position 2 au lieu de 3, et la fait lire comme vide
-        // sans aucune erreur (voir "Spelc introuvable dans le référentiel
-        // académie" malgré un Spelc bien présent dans le fichier).
+        // Colonne retrouvée par son en-tête (pas par position) : robuste à
+        // l'ordre/au retrait d'autres colonnes dans le fichier.
         const keys = Object.keys(row).reduce<Record<string, unknown>>((acc, k) => {
           acc[stripAccents(k).toLowerCase().trim()] = row[k];
           return acc;
         }, {});
         const spelcKey = Object.keys(keys).find((k) => k.includes("spelc") && !k.includes("accord"));
-        const academieKey = Object.keys(keys).find((k) => k.includes("academ"));
-        const accordKey = Object.keys(keys).find((k) => k.includes("accord"));
         const spelc = spelcKey ? keys[spelcKey] : null;
-        const academie = academieKey ? keys[academieKey] : null;
-        const accord = accordKey ? keys[accordKey] : null;
         if (spelc == null || String(spelc).trim() === "") continue;
-        insertSpelc.run(String(spelc).trim(), String(accord ?? "").trim(), String(academie ?? "").trim());
+        insertSpelc.run(String(spelc).trim());
         spelcCount++;
       }
     });

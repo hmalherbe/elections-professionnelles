@@ -209,11 +209,14 @@ router.get("/reference/academie-scrutins", (_req, res) => {
   res.json({ academieScrutins: rows });
 });
 
-router.get("/reference/spelcs", (req, res) => {
-  const academie = req.query.academie as string | undefined;
-  const rows = academie
-    ? db.prepare("SELECT spelc, accord, academie FROM ref_spelc WHERE academie = ? ORDER BY spelc").all(academie)
-    : db.prepare("SELECT spelc, accord, academie FROM ref_spelc ORDER BY spelc").all();
+/**
+ * Liste des noms de Spelc connus (voir ref_spelc) — l'académie d'un Spelc
+ * n'est plus dérivée d'ici (une seule valeur, incapable de représenter un
+ * Spelc à cheval sur plusieurs académies) mais de ref_departements, voir
+ * services/reference.ts spelcAcademies().
+ */
+router.get("/reference/spelcs", (_req, res) => {
+  const rows = db.prepare("SELECT spelc FROM ref_spelc ORDER BY spelc").all();
   res.json({ spelcs: rows });
 });
 
