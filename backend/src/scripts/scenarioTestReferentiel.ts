@@ -9,9 +9,12 @@
  * fichiers référentiels réels) : n'ajoute que les lignes manquantes
  * (idempotent), et --cleanup ne supprime QUE ces lignes précises.
  *
- * "localhost" existe déjà dans ref_academie_scrutins sur la plupart des
- * bases (entrée de test visiblement déjà prévue pour cet usage) : ce script
- * ne la recrée pas si elle est déjà là.
+ * "localhost" existait déjà dans ref_academie_scrutins avant ce script sur
+ * la plupart des bases (entrée visiblement prévue pour cet usage) : --cleanup
+ * la retire désormais explicitement elle aussi (décision explicite de la
+ * fédération, pour qu'elle n'apparaisse plus du tout dans les listes
+ * d'académies une fois les tests terminés), et pas seulement "Académie Test
+ * Beta" créée par ce script.
  *
  * Usage (dans le conteneur backend) :
  *   npx tsx src/scripts/scenarioTestReferentiel.ts setup
@@ -54,12 +57,7 @@ function cleanup(): void {
     for (const a of ACADEMIES) {
       db.prepare("DELETE FROM ref_departements WHERE departement = ? AND academie = ?").run(a.departement, a.nom);
       db.prepare("DELETE FROM ref_spelc WHERE spelc = ? AND academie = ?").run(a.spelc, a.nom);
-      // On ne retire "localhost" de ref_academie_scrutins que si on l'a
-      // nous-même créée (academie-test-beta) : "localhost" existait avant ce
-      // script sur la plupart des bases, mieux vaut la laisser en place.
-      if (a.nom !== "localhost") {
-        db.prepare("DELETE FROM ref_academie_scrutins WHERE academie = ?").run(a.nom);
-      }
+      db.prepare("DELETE FROM ref_academie_scrutins WHERE academie = ?").run(a.nom);
       db.prepare("DELETE FROM adherents WHERE spelc = ?").run(a.spelc);
     }
     // Supprime aussi les imports/émargements du scénario (académique, sur ces 2 académies).
