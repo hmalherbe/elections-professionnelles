@@ -84,6 +84,18 @@ describe("extractDepartement", () => {
     expect(extractDepartement("INSTITUT MEDICO-EDUCATIF IMPRO TROIS MARES 97835 LE TAMPON CEDEX")).toBe("978");
   });
 
+  it("extrait les collectivités d'outre-mer moins courantes (3 chiffres, pas tronqué à 2)", () => {
+    // Avant correction de DOM_PREFIXES, ces codes retombaient sur les 2
+    // premiers caractères ("98"/"97") faute de figurer dans la liste —
+    // perdant silencieusement le rattachement académique de leurs électeurs
+    // (Polynésie française / Nouvelle-Calédonie en particulier).
+    expect(extractDepartement("LYCEE PAUL GAUGUIN 98700 PAPEETE")).toBe("987");
+    expect(extractDepartement("LYCEE LAPEROUSE 98800 NOUMEA")).toBe("988");
+    expect(extractDepartement("ECOLE 97500 SAINT-PIERRE")).toBe("975");
+    expect(extractDepartement("LYCEE 97700 SAINT-BARTHELEMY")).toBe("977");
+    expect(extractDepartement("ECOLE 98600 WALLIS")).toBe("986");
+  });
+
   it("retourne null si aucun code postal", () => {
     expect(extractDepartement("SANS CODE POSTAL")).toBeNull();
     expect(extractDepartement(null)).toBeNull();
@@ -112,6 +124,11 @@ describe("extractDepartementFromRne", () => {
     expect(extractDepartementFromRne("9780001C")).toBe("978");
   });
 
+  it("extrait les collectivités d'outre-mer moins courantes (3 chiffres conservés)", () => {
+    expect(extractDepartementFromRne("9870001D")).toBe("987"); // Polynésie française
+    expect(extractDepartementFromRne("9880001E")).toBe("988"); // Nouvelle-Calédonie
+  });
+
   it("accepte une casse minuscule et des espaces superflus", () => {
     expect(extractDepartementFromRne(" 0751234a ")).toBe("75");
   });
@@ -133,6 +150,14 @@ describe("extractDepartementFromCodePostal", () => {
 
   it("dérive un département d'outre-mer (3 chiffres)", () => {
     expect(extractDepartementFromCodePostal("97404")).toBe("974");
+  });
+
+  it("dérive les collectivités d'outre-mer moins courantes (3 chiffres, pas tronqué à 2)", () => {
+    expect(extractDepartementFromCodePostal("98700")).toBe("987"); // Polynésie française
+    expect(extractDepartementFromCodePostal("98800")).toBe("988"); // Nouvelle-Calédonie
+    expect(extractDepartementFromCodePostal("97500")).toBe("975"); // Saint-Pierre-et-Miquelon
+    expect(extractDepartementFromCodePostal("97700")).toBe("977"); // Saint-Barthélemy
+    expect(extractDepartementFromCodePostal("98600")).toBe("986"); // Wallis-et-Futuna
   });
 
   it("reconstitue le zéro initial perdu sur une valeur numérique à 4 chiffres", () => {

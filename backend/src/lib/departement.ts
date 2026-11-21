@@ -1,4 +1,17 @@
-const DOM_PREFIXES = ["971", "972", "973", "974", "976", "978"];
+/**
+ * Liste complète des préfixes de département/collectivité d'outre-mer à 3
+ * chiffres (codes postaux 97x/98x) : Guadeloupe (971), Martinique (972),
+ * Guyane (973), La Réunion (974), Saint-Pierre-et-Miquelon (975), Mayotte
+ * (976), Saint-Barthélemy (977), Saint-Martin (978), TAAF (984),
+ * Wallis-et-Futuna (986), Polynésie française (987), Nouvelle-Calédonie
+ * (988). Toute valeur absente de cette liste retombe sur les 2 premiers
+ * caractères (departementFromPostalCode ci-dessous) — pour un code postal
+ * commençant par "987"/"988" (Polynésie/Nouvelle-Calédonie), ça tronquait
+ * silencieusement en "98" tant que ces deux codes manquaient ici, faisant
+ * disparaître leurs électeurs du rattachement académique (académie
+ * introuvable pour "98", jamais pour "987"/"988").
+ */
+const DOM_PREFIXES = ["971", "972", "973", "974", "975", "976", "977", "978", "984", "986", "987", "988"];
 
 /**
  * Dérive le département d'un code postal déjà isolé (5 chiffres, zéro
