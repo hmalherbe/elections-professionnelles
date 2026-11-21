@@ -58,9 +58,16 @@ export function canAccessAcademie(user: AuthUser, academie: string): boolean {
   return false;
 }
 
-export function canAccessSpelc(user: AuthUser, spelcAcademie: string | null, spelc: string): boolean {
+/**
+ * spelcAcademies : la ou les académies de ce Spelc (voir
+ * services/reference.ts spelcAcademies()) — un Spelc peut être à cheval sur
+ * plusieurs académies (ses départements ne pointent pas tous vers la même),
+ * auquel cas l'admin académique de N'IMPORTE LAQUELLE de ces académies peut y
+ * accéder.
+ */
+export function canAccessSpelc(user: AuthUser, spelcAcademies: string[], spelc: string): boolean {
   if (user.role === "admin_general") return true;
-  if (user.role === "admin_academique") return user.academie === spelcAcademie;
+  if (user.role === "admin_academique") return user.academie !== null && spelcAcademies.includes(user.academie);
   if (user.role === "admin_spelc") return user.spelc === spelc;
   return false;
 }

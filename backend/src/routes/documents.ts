@@ -3,16 +3,12 @@ import multer from "multer";
 import path from "node:path";
 import { db } from "../db/index.js";
 import { requireAuth, requireRole, canAccessAcademie, canAccessSpelc } from "../middleware/auth.js";
+import { spelcAcademies } from "../services/reference.js";
 import { saveDocumentUpload, deleteDocumentFile, DOCUMENTS_DIR } from "../lib/documentStorage.js";
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } });
 router.use(requireAuth);
-
-function spelcAcademie(spelc: string): string | null {
-  const row = db.prepare("SELECT academie FROM ref_spelc WHERE spelc = ?").get(spelc) as { academie: string } | undefined;
-  return row?.academie ?? null;
-}
 
 const LIST_COLUMNS =
   "id, scope, academie, spelc, folder_id, filename, original_name, mime_type, size_bytes, uploaded_by, uploaded_at";
@@ -67,7 +63,7 @@ router.get("/", requireRole("admin_academique", "admin_spelc", "admin_general"),
     return;
   }
   if (spelc) {
-    if (!canAccessSpelc(req.user!, spelcAcademie(spelc), spelc)) {
+    if (!canAccessSpelc(req.user!, spelcAcademies(spelc), spelc)) {
       res.status(403).json({ error: "Accès non autorisé à ce Spelc." });
       return;
     }
@@ -120,7 +116,7 @@ router.post("/", requireRole("admin_general"), upload.single("file"), async (req
     return;
   }
   if (spelc) {
-    if (!canAccessSpelc(req.user!, spelcAcademie(spelc), spelc)) {
+    if (!canAccessSpelc(req.user!, spelcAcademies(spelc), spelc)) {
       res.status(403).json({ error: "Accès non autorisé à ce Spelc." });
       return;
     }
@@ -150,7 +146,7 @@ function assertDocumentAccess(req: Request, res: Response, row: DocumentRow): bo
       ? true // arborescence commune : lecture ouverte à tout rôle authentifié
       : row.scope === "academique"
         ? canAccessAcademie(req.user!, row.academie!)
-        : canAccessSpelc(req.user!, spelcAcademie(row.spelc!), row.spelc!);
+        : canAccessSpelc(req.user!, spelcAcademies(row.spelc!), row.spelc!);
   if (!ok) res.status(403).json({ error: "Accès non autorisé à ce document." });
   return ok;
 }

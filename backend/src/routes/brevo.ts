@@ -6,6 +6,7 @@ import { renderTemplate, type TemplateFields } from "../lib/template.js";
 import { wrapEmailHtml, ensureSiteLink } from "../lib/emailLayout.js";
 import { sendBrevoEmails, sendBrevoSms, fetchAccountInfo, getBrevoApiKey } from "../services/brevo.js";
 import { currentImportIds } from "../services/stats.js";
+import { spelcAcademies } from "../services/reference.js";
 import { getTestContactSettings } from "../services/settings.js";
 import { getSpelcSettings, updateSpelcSettings } from "../services/spelcSettings.js";
 import { buildLogoHtml, buildBannerHtml, buildSocialLinksHtml, type SocialLinks } from "../lib/socialLinks.js";
@@ -59,15 +60,8 @@ function withDemoLogo(html: string): string {
 const router = Router();
 router.use(requireAuth);
 
-function spelcAcademie(spelc: string): string | null {
-  const row = db.prepare("SELECT academie FROM ref_spelc WHERE spelc = ?").get(spelc) as
-    | { academie: string }
-    | undefined;
-  return row?.academie ?? null;
-}
-
 function assertSpelcAccess(req: import("express").Request, res: import("express").Response, spelc: string): boolean {
-  if (!canAccessSpelc(req.user!, spelcAcademie(spelc), spelc)) {
+  if (!canAccessSpelc(req.user!, spelcAcademies(spelc), spelc)) {
     res.status(403).json({ error: "Accès non autorisé à ce Spelc." });
     return false;
   }
@@ -238,9 +232,13 @@ function indexEmargements(rows: EmargementIdentityRow[]): Map<string, { votant: 
  * plusieurs dizaines de secondes.
  */
 function matchedAdherents(spelc: string): Recipient[] {
-  const academie = spelcAcademie(spelc);
-  if (!academie) return [];
-  const localImportIds = currentImportIds("academique", academie);
+  const academies = spelcAcademies(spelc);
+  if (academies.length === 0) return [];
+  // Un Spelc peut être à cheval sur plusieurs académies (ex.
+  // "Centre-Poitou-Charente" sur Orléans-Tours ET Poitiers) : un de ses
+  // adhérents peut être électeur dans n'importe laquelle selon son
+  // département, donc on cherche dans les émargements locaux de TOUTES.
+  const localImportIds = academies.flatMap((academie) => currentImportIds("academique", academie));
   const nationalImportIds = currentImportIds("national", null);
   if (localImportIds.length === 0 && nationalImportIds.length === 0) return [];
 
@@ -493,30 +491,30 @@ router.get("/campaigns/preview", requireRole("admin_spelc"), (req, res) => {
 });
 
 /**
- * Date/heure du dernier import académique (1er et 2nd degré) de l'académie
- * de ce Spelc — pour que l'admin Spelc sache si le fichier d'émargement
- * utilisé pour cibler ses relances est à jour, directement depuis cette
- * page (sans avoir à aller vérifier l'onglet Imports de l'admin académique).
+ * Date/heure du dernier import académique (1er et 2nd degré) de la ou des
+ * académies de ce Spelc — pour que l'admin Spelc sache si le fichier
+ * d'émargement utilisé pour cibler ses relances est à jour, directement
+ * depuis cette page (sans avoir à aller vérifier l'onglet Imports de l'admin
+ * académique). Un Spelc à cheval sur plusieurs académies (ex.
+ * "Centre-Poitou-Charente" sur Orléans-Tours et Poitiers) a une ligne par
+ * académie : chacune a son propre scrutin local, importé séparément.
  */
 router.get("/last-imports", requireRole("admin_spelc"), (req, res) => {
   const spelc = req.user!.spelc!;
-  const academie = spelcAcademie(spelc);
-  if (!academie) {
-    res.json({ degre1D: null, degre2D: null });
-    return;
-  }
-  const ids = currentImportIds("academique", academie);
-  if (ids.length === 0) {
-    res.json({ degre1D: null, degre2D: null });
-    return;
-  }
-  const rows = db
-    .prepare(`SELECT degre, imported_at FROM imports WHERE id IN (${ids.map(() => "?").join(",")})`)
-    .all(...ids) as { degre: string; imported_at: string }[];
-  res.json({
-    degre1D: rows.find((r) => r.degre === "1D")?.imported_at ?? null,
-    degre2D: rows.find((r) => r.degre === "2D")?.imported_at ?? null,
+  const academies = spelcAcademies(spelc);
+  const result = academies.map((academie) => {
+    const ids = currentImportIds("academique", academie);
+    if (ids.length === 0) return { academie, degre1D: null, degre2D: null };
+    const rows = db
+      .prepare(`SELECT degre, imported_at FROM imports WHERE id IN (${ids.map(() => "?").join(",")})`)
+      .all(...ids) as { degre: string; imported_at: string }[];
+    return {
+      academie,
+      degre1D: rows.find((r) => r.degre === "1D")?.imported_at ?? null,
+      degre2D: rows.find((r) => r.degre === "2D")?.imported_at ?? null,
+    };
   });
+  res.json({ academies: result });
 });
 
 router.post("/campaigns/email", requireRole("admin_spelc"), async (req, res) => {

@@ -174,7 +174,30 @@ export function soleSpelcForAcademie(academie: string | null): string | null {
   return result;
 }
 
+const spelcAcademiesCache = new Map<string, string[]>();
+
+/**
+ * La ou les académies d'un Spelc — dérivée de ref_departements (source
+ * unique de vérité, département par département), PAS de ref_spelc.academie
+ * (une seule valeur, qui ne peut pas représenter un Spelc à cheval sur
+ * plusieurs académies, ex. "Centre-Poitou-Charente" sur Orléans-Tours ET
+ * Poitiers). Remplace partout l'ancien repli "une seule académie par Spelc" :
+ * voir middleware/auth.ts canAccessSpelc (accès de l'admin académique d'une
+ * QUELCONQUE de ces académies) et routes/brevo.ts matchedAdherents (un
+ * adhérent peut être électeur dans n'importe laquelle).
+ */
+export function spelcAcademies(spelc: string): string[] {
+  if (spelcAcademiesCache.has(spelc)) return spelcAcademiesCache.get(spelc)!;
+  const rows = db
+    .prepare("SELECT DISTINCT academie FROM ref_departements WHERE spelc = ? ORDER BY academie")
+    .all(spelc) as { academie: string }[];
+  const result = rows.map((r) => r.academie);
+  spelcAcademiesCache.set(spelc, result);
+  return result;
+}
+
 export function clearDeptCache(): void {
   deptCache.clear();
   academieSoleSpelcCache.clear();
+  spelcAcademiesCache.clear();
 }

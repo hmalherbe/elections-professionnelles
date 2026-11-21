@@ -7,6 +7,7 @@ import { ZipArchive } from "archiver";
 import * as unzipper from "unzipper";
 import { db } from "../db/index.js";
 import { requireAuth, requireRole, canAccessAcademie, canAccessSpelc, type AuthUser } from "../middleware/auth.js";
+import { spelcAcademies } from "../services/reference.js";
 import { saveDocumentUpload, deleteDocumentFile, DOCUMENTS_DIR } from "../lib/documentStorage.js";
 
 const router = Router();
@@ -29,11 +30,6 @@ const uploadZip = multer({
   limits: { fileSize: 4 * 1024 * 1024 * 1024 }, // 4 Go
 });
 router.use(requireAuth);
-
-function spelcAcademie(spelc: string): string | null {
-  const row = db.prepare("SELECT academie FROM ref_spelc WHERE spelc = ?").get(spelc) as { academie: string } | undefined;
-  return row?.academie ?? null;
-}
 
 interface FolderRow {
   id: number;
@@ -70,7 +66,7 @@ function assertScopeAccess(
     return true;
   }
   if (spelc) {
-    if (!canAccessSpelc(user, spelcAcademie(spelc), spelc)) {
+    if (!canAccessSpelc(user, spelcAcademies(spelc), spelc)) {
       res.status(403).json({ error: "Accès non autorisé à ce Spelc." });
       return false;
     }
@@ -210,7 +206,7 @@ router.delete("/folders/:id", requireRole("admin_general"), (req, res) => {
       ? true // déjà restreint à admin_general par requireRole sur cette route
       : folder.scope === "academique"
         ? canAccessAcademie(req.user!, folder.academie!)
-        : canAccessSpelc(req.user!, spelcAcademie(folder.spelc!), folder.spelc!);
+        : canAccessSpelc(req.user!, spelcAcademies(folder.spelc!), folder.spelc!);
   if (!allowed) {
     res.status(403).json({ error: "Accès non autorisé à ce dossier." });
     return;
@@ -289,7 +285,7 @@ router.post(
         res.status(403).json({ error: `Accès non autorisé à l'académie ${academie}.` });
         return;
       }
-      if (!academie && spelc && !canAccessSpelc(req.user!, spelcAcademie(spelc), spelc)) {
+      if (!academie && spelc && !canAccessSpelc(req.user!, spelcAcademies(spelc), spelc)) {
         fs.unlink(req.file.path, () => {});
         res.status(403).json({ error: "Accès non autorisé à ce Spelc." });
         return;

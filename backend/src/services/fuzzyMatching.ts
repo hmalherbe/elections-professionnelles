@@ -1,6 +1,7 @@
 import { db } from "../db/index.js";
 import { getSetting, setSetting } from "./settings.js";
 import { currentImportIds } from "./stats.js";
+import { spelcAcademies } from "./reference.js";
 import { normalizeName } from "../lib/normalize.js";
 
 const DEFAULT_THRESHOLD = 1;
@@ -17,13 +18,6 @@ export function getFuzzyMatchThreshold(): number {
 
 export function setFuzzyMatchThreshold(n: number): void {
   setSetting("fuzzy_match_threshold", String(Math.max(0, Math.min(Math.floor(n), MAX_THRESHOLD))));
-}
-
-function spelcAcademie(spelc: string): string | null {
-  const row = db.prepare("SELECT academie FROM ref_spelc WHERE spelc = ?").get(spelc) as
-    | { academie: string }
-    | undefined;
-  return row?.academie ?? null;
 }
 
 /** Distance de Levenshtein, avec sortie anticipée si la différence de
@@ -294,8 +288,8 @@ function isExactlyMatched(
 
 /**
  * Charge le contexte commun aux fonctions ci-dessous : les émargements
- * courants (national + local de l'académie du Spelc), dédoublonnés par
- * identité, et les adhérents du Spelc — rien de spécifique au calcul des
+ * courants (national + locaux de la ou des académies du Spelc), dédoublonnés
+ * par identité, et les adhérents du Spelc — rien de spécifique au calcul des
  * candidats approximatifs lui-même.
  */
 function loadMatchingContext(spelc: string): {
@@ -303,10 +297,14 @@ function loadMatchingContext(spelc: string): {
   emargIdentitySet: Set<string>;
   adherents: (AdherentForMatching & { nom: string; prenom: string; nom_naissance: string | null })[];
 } {
-  const academie = spelcAcademie(spelc);
-  if (!academie) return { uniqueEmargs: [], emargIdentitySet: new Set(), adherents: [] };
+  const academies = spelcAcademies(spelc);
+  if (academies.length === 0) return { uniqueEmargs: [], emargIdentitySet: new Set(), adherents: [] };
 
-  const localIds = currentImportIds("academique", academie);
+  // Un Spelc peut être à cheval sur plusieurs académies (ex.
+  // "Centre-Poitou-Charente" sur Orléans-Tours ET Poitiers) : un de ses
+  // adhérents peut être électeur dans n'importe laquelle selon son
+  // département, donc on cherche dans les émargements locaux de TOUTES.
+  const localIds = academies.flatMap((academie) => currentImportIds("academique", academie));
   const nationalIds = currentImportIds("national", null);
   const allIds = [...localIds, ...nationalIds];
   if (allIds.length === 0) return { uniqueEmargs: [], emargIdentitySet: new Set(), adherents: [] };

@@ -2,6 +2,7 @@ import { Router } from "express";
 import multer from "multer";
 import { db } from "../db/index.js";
 import { requireAuth, requireRole, canAccessSpelc } from "../middleware/auth.js";
+import { spelcAcademies } from "../services/reference.js";
 import { normalizeName } from "../lib/normalize.js";
 import { loadWorkbook, rowsAsObjects } from "../lib/xlsx.js";
 import { parseCsvBuffer } from "../lib/csv.js";
@@ -35,13 +36,6 @@ function sanitizeMobile(value: unknown): string | null {
 
 router.use(requireAuth);
 
-function spelcAcademie(spelc: string): string | null {
-  const row = db.prepare("SELECT academie FROM ref_spelc WHERE spelc = ?").get(spelc) as
-    | { academie: string }
-    | undefined;
-  return row?.academie ?? null;
-}
-
 router.post("/upload", requireRole("admin_spelc", "admin_general"), upload.single("file"), async (req, res) => {
   if (!req.file) {
     res.status(400).json({ error: "Fichier requis." });
@@ -52,7 +46,7 @@ router.post("/upload", requireRole("admin_spelc", "admin_general"), upload.singl
     res.status(400).json({ error: "Spelc requis." });
     return;
   }
-  if (!canAccessSpelc(req.user!, spelcAcademie(spelc), spelc)) {
+  if (!canAccessSpelc(req.user!, spelcAcademies(spelc), spelc)) {
     res.status(403).json({ error: "Accès non autorisé à ce Spelc." });
     return;
   }
@@ -222,7 +216,7 @@ router.get("/", requireRole("admin_spelc", "admin_general"), (req, res) => {
     res.status(400).json({ error: "Paramètre spelc requis." });
     return;
   }
-  if (!canAccessSpelc(req.user!, spelcAcademie(spelc), spelc)) {
+  if (!canAccessSpelc(req.user!, spelcAcademies(spelc), spelc)) {
     res.status(403).json({ error: "Accès non autorisé à ce Spelc." });
     return;
   }
@@ -244,7 +238,7 @@ router.get("/fuzzy-matches", requireRole("admin_spelc", "admin_general"), (req, 
     res.status(400).json({ error: "Paramètre spelc requis." });
     return;
   }
-  if (!canAccessSpelc(req.user!, spelcAcademie(spelc), spelc)) {
+  if (!canAccessSpelc(req.user!, spelcAcademies(spelc), spelc)) {
     res.status(403).json({ error: "Accès non autorisé à ce Spelc." });
     return;
   }
@@ -259,19 +253,19 @@ router.post("/fuzzy-matches/refresh", requireRole("admin_spelc", "admin_general"
     res.status(400).json({ error: "Spelc requis." });
     return;
   }
-  const academie = spelcAcademie(spelc);
+  const academies = spelcAcademies(spelc);
   // refreshFuzzyCandidates()/listUnmatchedAdherents() (services/fuzzyMatching.ts)
-  // ont besoin de cette académie pour retrouver les émargements courants du
-  // Spelc : sans elle, elles renvoient silencieusement des listes vides (0
+  // ont besoin de ces académies pour retrouver les émargements courants du
+  // Spelc : sans elles, elles renvoient silencieusement des listes vides (0
   // partout), ce qui ressemble à "tout va bien" alors que le calcul n'a
   // même pas eu lieu — on préfère une erreur explicite.
-  if (!academie) {
+  if (academies.length === 0) {
     res.status(400).json({
       error: `Spelc "${spelc}" introuvable dans le référentiel académie (onglet Référentiels) — impossible de rechercher les rapprochements.`,
     });
     return;
   }
-  if (!canAccessSpelc(req.user!, academie, spelc)) {
+  if (!canAccessSpelc(req.user!, academies, spelc)) {
     res.status(403).json({ error: "Accès non autorisé à ce Spelc." });
     return;
   }
@@ -289,15 +283,15 @@ router.get("/fuzzy-matches/unmatched", requireRole("admin_spelc", "admin_general
     res.status(400).json({ error: "Paramètre spelc requis." });
     return;
   }
-  const academie = spelcAcademie(spelc);
+  const academies = spelcAcademies(spelc);
   // Même garde-fou que /fuzzy-matches/refresh ci-dessus.
-  if (!academie) {
+  if (academies.length === 0) {
     res.status(400).json({
       error: `Spelc "${spelc}" introuvable dans le référentiel académie (onglet Référentiels) — impossible de lister les adhérents non retrouvés.`,
     });
     return;
   }
-  if (!canAccessSpelc(req.user!, academie, spelc)) {
+  if (!canAccessSpelc(req.user!, academies, spelc)) {
     res.status(403).json({ error: "Accès non autorisé à ce Spelc." });
     return;
   }
@@ -312,7 +306,7 @@ router.get("/electeurs", requireRole("admin_spelc", "admin_general"), (req, res)
     res.status(400).json({ error: "Paramètre spelc requis." });
     return;
   }
-  if (!canAccessSpelc(req.user!, spelcAcademie(spelc), spelc)) {
+  if (!canAccessSpelc(req.user!, spelcAcademies(spelc), spelc)) {
     res.status(403).json({ error: "Accès non autorisé à ce Spelc." });
     return;
   }
@@ -335,7 +329,7 @@ router.post("/fuzzy-matches/manual", requireRole("admin_spelc", "admin_general")
     res.status(404).json({ error: "Adhérent introuvable." });
     return;
   }
-  if (!canAccessSpelc(req.user!, spelcAcademie(spelc), spelc)) {
+  if (!canAccessSpelc(req.user!, spelcAcademies(spelc), spelc)) {
     res.status(403).json({ error: "Accès non autorisé à ce Spelc." });
     return;
   }
@@ -355,7 +349,7 @@ router.put("/fuzzy-matches/:id", requireRole("admin_spelc", "admin_general"), (r
     res.status(404).json({ error: "Suggestion introuvable." });
     return;
   }
-  if (!canAccessSpelc(req.user!, spelcAcademie(spelc), spelc)) {
+  if (!canAccessSpelc(req.user!, spelcAcademies(spelc), spelc)) {
     res.status(403).json({ error: "Accès non autorisé à ce Spelc." });
     return;
   }

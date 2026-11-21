@@ -1,4 +1,5 @@
 import { db } from "../db/index.js";
+import { spelcAcademies } from "./reference.js";
 import {
   adherentContactSelectFragment,
   adherentExistsClause,
@@ -217,16 +218,24 @@ export interface ScopeFilter {
 /**
  * Pour un scope académique, l'académie est nécessaire pour retrouver les
  * imports "actuels" (ils sont groupés par académie). Un tableau de bord
- * Spelc ne connaît que le Spelc : on retrouve alors l'académie via le
- * référentiel Spelc -> Académie plutôt que de renvoyer un résultat vide.
+ * Spelc ne connaît que le Spelc : on retrouve alors la ou les académies via
+ * le référentiel des départements plutôt que de renvoyer un résultat vide —
+ * un Spelc peut être à cheval sur plusieurs académies (ex.
+ * "Centre-Poitou-Charente" sur Orléans-Tours ET Poitiers), auquel cas ses
+ * statistiques doivent agréger les deux.
  */
-function effectiveAcademie(filter: ScopeFilter): string | null {
-  if (filter.academie) return filter.academie;
-  if (!filter.spelc) return null;
-  const row = db.prepare("SELECT academie FROM ref_spelc WHERE spelc = ?").get(filter.spelc) as
-    | { academie: string }
-    | undefined;
-  return row?.academie ?? null;
+function effectiveAcademies(filter: ScopeFilter): string[] {
+  if (filter.academie) return [filter.academie];
+  if (!filter.spelc) return [];
+  return spelcAcademies(filter.spelc);
+}
+
+/** Ids des imports "actuels" pertinents pour ce filtre : le dernier import
+ * national pour un scope national, ou l'union des derniers imports
+ * académiques de la ou des académies du filtre (via effectiveAcademies). */
+function currentImportIdsForFilter(filter: ScopeFilter): number[] {
+  if (filter.scope === "national") return currentImportIds("national", null);
+  return effectiveAcademies(filter).flatMap((academie) => currentImportIds("academique", academie));
 }
 
 function whereForScope(filter: ScopeFilter, ids: number[]): { clause: string; params: unknown[] } {
@@ -252,8 +261,11 @@ function whereForScope(filter: ScopeFilter, ids: number[]): { clause: string; pa
 }
 
 export function camembert(filter: ScopeFilter): { votants: number; nonVotants: number; academie: string | null } {
-  const academie = effectiveAcademie(filter);
-  const ids = currentImportIds(filter.scope, academie);
+  // "academie" retourné sert à l'affichage (titre de la carte côté frontend) :
+  // pour un Spelc à cheval sur plusieurs académies, elles sont jointes
+  // ("Orléans-Tours / Poitiers") plutôt que de n'en montrer qu'une seule.
+  const academie = effectiveAcademies(filter).join(" / ") || null;
+  const ids = currentImportIdsForFilter(filter);
   if (ids.length === 0) return { votants: 0, nonVotants: 0, academie };
   const { clause, params } = whereForScope(filter, ids);
   const row = db
@@ -270,7 +282,7 @@ export function camembert(filter: ScopeFilter): { votants: number; nonVotants: n
  * non), pour qu'il voie aussi la participation propre à ses adhérents.
  */
 export function camembertAdherents(filter: ScopeFilter): { votants: number; nonVotants: number } {
-  const ids = currentImportIds(filter.scope, effectiveAcademie(filter));
+  const ids = currentImportIdsForFilter(filter);
   if (ids.length === 0) return { votants: 0, nonVotants: 0 };
   const { clause, params } = whereForScope(filter, ids);
   const row = db
@@ -293,7 +305,7 @@ export interface CourbePoint {
  * suffit à reconstituer l'historique complet des jours déjà écoulés).
  */
 export function courbeCumulative(filter: ScopeFilter): CourbePoint[] {
-  const ids = currentImportIds(filter.scope, effectiveAcademie(filter));
+  const ids = currentImportIdsForFilter(filter);
   if (ids.length === 0) return [];
   const { clause, params } = whereForScope(filter, ids);
 
@@ -324,7 +336,7 @@ export function courbeCumulative(filter: ScopeFilter): CourbePoint[] {
 
 /** Même chose que courbeCumulative(), restreint aux adhérents — voir camembertAdherents(). */
 export function courbeCumulativeAdherents(filter: ScopeFilter): CourbePoint[] {
-  const ids = currentImportIds(filter.scope, effectiveAcademie(filter));
+  const ids = currentImportIdsForFilter(filter);
   if (ids.length === 0) return [];
   const { clause, params } = whereForScope(filter, ids);
   const adherentExists = adherentExistsClause();
@@ -372,7 +384,7 @@ export interface ScrutinsResult {
 }
 
 export function scrutinsTab(filter: ScrutinsFilter, limit = 200, offset = 0): ScrutinsResult {
-  const ids = currentImportIds(filter.scope, effectiveAcademie(filter));
+  const ids = currentImportIdsForFilter(filter);
   if (ids.length === 0) return { groups: [], rows: [], totalRows: 0, etablissementOptions: [] };
 
   const baseParts = [`e.import_id IN (${idsPlaceholder(ids)})`];
@@ -465,7 +477,7 @@ export interface ScrutinsByEtablissementResult {
  * d'une taille raisonnable à charger en une fois côté serveur.
  */
 export function scrutinsByEtablissement(filter: ScrutinsFilter): ScrutinsByEtablissementResult {
-  const ids = currentImportIds(filter.scope, effectiveAcademie(filter));
+  const ids = currentImportIdsForFilter(filter);
   if (ids.length === 0) return { groups: [], etablissementOptions: [], etablissements: [], totalRows: 0 };
 
   const baseParts = [`e.import_id IN (${idsPlaceholder(ids)})`];
@@ -562,7 +574,7 @@ export interface EtablissementRow {
 }
 
 export function participationParEtablissement(filter: ScopeFilter): EtablissementRow[] {
-  const ids = currentImportIds(filter.scope, effectiveAcademie(filter));
+  const ids = currentImportIdsForFilter(filter);
   if (ids.length === 0) return [];
   const { clause, params } = whereForScope(filter, ids);
   const rows = db

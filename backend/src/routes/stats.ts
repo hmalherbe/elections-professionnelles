@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express";
-import { db } from "../db/index.js";
 import { requireAuth, canAccessAcademie, canAccessSpelc } from "../middleware/auth.js";
+import { spelcAcademies } from "../services/reference.js";
 import {
   camembert,
   camembertAdherents,
@@ -21,13 +21,6 @@ import {
 const router = Router();
 router.use(requireAuth);
 
-function spelcAcademie(spelc: string): string | null {
-  const row = db.prepare("SELECT academie FROM ref_spelc WHERE spelc = ?").get(spelc) as
-    | { academie: string }
-    | undefined;
-  return row?.academie ?? null;
-}
-
 /** Vérifie l'accès de l'utilisateur au scope demandé, renvoie une erreur HTTP le cas échéant. */
 function checkScopeAccess(
   req: Request,
@@ -38,11 +31,11 @@ function checkScopeAccess(
 ): boolean {
   const user = req.user!;
   void scope;
-  if (academie && !canAccessAcademie(user, academie) && !(spelc && canAccessSpelc(user, spelcAcademie(spelc), spelc))) {
+  if (academie && !canAccessAcademie(user, academie) && !(spelc && canAccessSpelc(user, spelcAcademies(spelc), spelc))) {
     res.status(403).json({ error: "Accès non autorisé à cette académie." });
     return false;
   }
-  if (spelc && !canAccessSpelc(user, spelcAcademie(spelc), spelc)) {
+  if (spelc && !canAccessSpelc(user, spelcAcademies(spelc), spelc)) {
     res.status(403).json({ error: "Accès non autorisé à ce Spelc." });
     return false;
   }

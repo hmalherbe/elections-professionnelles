@@ -563,7 +563,9 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
   const [preview, setPreview] = useState<{ mailRecipients: number; smsRecipients: number; restantARelancer: number } | null>(
     null
   );
-  const [lastImports, setLastImports] = useState<{ degre1D: string | null; degre2D: string | null } | null>(null);
+  const [lastImports, setLastImports] = useState<
+    { academie: string; degre1D: string | null; degre2D: string | null }[]
+  >([]);
   const [smsQuota, setSmsQuota] = useState<{
     quota: number | null;
     used: number;
@@ -641,9 +643,9 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
   function refreshAll() {
     refreshCredits();
     api
-      .get<{ degre1D: string | null; degre2D: string | null }>("/brevo/last-imports")
-      .then(setLastImports)
-      .catch(() => setLastImports(null));
+      .get<{ academies: { academie: string; degre1D: string | null; degre2D: string | null }[] }>("/brevo/last-imports")
+      .then((r) => setLastImports(r.academies))
+      .catch(() => setLastImports([]));
     api.get<{ subject: string; body: string }>(`/brevo/templates/email${qs({ spelc })}`).then(setEmailTemplate);
     api.get<{ body: string }>(`/brevo/templates/sms${qs({ spelc })}`).then(setSmsTemplate);
     api
@@ -718,19 +720,25 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
           Adhérents de ce Spelc n'ayant pas encore voté (scrutin national et/ou local), quels que soient leurs
           coordonnées et les réglages d'envoi ci-dessous.
         </p>
-        <div className="mt-3 flex flex-wrap gap-6 border-t border-slate-100 pt-3 text-sm">
-          <div>
-            <p className="text-xs font-medium text-slate-500">Dernier import 1er degré</p>
-            <p className="text-slate-700">
-              {lastImports?.degre1D ? parseSqliteUtc(lastImports.degre1D).toLocaleString("fr-FR") : "Aucun import"}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs font-medium text-slate-500">Dernier import 2nd degré</p>
-            <p className="text-slate-700">
-              {lastImports?.degre2D ? parseSqliteUtc(lastImports.degre2D).toLocaleString("fr-FR") : "Aucun import"}
-            </p>
-          </div>
+        <div className="mt-3 space-y-3 border-t border-slate-100 pt-3 text-sm">
+          {lastImports.length === 0 && <p className="text-slate-400">Académie introuvable dans le référentiel.</p>}
+          {lastImports.map((a) => (
+            <div key={a.academie} className="flex flex-wrap gap-6">
+              {lastImports.length > 1 && <p className="w-full font-medium text-slate-600">{a.academie}</p>}
+              <div>
+                <p className="text-xs font-medium text-slate-500">Dernier import 1er degré</p>
+                <p className="text-slate-700">
+                  {a.degre1D ? parseSqliteUtc(a.degre1D).toLocaleString("fr-FR") : "Aucun import"}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-slate-500">Dernier import 2nd degré</p>
+                <p className="text-slate-700">
+                  {a.degre2D ? parseSqliteUtc(a.degre2D).toLocaleString("fr-FR") : "Aucun import"}
+                </p>
+              </div>
+            </div>
+          ))}
         </div>
       </Card>
 
