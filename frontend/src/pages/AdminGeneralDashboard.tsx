@@ -391,6 +391,34 @@ interface LastImportByAcademie {
 
 type ImportStatus = { type: "ok" | "error"; message: string };
 
+/** Un scrutin dont le dernier import est à moins de cette durée du plus
+ * récent (toutes académies et tous degrés confondus) est considéré à jour. */
+const FRESHNESS_THRESHOLD_MS = 60 * 60 * 1000;
+
+/** Le plus récent des horodatages d'import de toutes les académies et des
+ * deux degrés (1er/2nd) — référence pour juger la fraîcheur de chaque
+ * scrutin de la carte "Import académique, académie par académie". */
+function mostRecentImportAt(lastImports: Record<string, LastImportByAcademie>): Date | null {
+  let max: Date | null = null;
+  for (const entry of Object.values(lastImports)) {
+    for (const importedAt of [entry.imported1D, entry.imported2D]) {
+      if (!importedAt) continue;
+      const d = parseSqliteUtc(importedAt);
+      if (!max || d > max) max = d;
+    }
+  }
+  return max;
+}
+
+/** Un scrutin est "à jour" si son dernier import est à moins d'une heure du
+ * plus récent import toutes académies confondues (voir mostRecentImportAt)
+ * — colore le bouton "choisir un fichier" en vert (à jour) ou orange (à
+ * rafraîchir), y compris quand il n'y a encore aucun import du tout. */
+function isFresh(importedAt: string | null | undefined, mostRecent: Date | null): boolean {
+  if (!importedAt || !mostRecent) return false;
+  return Math.abs(mostRecent.getTime() - parseSqliteUtc(importedAt).getTime()) < FRESHNESS_THRESHOLD_MS;
+}
+
 /**
  * Permet à l'admin général de déposer, pour n'importe quelle académie, les
  * fichiers JSON d'émargements académiques (1er/2nd degré), sans passer par
@@ -454,10 +482,12 @@ function AcademiqueImportsPanel() {
 
   if (rows.length === 0) return null;
 
+  const mostRecent = mostRecentImportAt(lastImports);
+
   return (
     <Card
       title="Import académique, académie par académie"
-      subtitle="Fichier JSON des émargements du scrutin 1er ou 2nd degré (mêmes champs que le fichier CCMMEP), journée du jour. Date et heure du dernier import entre parenthèses."
+      subtitle="Fichier JSON des émargements du scrutin 1er ou 2nd degré (mêmes champs que le fichier CCMMEP), journée du jour. Date et heure du dernier import entre parenthèses. Bouton vert : import à jour (moins d'une heure d'écart avec le plus récent import) ; orange : à rafraîchir."
     >
       <div className="max-h-96 overflow-auto">
         <table className="w-full text-sm">
@@ -477,6 +507,7 @@ function AcademiqueImportsPanel() {
                     label={labelWithTimestamp(r.type1d || "1er degré", lastImports[r.academie]?.imported1D)}
                     busy={!!busy[`${r.academie}-1D`]}
                     status={status[`${r.academie}-1D`]}
+                    fresh={isFresh(lastImports[r.academie]?.imported1D, mostRecent)}
                     onFile={(file) => handleUpload(r.academie, "1D", file)}
                   />
                 </td>
@@ -485,6 +516,7 @@ function AcademiqueImportsPanel() {
                     label={labelWithTimestamp(r.type2d || "2nd degré", lastImports[r.academie]?.imported2D)}
                     busy={!!busy[`${r.academie}-2D`]}
                     status={status[`${r.academie}-2D`]}
+                    fresh={isFresh(lastImports[r.academie]?.imported2D, mostRecent)}
                     onFile={(file) => handleUpload(r.academie, "2D", file)}
                   />
                 </td>
@@ -501,13 +533,18 @@ function ImportCell({
   label,
   busy,
   status,
+  fresh,
   onFile,
 }: {
   label: string;
   busy: boolean;
   status?: ImportStatus;
+  /** À jour (moins d'une heure d'écart avec le plus récent import, voir
+   * isFresh) : bouton vert, sinon orange. */
+  fresh: boolean;
   onFile: (file: File) => void;
 }) {
+  const fileButtonClass = fresh ? "file:bg-emerald-600 hover:file:bg-emerald-700" : "file:bg-orange-500 hover:file:bg-orange-600";
   return (
     <div className="min-w-[180px] space-y-1">
       <label className="block text-xs font-medium text-slate-500">{label}</label>
@@ -520,7 +557,7 @@ function ImportCell({
           if (file) onFile(file);
           e.target.value = "";
         }}
-        className="block w-full text-xs text-slate-600 file:mr-2 file:rounded-md file:border-0 file:bg-emerald-600 file:px-2 file:py-1 file:text-xs file:font-medium file:text-white hover:file:bg-emerald-700"
+        className={`block w-full text-xs text-slate-600 file:mr-2 file:rounded-md file:border-0 file:px-2 file:py-1 file:text-xs file:font-medium file:text-white ${fileButtonClass}`}
       />
       {busy && <p className="text-xs text-slate-400">Import en cours…</p>}
       {status && (
