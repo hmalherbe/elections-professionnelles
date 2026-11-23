@@ -138,8 +138,7 @@ export function adherentExistsClause(): string {
     )
     OR EXISTS (
       SELECT 1 FROM adherent_fuzzy_matches fm
-      INNER JOIN adherents ad2 ON ad2.id = fm.adherent_id
-      WHERE fm.status = 'valide' AND ad2.spelc = e.spelc
+      WHERE fm.status = 'valide' AND fm.spelc = e.spelc
         AND fm.candidate_nom_norm = e.nom_norm AND fm.candidate_prenom_norm = e.prenom_norm
     )
   )`;
@@ -155,17 +154,24 @@ export function adherentExistsClause(): string {
  * à l'échelle nationale (voir buildAdherentIdentitySets pour ce cas).
  */
 export function adherentContactSelectFragment(e: string, alias: string): string {
+  // Le mail/mobile vient toujours de la ligne adherents COURANTE (retrouvée
+  // par identité, pas par un adherent_id qui ne survit pas à un réimport —
+  // voir le commentaire de la table dans db/index.ts), jamais figé sur la
+  // suggestion elle-même : une personne peut mettre à jour son mail sans que
+  // son rapprochement déjà validé n'ait besoin d'être refait.
   return `
     COALESCE(
       (SELECT ad.mail FROM adherents ad WHERE ad.spelc = ${e}.spelc AND ${nomMatchClause("ad", e)} AND ${prenomEqualClause("ad", e)} LIMIT 1),
-      (SELECT ad2.mail FROM adherent_fuzzy_matches fm INNER JOIN adherents ad2 ON ad2.id = fm.adherent_id
-       WHERE fm.status = 'valide' AND ad2.spelc = ${e}.spelc
+      (SELECT ad2.mail FROM adherent_fuzzy_matches fm
+       INNER JOIN adherents ad2 ON ad2.spelc = fm.spelc AND ad2.nom_norm = fm.adherent_nom_norm AND ad2.prenom_norm = fm.adherent_prenom_norm
+       WHERE fm.status = 'valide' AND fm.spelc = ${e}.spelc
          AND fm.candidate_nom_norm = ${e}.nom_norm AND fm.candidate_prenom_norm = ${e}.prenom_norm LIMIT 1)
     ) AS ${alias}Mail,
     COALESCE(
       (SELECT ad.mobile FROM adherents ad WHERE ad.spelc = ${e}.spelc AND ${nomMatchClause("ad", e)} AND ${prenomEqualClause("ad", e)} LIMIT 1),
-      (SELECT ad2.mobile FROM adherent_fuzzy_matches fm INNER JOIN adherents ad2 ON ad2.id = fm.adherent_id
-       WHERE fm.status = 'valide' AND ad2.spelc = ${e}.spelc
+      (SELECT ad2.mobile FROM adherent_fuzzy_matches fm
+       INNER JOIN adherents ad2 ON ad2.spelc = fm.spelc AND ad2.nom_norm = fm.adherent_nom_norm AND ad2.prenom_norm = fm.adherent_prenom_norm
+       WHERE fm.status = 'valide' AND fm.spelc = ${e}.spelc
          AND fm.candidate_nom_norm = ${e}.nom_norm AND fm.candidate_prenom_norm = ${e}.prenom_norm LIMIT 1)
     ) AS ${alias}Mobile
   `;
@@ -211,8 +217,8 @@ export function buildAdherentIdentitySets(): Map<string, Set<string>> {
 
   const fuzzyRows = db
     .prepare(
-      `SELECT a.spelc AS spelc, fm.candidate_nom_norm AS nomNorm, fm.candidate_prenom_norm AS prenomNorm
-       FROM adherent_fuzzy_matches fm INNER JOIN adherents a ON a.id = fm.adherent_id WHERE fm.status = 'valide'`
+      `SELECT spelc, candidate_nom_norm AS nomNorm, candidate_prenom_norm AS prenomNorm
+       FROM adherent_fuzzy_matches WHERE status = 'valide'`
     )
     .all() as { spelc: string; nomNorm: string; prenomNorm: string }[];
   for (const r of fuzzyRows) add(r.spelc, r.nomNorm, r.prenomNorm);
@@ -368,8 +374,9 @@ export function refreshFuzzyCandidates(spelc: string): { created: number; unmatc
 
   const insert = db.prepare(
     `INSERT OR IGNORE INTO adherent_fuzzy_matches
-       (adherent_id, candidate_nom, candidate_prenom, candidate_nom_norm, candidate_prenom_norm)
-     VALUES (?, ?, ?, ?, ?)`
+       (spelc, adherent_nom, adherent_prenom, adherent_nom_norm, adherent_prenom_norm, adherent_nom_naissance, adherent_nom_naissance_norm,
+        candidate_nom, candidate_prenom, candidate_nom_norm, candidate_prenom_norm)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   );
 
   let created = 0;
@@ -383,7 +390,19 @@ export function refreshFuzzyCandidates(spelc: string): { created: number; unmatc
       if (uniqueCandidates.length !== 1) continue;
 
       const cand = uniqueCandidates[0];
-      const info = insert.run(a.id, cand.nom, cand.prenom, cand.nom_norm, cand.prenom_norm);
+      const info = insert.run(
+        spelc,
+        a.nom,
+        a.prenom,
+        a.nom_norm,
+        a.prenom_norm,
+        a.nom_naissance,
+        a.nom_naissance_norm,
+        cand.nom,
+        cand.prenom,
+        cand.nom_norm,
+        cand.prenom_norm
+      );
       if (info.changes > 0) created++;
     }
   });
@@ -415,26 +434,35 @@ export function listUnmatchedAdherents(spelc: string): UnmatchedAdherentRow[] {
   const threshold = getFuzzyMatchThreshold();
   const { uniqueEmargs, emargIdentitySet, adherents } = loadMatchingContext(spelc);
 
+  // Rattachées à l'identité (nom/prénom normalisés) de l'adhérent courant,
+  // pas à un adherent_id qui ne survit pas à un réimport du fichier
+  // adhérents — voir le commentaire de la table dans db/index.ts.
   const existingRows = db
     .prepare(
-      `SELECT fm.adherent_id AS adherentId, fm.status, fm.candidate_nom AS candidateNom, fm.candidate_prenom AS candidatePrenom
-       FROM adherent_fuzzy_matches fm
-       INNER JOIN adherents a ON a.id = fm.adherent_id
-       WHERE a.spelc = ?`
+      `SELECT adherent_nom_norm AS adherentNomNorm, adherent_prenom_norm AS adherentPrenomNorm,
+              status, candidate_nom AS candidateNom, candidate_prenom AS candidatePrenom
+       FROM adherent_fuzzy_matches WHERE spelc = ?`
     )
-    .all(spelc) as { adherentId: number; status: "en_attente" | "valide" | "rejete"; candidateNom: string; candidatePrenom: string }[];
-  const existingByAdherent = new Map<number, typeof existingRows>();
+    .all(spelc) as {
+    adherentNomNorm: string;
+    adherentPrenomNorm: string;
+    status: "en_attente" | "valide" | "rejete";
+    candidateNom: string;
+    candidatePrenom: string;
+  }[];
+  const existingByIdentity = new Map<string, typeof existingRows>();
   for (const row of existingRows) {
-    const arr = existingByAdherent.get(row.adherentId) ?? [];
+    const key = `${row.adherentNomNorm}|${row.adherentPrenomNorm}`;
+    const arr = existingByIdentity.get(key) ?? [];
     arr.push(row);
-    existingByAdherent.set(row.adherentId, arr);
+    existingByIdentity.set(key, arr);
   }
 
   const result: UnmatchedAdherentRow[] = [];
   for (const a of adherents) {
     if (isExactlyMatched(emargIdentitySet, a.nom_norm, a.nom_naissance_norm, a.prenom_norm)) continue; // déjà trouvé exactement
 
-    const existing = existingByAdherent.get(a.id) ?? [];
+    const existing = existingByIdentity.get(`${a.nom_norm}|${a.prenom_norm}`) ?? [];
     if (existing.length > 0) {
       // Priorité au statut le plus avancé si plusieurs lignes existent.
       const chosen = existing.find((e) => e.status === "valide") ?? existing.find((e) => e.status === "en_attente") ?? existing[0];
@@ -502,20 +530,44 @@ export function manuallyMatchAdherent(
   candidatePrenom: string,
   reviewedBy: number
 ): void {
+  // adherentId désigne la ligne adherents COURANTE (celle que le frontend
+  // vient de lister) : on en résout l'identité ici pour l'enregistrer, car
+  // c'est elle qui doit survivre à un futur réimport, pas cet id lui-même
+  // (voir le commentaire de la table dans db/index.ts).
+  const adherent = db
+    .prepare("SELECT spelc, nom, prenom, nom_norm, prenom_norm, nom_naissance, nom_naissance_norm FROM adherents WHERE id = ?")
+    .get(adherentId) as
+    | { spelc: string; nom: string; prenom: string; nom_norm: string; prenom_norm: string; nom_naissance: string | null; nom_naissance_norm: string | null }
+    | undefined;
+  if (!adherent) return;
+
   const nomNorm = normalizeName(candidateNom);
   const prenomNorm = normalizeName(candidatePrenom);
   db.prepare(
     `INSERT INTO adherent_fuzzy_matches
-       (adherent_id, candidate_nom, candidate_prenom, candidate_nom_norm, candidate_prenom_norm, status, reviewed_by, reviewed_at)
-     VALUES (?, ?, ?, ?, ?, 'valide', ?, datetime('now'))
-     ON CONFLICT(adherent_id, candidate_nom_norm, candidate_prenom_norm)
+       (spelc, adherent_nom, adherent_prenom, adherent_nom_norm, adherent_prenom_norm, adherent_nom_naissance, adherent_nom_naissance_norm,
+        candidate_nom, candidate_prenom, candidate_nom_norm, candidate_prenom_norm, status, reviewed_by, reviewed_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'valide', ?, datetime('now'))
+     ON CONFLICT(spelc, adherent_nom_norm, adherent_prenom_norm, candidate_nom_norm, candidate_prenom_norm)
      DO UPDATE SET status = 'valide', reviewed_by = excluded.reviewed_by, reviewed_at = datetime('now')`
-  ).run(adherentId, candidateNom, candidatePrenom, nomNorm, prenomNorm, reviewedBy);
+  ).run(
+    adherent.spelc,
+    adherent.nom,
+    adherent.prenom,
+    adherent.nom_norm,
+    adherent.prenom_norm,
+    adherent.nom_naissance,
+    adherent.nom_naissance_norm,
+    candidateNom,
+    candidatePrenom,
+    nomNorm,
+    prenomNorm,
+    reviewedBy
+  );
 }
 
 export interface FuzzyMatchRow {
   id: number;
-  adherentId: number;
   adherentNom: string;
   adherentPrenom: string;
   adherentNomNaissance: string | null;
@@ -527,29 +579,24 @@ export interface FuzzyMatchRow {
 }
 
 export function listFuzzyMatches(spelc: string, status?: "en_attente" | "valide" | "rejete"): FuzzyMatchRow[] {
-  const clause = status ? "AND fm.status = ?" : "";
+  const clause = status ? "AND status = ?" : "";
   const params: unknown[] = status ? [spelc, status] : [spelc];
   return db
     .prepare(
-      `SELECT fm.id, fm.adherent_id AS adherentId, a.nom AS adherentNom, a.prenom AS adherentPrenom,
-              a.nom_naissance AS adherentNomNaissance, fm.candidate_nom AS candidateNom,
-              fm.candidate_prenom AS candidatePrenom, fm.status, fm.created_at AS createdAt,
-              fm.reviewed_at AS reviewedAt
-       FROM adherent_fuzzy_matches fm
-       INNER JOIN adherents a ON a.id = fm.adherent_id
-       WHERE a.spelc = ? ${clause}
-       ORDER BY fm.created_at DESC`
+      `SELECT id, adherent_nom AS adherentNom, adherent_prenom AS adherentPrenom,
+              adherent_nom_naissance AS adherentNomNaissance, candidate_nom AS candidateNom,
+              candidate_prenom AS candidatePrenom, status, created_at AS createdAt,
+              reviewed_at AS reviewedAt
+       FROM adherent_fuzzy_matches
+       WHERE spelc = ? ${clause}
+       ORDER BY created_at DESC`
     )
     .all(...params) as FuzzyMatchRow[];
 }
 
 /** Spelc propriétaire d'une suggestion, pour vérifier les droits d'accès avant de la modifier. */
 export function fuzzyMatchSpelc(id: number): string | null {
-  const row = db
-    .prepare(
-      `SELECT a.spelc FROM adherent_fuzzy_matches fm INNER JOIN adherents a ON a.id = fm.adherent_id WHERE fm.id = ?`
-    )
-    .get(id) as { spelc: string } | undefined;
+  const row = db.prepare(`SELECT spelc FROM adherent_fuzzy_matches WHERE id = ?`).get(id) as { spelc: string } | undefined;
   return row?.spelc ?? null;
 }
 

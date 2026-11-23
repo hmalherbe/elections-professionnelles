@@ -123,9 +123,24 @@ export function migrate(): void {
     -- comme un rapprochement exact dans tous les calculs (adhérentExists,
     -- ciblage des relances). Une seule suggestion par couple
     -- (adhérent, identité candidate), quel que soit son statut.
+    --
+    -- Ancrée sur l'IDENTITÉ de l'adhérent (spelc + nom/prénom normalisés),
+    -- PAS sur adherents.id : un réimport du fichier adhérents d'un Spelc
+    -- supprime TOUS ses adhérents puis les réinsère avec de nouveaux id
+    -- (voir routes/adherents.ts) — un id ne survit jamais à un réimport,
+    -- alors que le nom/prénom de la personne, lui, survit tant qu'elle est
+    -- toujours présente dans le nouveau fichier. (Avant ce correctif, la
+    -- table référençait adherents(id) ON DELETE CASCADE : un réimport
+    -- supprimait alors en cascade TOUS les rapprochements déjà validés.)
     CREATE TABLE IF NOT EXISTS adherent_fuzzy_matches (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      adherent_id INTEGER NOT NULL REFERENCES adherents(id) ON DELETE CASCADE,
+      spelc TEXT NOT NULL,
+      adherent_nom TEXT NOT NULL,
+      adherent_prenom TEXT NOT NULL,
+      adherent_nom_norm TEXT NOT NULL,
+      adherent_prenom_norm TEXT NOT NULL,
+      adherent_nom_naissance TEXT,
+      adherent_nom_naissance_norm TEXT,
       candidate_nom TEXT NOT NULL,
       candidate_prenom TEXT NOT NULL,
       candidate_nom_norm TEXT NOT NULL,
@@ -135,9 +150,12 @@ export function migrate(): void {
       reviewed_at TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
-    CREATE INDEX IF NOT EXISTS idx_fuzzy_matches_adherent ON adherent_fuzzy_matches(adherent_id);
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_fuzzy_matches_unique
-      ON adherent_fuzzy_matches(adherent_id, candidate_nom_norm, candidate_prenom_norm);
+    -- Index créés après migrateFuzzyMatchesToIdentity() ci-dessous, PAS ici :
+    -- sur une base déjà déployée avec l'ancien schéma (colonne adherent_id,
+    -- pas encore "spelc"), CREATE TABLE IF NOT EXISTS ci-dessus est un no-op
+    -- (la table existe déjà), et ces CREATE INDEX échoueraient aussitôt
+    -- ("no such column: spelc") avant que la migration n'ait reconstruit la
+    -- table.
 
     CREATE TABLE IF NOT EXISTS email_templates (
       spelc TEXT PRIMARY KEY,
@@ -258,6 +276,15 @@ export function migrate(): void {
   addColumnIfMissing("emargements", "nom_naissance_norm", "TEXT");
 
   migrateScopeIncludesGeneral();
+  migrateFuzzyMatchesToIdentity();
+  // Après coup (pas dans le bloc CREATE TABLE principal) : à ce stade, la
+  // table a forcément le nouveau schéma, qu'elle vienne d'être créée (base
+  // neuve) ou reconstruite (base migrée) — voir migrateFuzzyMatchesToIdentity.
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_fuzzy_matches_identity ON adherent_fuzzy_matches(spelc, adherent_nom_norm, adherent_prenom_norm);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_fuzzy_matches_unique
+      ON adherent_fuzzy_matches(spelc, adherent_nom_norm, adherent_prenom_norm, candidate_nom_norm, candidate_prenom_norm);
+  `);
   dropPsaTables();
 }
 
@@ -342,6 +369,71 @@ function migrateScopeIncludesGeneral(): void {
     const fkErrors = db.prepare("PRAGMA foreign_key_check").all();
     if (fkErrors.length > 0) {
       throw new Error(`Incohérences de clés étrangères après migration scope='general' : ${JSON.stringify(fkErrors)}`);
+    }
+  } finally {
+    db.pragma("foreign_keys = ON");
+  }
+}
+
+/**
+ * Ancre adherent_fuzzy_matches sur l'identité de l'adhérent (spelc +
+ * nom/prénom normalisés) plutôt que sur adherent_id — voir le commentaire
+ * de la table dans le CREATE TABLE ci-dessus. ALTER TABLE ne permet ni de
+ * retirer une contrainte NOT NULL/FK ni de changer un index UNIQUE : il faut
+ * reconstruire la table (procédure recommandée par SQLite), en reprenant les
+ * lignes existantes à partir de l'adherent_id encore valide à cet instant.
+ * Idempotent (ne fait rien si déjà migrée). Un rapprochement déjà perdu par
+ * un réimport antérieur à ce correctif (adherent_id déjà supprimé en
+ * cascade) ne peut, lui, pas être récupéré rétroactivement.
+ */
+function migrateFuzzyMatchesToIdentity(): void {
+  const columns = db.prepare(`PRAGMA table_info(adherent_fuzzy_matches)`).all() as { name: string }[];
+  if (!columns.some((c) => c.name === "adherent_id")) return; // déjà migrée (ou table toute neuve)
+
+  db.pragma("foreign_keys = OFF");
+  try {
+    const tx = db.transaction(() => {
+      db.exec(`
+        CREATE TABLE adherent_fuzzy_matches_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          spelc TEXT NOT NULL,
+          adherent_nom TEXT NOT NULL,
+          adherent_prenom TEXT NOT NULL,
+          adherent_nom_norm TEXT NOT NULL,
+          adherent_prenom_norm TEXT NOT NULL,
+          adherent_nom_naissance TEXT,
+          adherent_nom_naissance_norm TEXT,
+          candidate_nom TEXT NOT NULL,
+          candidate_prenom TEXT NOT NULL,
+          candidate_nom_norm TEXT NOT NULL,
+          candidate_prenom_norm TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'en_attente' CHECK (status IN ('en_attente','valide','rejete')),
+          reviewed_by INTEGER REFERENCES users(id),
+          reviewed_at TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        INSERT INTO adherent_fuzzy_matches_new
+          (id, spelc, adherent_nom, adherent_prenom, adherent_nom_norm, adherent_prenom_norm,
+           adherent_nom_naissance, adherent_nom_naissance_norm,
+           candidate_nom, candidate_prenom, candidate_nom_norm, candidate_prenom_norm,
+           status, reviewed_by, reviewed_at, created_at)
+        SELECT fm.id, a.spelc, a.nom, a.prenom, a.nom_norm, a.prenom_norm,
+               a.nom_naissance, a.nom_naissance_norm,
+               fm.candidate_nom, fm.candidate_prenom, fm.candidate_nom_norm, fm.candidate_prenom_norm,
+               fm.status, fm.reviewed_by, fm.reviewed_at, fm.created_at
+        FROM adherent_fuzzy_matches fm
+        INNER JOIN adherents a ON a.id = fm.adherent_id;
+        DROP TABLE adherent_fuzzy_matches;
+        ALTER TABLE adherent_fuzzy_matches_new RENAME TO adherent_fuzzy_matches;
+        CREATE INDEX IF NOT EXISTS idx_fuzzy_matches_identity ON adherent_fuzzy_matches(spelc, adherent_nom_norm, adherent_prenom_norm);
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_fuzzy_matches_unique
+          ON adherent_fuzzy_matches(spelc, adherent_nom_norm, adherent_prenom_norm, candidate_nom_norm, candidate_prenom_norm);
+      `);
+    });
+    tx();
+    const fkErrors = db.prepare("PRAGMA foreign_key_check").all();
+    if (fkErrors.length > 0) {
+      throw new Error(`Incohérences de clés étrangères après migration adherent_fuzzy_matches : ${JSON.stringify(fkErrors)}`);
     }
   } finally {
     db.pragma("foreign_keys = ON");

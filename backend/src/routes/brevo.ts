@@ -247,28 +247,30 @@ function matchedAdherents(spelc: string): Recipient[] {
     .all(spelc) as { id: number; nom: string; prenom: string; mail: string | null; mobile: string | null; nom_norm: string; prenom_norm: string }[];
   if (adherentRows.length === 0) return [];
 
-  const fuzzyByAdherent = new Map<number, { nom_norm: string; prenom_norm: string }[]>();
-  const ids = adherentRows.map((a) => a.id);
-  const idPlaceholders = ids.map(() => "?").join(",");
+  // Rattachées à l'identité (nom/prénom normalisés) de l'adhérent, pas à un
+  // adherent_id qui ne survit pas à un réimport du fichier adhérents — voir
+  // le commentaire de la table adherent_fuzzy_matches dans db/index.ts.
+  const fuzzyByIdentity = new Map<string, { nom_norm: string; prenom_norm: string }[]>();
   const fuzzyRows = db
     .prepare(
-      `SELECT adherent_id, candidate_nom_norm, candidate_prenom_norm FROM adherent_fuzzy_matches
-       WHERE status = 'valide' AND adherent_id IN (${idPlaceholders})`
+      `SELECT adherent_nom_norm, adherent_prenom_norm, candidate_nom_norm, candidate_prenom_norm FROM adherent_fuzzy_matches
+       WHERE status = 'valide' AND spelc = ?`
     )
-    .all(...ids) as { adherent_id: number; candidate_nom_norm: string; candidate_prenom_norm: string }[];
+    .all(spelc) as { adherent_nom_norm: string; adherent_prenom_norm: string; candidate_nom_norm: string; candidate_prenom_norm: string }[];
   for (const r of fuzzyRows) {
-    const arr = fuzzyByAdherent.get(r.adherent_id) ?? [];
+    const key = `${r.adherent_nom_norm}|${r.adherent_prenom_norm}`;
+    const arr = fuzzyByIdentity.get(key) ?? [];
     arr.push({ nom_norm: r.candidate_nom_norm, prenom_norm: r.candidate_prenom_norm });
-    fuzzyByAdherent.set(r.adherent_id, arr);
+    fuzzyByIdentity.set(key, arr);
   }
 
   const localIndex = indexEmargements(loadEmargementIdentities(spelc, localImportIds));
   const nationalIndex = indexEmargements(loadEmargementIdentities(spelc, nationalImportIds));
 
-  function lookup(a: { id: number; nom_norm: string; prenom_norm: string }, index: Map<string, { votant: number; scrutinType: string | null }>) {
+  function lookup(a: { nom_norm: string; prenom_norm: string }, index: Map<string, { votant: number; scrutinType: string | null }>) {
     const exact = index.get(`${a.nom_norm}|${a.prenom_norm}`);
     if (exact) return exact;
-    for (const candidate of fuzzyByAdherent.get(a.id) ?? []) {
+    for (const candidate of fuzzyByIdentity.get(`${a.nom_norm}|${a.prenom_norm}`) ?? []) {
       const viaFuzzy = index.get(`${candidate.nom_norm}|${candidate.prenom_norm}`);
       if (viaFuzzy) return viaFuzzy;
     }

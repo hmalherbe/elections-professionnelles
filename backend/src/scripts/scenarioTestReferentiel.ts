@@ -58,6 +58,7 @@ function cleanup(): void {
       db.prepare("DELETE FROM ref_departements WHERE departement = ? AND academie = ?").run(a.departement, a.nom);
       db.prepare("DELETE FROM ref_spelc WHERE spelc = ? AND academie = ?").run(a.spelc, a.nom);
       db.prepare("DELETE FROM ref_academie_scrutins WHERE academie = ?").run(a.nom);
+      db.prepare("DELETE FROM adherent_fuzzy_matches WHERE spelc = ?").run(a.spelc);
       db.prepare("DELETE FROM adherents WHERE spelc = ?").run(a.spelc);
     }
     // Supprime aussi les imports/émargements du scénario (académique, sur ces 2 académies).

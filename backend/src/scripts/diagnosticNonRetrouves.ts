@@ -129,15 +129,15 @@ for (const { spelc, academie } of spelcs) {
         })();
   const emargIdentitySet = new Set(uniqueEmargs.flatMap((e) => identityKeys(e.nom_norm, e.nom_naissance_norm, e.prenom_norm)));
 
-  const existingAdherentIds = new Set(
+  const existingIdentities = new Set(
     (
       db
         .prepare(
-          `SELECT DISTINCT fm.adherent_id AS id FROM adherent_fuzzy_matches fm
-           INNER JOIN adherents a ON a.id = fm.adherent_id WHERE a.spelc = ?`
+          `SELECT DISTINCT adherent_nom_norm AS nomNorm, adherent_prenom_norm AS prenomNorm
+           FROM adherent_fuzzy_matches WHERE spelc = ?`
         )
-        .all(spelc) as { id: number }[]
-    ).map((r) => r.id)
+        .all(spelc) as { nomNorm: string; prenomNorm: string }[]
+    ).map((r) => `${r.nomNorm}|${r.prenomNorm}`)
   );
 
   const spelcStats = {
@@ -155,7 +155,7 @@ for (const { spelc, academie } of spelcs) {
     totalNonRetrouves++;
     spelcStats.nonRetrouves++;
 
-    if (existingAdherentIds.has(a.id)) {
+    if (existingIdentities.has(`${a.nom_norm}|${a.prenom_norm}`)) {
       totalDejaEnFile++;
       continue;
     }

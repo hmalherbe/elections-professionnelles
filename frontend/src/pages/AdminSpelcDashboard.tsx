@@ -126,7 +126,6 @@ interface Adherent {
 
 interface FuzzyMatch {
   id: number;
-  adherentId: number;
   adherentNom: string;
   adherentPrenom: string;
   adherentNomNaissance: string | null;

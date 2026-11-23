@@ -231,7 +231,10 @@ export interface ResetResult {
  * académiques, crédits SMS, chargés séparément) et tout le reste
  * (comptes, modèles de relance, documents...). La suppression des imports
  * entraîne en cascade celle des émargements (ON DELETE CASCADE) ; celle des
- * adhérents entraîne celle des suggestions de rapprochement approximatif.
+ * adhérents n'entraîne plus celle des suggestions de rapprochement (table
+ * ancrée sur l'identité adhérent, pas sur adherent_id — voir db/index.ts),
+ * donc supprimée ici explicitement pour garder le même effet "tout remettre
+ * à zéro".
  */
 export function resetImportedData(): ResetResult {
   const importsDeleted = (db.prepare("SELECT COUNT(*) AS c FROM imports").get() as { c: number }).c;
@@ -239,6 +242,7 @@ export function resetImportedData(): ResetResult {
   const adherentsDeleted = (db.prepare("SELECT COUNT(*) AS c FROM adherents").get() as { c: number }).c;
   const tx = db.transaction(() => {
     db.prepare("DELETE FROM imports").run();
+    db.prepare("DELETE FROM adherent_fuzzy_matches").run();
     db.prepare("DELETE FROM adherents").run();
   });
   tx();

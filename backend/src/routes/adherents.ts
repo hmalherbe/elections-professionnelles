@@ -200,9 +200,13 @@ router.post("/import-all", requireRole("admin_general"), upload.single("file"), 
   }
 });
 
-/** Supprime tous les adhérents, tous Spelcs confondus. */
+/** Supprime tous les adhérents, tous Spelcs confondus, ainsi que leurs rapprochements. */
 router.delete("/all", requireRole("admin_general"), (_req, res) => {
-  const info = db.prepare("DELETE FROM adherents").run();
+  const tx = db.transaction(() => {
+    db.prepare("DELETE FROM adherent_fuzzy_matches").run();
+    return db.prepare("DELETE FROM adherents").run();
+  });
+  const info = tx();
   res.json({ deleted: info.changes });
 });
 
