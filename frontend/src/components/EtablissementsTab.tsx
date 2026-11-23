@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, qs } from "../lib/api";
-import { formatPercent } from "../lib/colors";
+import { formatPercentOrDash } from "../lib/colors";
 import type { EtablissementRow } from "../lib/types";
 import { Card } from "./Card";
 
@@ -128,12 +128,12 @@ export function EtablissementsTab({
                 <td className="py-1.5 pr-4">{r.affectation}</td>
                 <td className="px-4 py-1.5 text-slate-500">{r.inscrits}</td>
                 <td className="px-4 py-1.5 text-slate-500">{r.votants}</td>
-                <td className="px-4 py-1.5 text-slate-500">{formatPercent(r.taux)}</td>
+                <td className="px-4 py-1.5 text-slate-500">{formatPercentOrDash(r.taux, r.inscrits)}</td>
                 <td
                   className="px-4 py-1.5 text-slate-500"
                   title={`${r.adherentsVotants.toLocaleString("fr-FR")} / ${r.adherentsInscrits.toLocaleString("fr-FR")} adhérent(s)`}
                 >
-                  {formatPercent(r.adherentsTaux)}
+                  {formatPercentOrDash(r.adherentsTaux, r.adherentsInscrits)}
                 </td>
               </tr>
             ))}

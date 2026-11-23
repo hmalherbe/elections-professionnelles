@@ -1,6 +1,6 @@
 import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { Card } from "./Card";
-import { COLOR_NON_VOTANT, COLOR_VOTANT, formatPercent } from "../lib/colors";
+import { COLOR_NON_VOTANT, COLOR_VOTANT, formatPercent, formatPercentOrDash } from "../lib/colors";
 
 const RADIAN = Math.PI / 180;
 
@@ -25,7 +25,7 @@ function renderPercentLabel(total: number) {
         fontSize={13}
         fill="#334155"
       >
-        {total ? formatPercent(value / total) : "0 %"}
+        {total ? formatPercent(value / total) : "--"}
       </text>
     );
   };
@@ -48,7 +48,7 @@ export function CamembertCard({
   const taux = total ? votants / total : 0;
 
   return (
-    <Card title={title} subtitle={`${total.toLocaleString("fr-FR")} inscrits · participation ${formatPercent(taux)}`}>
+    <Card title={title} subtitle={`${total.toLocaleString("fr-FR")} inscrits · participation ${formatPercentOrDash(taux, total)}`}>
       <div className="h-64">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>

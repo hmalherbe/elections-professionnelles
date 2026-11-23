@@ -1,7 +1,7 @@
 import { Fragment, useState } from "react";
 import { Card } from "./Card";
 import { api } from "../lib/api";
-import { formatPercent } from "../lib/colors";
+import { formatPercentOrDash } from "../lib/colors";
 import type { AcademieNode, ParticipationRow } from "../lib/types";
 
 function Bar({ taux }: { taux: number }) {
@@ -14,10 +14,13 @@ function Bar({ taux }: { taux: number }) {
 
 /** Pourcentage compact, avec les effectifs exacts en infobulle — pour les
  * colonnes CCMI/CCMA (électeurs et adhérents), trop nombreuses pour
- * toutes avoir leur propre barre comme la participation globale. */
+ * toutes avoir leur propre barre comme la participation globale. Affiche
+ * "--" plutôt que "0 %" quand il n'y a aucun inscrit (voir formatPercentOrDash). */
 function PercentCell({ taux, inscrits, votants }: { taux: number; inscrits: number; votants: number }) {
   return (
-    <span title={`${votants.toLocaleString("fr-FR")} / ${inscrits.toLocaleString("fr-FR")}`}>{formatPercent(taux)}</span>
+    <span title={`${votants.toLocaleString("fr-FR")} / ${inscrits.toLocaleString("fr-FR")}`}>
+      {formatPercentOrDash(taux, inscrits)}
+    </span>
   );
 }
 
@@ -138,7 +141,7 @@ export function PivotTree({ tree }: { tree: AcademieNode[] }) {
                   <td className="px-4 py-2">
                     <div className="flex items-center gap-2">
                       <Bar taux={node.taux} />
-                      <span className="text-slate-600">{formatPercent(node.taux)}</span>
+                      <span className="text-slate-600">{formatPercentOrDash(node.taux, node.inscrits)}</span>
                     </div>
                   </td>
                   <td className="px-4 py-2 text-slate-600">
@@ -171,7 +174,7 @@ export function PivotTree({ tree }: { tree: AcademieNode[] }) {
                       <td className="px-4 py-1.5">
                         <div className="flex items-center gap-2">
                           <Bar taux={s.taux} />
-                          <span className="text-slate-500">{formatPercent(s.taux)}</span>
+                          <span className="text-slate-500">{formatPercentOrDash(s.taux, s.inscrits)}</span>
                         </div>
                       </td>
                       <td className="px-4 py-1.5 text-slate-500">
