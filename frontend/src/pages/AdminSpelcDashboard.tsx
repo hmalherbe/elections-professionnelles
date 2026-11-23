@@ -741,6 +741,8 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
         </div>
       </Card>
 
+      <AdherentsARelancerCard spelc={spelc} />
+
       {!relanceOnly && (
         <SocialLinksEditor
           value={spelcSettings.socialLinks}
@@ -1227,5 +1229,121 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
         </div>
       </Card>
     </div>
+  );
+}
+
+interface RelanceRecipient {
+  nom: string;
+  prenom: string;
+  etablissement: string | null;
+  mail: string | null;
+  mobile: string | null;
+}
+
+type RelanceSortKey = "nom" | "etablissement";
+
+/**
+ * Détail nommé, triable et filtrable des adhérents restant à relancer (même
+ * périmètre que le compteur de la carte "Adhérents restants à relancer"
+ * ci-dessus — voir needsRelance côté serveur) : pour retrouver une personne
+ * précise dans la liste plutôt qu'un simple total.
+ */
+function AdherentsARelancerCard({ spelc }: { spelc: string }) {
+  const [recipients, setRecipients] = useState<RelanceRecipient[]>([]);
+  const [search, setSearch] = useState("");
+  const [etablissementFilter, setEtablissementFilter] = useState("");
+  const [sortKey, setSortKey] = useState<RelanceSortKey>("nom");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+
+  useEffect(() => {
+    api
+      .get<{ recipients: RelanceRecipient[] }>(`/brevo/campaigns/recipients${qs({ spelc })}`)
+      .then((r) => setRecipients(r.recipients));
+  }, [spelc]);
+
+  function toggleSort(key: RelanceSortKey) {
+    if (key === sortKey) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+  }
+
+  const etablissementOptions = [...new Set(recipients.map((r) => r.etablissement ?? "Non renseigné"))].sort((a, b) =>
+    a.localeCompare(b, "fr")
+  );
+
+  const searchLower = search.trim().toLowerCase();
+  const filtered = recipients
+    .filter((r) => !etablissementFilter || (r.etablissement ?? "Non renseigné") === etablissementFilter)
+    .filter((r) => !searchLower || `${r.nom} ${r.prenom}`.toLowerCase().includes(searchLower))
+    .sort((a, b) => {
+      const dir = sortDir === "asc" ? 1 : -1;
+      if (sortKey === "nom") return a.nom.localeCompare(b.nom, "fr") * dir;
+      return (a.etablissement ?? "").localeCompare(b.etablissement ?? "", "fr") * dir;
+    });
+
+  function SortableHeader({ k, label, className }: { k: RelanceSortKey; label: string; className?: string }) {
+    return (
+      <th className={`cursor-pointer select-none py-2 hover:text-slate-700 ${className ?? "px-4"}`} onClick={() => toggleSort(k)}>
+        {label}
+        <span className={`ml-1 ${sortKey === k ? "text-slate-400" : "text-slate-300"}`}>
+          {sortKey === k ? (sortDir === "asc" ? "▲" : "▼") : "⇅"}
+        </span>
+      </th>
+    );
+  }
+
+  return (
+    <Card title="Adhérents à relancer" subtitle={`${filtered.length} / ${recipients.length} adhérent(s)`}>
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <input
+          type="text"
+          placeholder="Rechercher un adhérent (nom, prénom)…"
+          className="w-full max-w-sm rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <select
+          className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+          value={etablissementFilter}
+          onChange={(e) => setEtablissementFilter(e.target.value)}
+        >
+          <option value="">Tous les établissements</option>
+          {etablissementOptions.map((etab) => (
+            <option key={etab} value={etab}>
+              {etab}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="max-h-96 overflow-auto">
+        <table className="w-full text-sm">
+          <thead className="sticky top-0 bg-white">
+            <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-500">
+              <SortableHeader k="nom" label="Nom" className="pr-4" />
+              <th className="px-4 py-2">Prénom</th>
+              <SortableHeader k="etablissement" label="Établissement" />
+              <th className="px-4 py-2">Email</th>
+              <th className="px-4 py-2">Mobile</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map((r, i) => (
+              <tr key={`${r.nom}|${r.prenom}|${i}`} className="border-b border-slate-100">
+                <td className="py-1.5 pr-4">{r.nom}</td>
+                <td className="px-4 py-1.5">{r.prenom}</td>
+                <td className="px-4 py-1.5 text-slate-500">{r.etablissement ?? "—"}</td>
+                <td className="px-4 py-1.5 text-slate-500">{r.mail ?? "—"}</td>
+                <td className="px-4 py-1.5 text-slate-500">{r.mobile ?? "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {recipients.length === 0 && <p className="py-4 text-sm text-slate-400">Aucun adhérent à relancer.</p>}
+        {recipients.length > 0 && filtered.length === 0 && <p className="py-4 text-sm text-slate-400">Aucun résultat.</p>}
+      </div>
+    </Card>
   );
 }

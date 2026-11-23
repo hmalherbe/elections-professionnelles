@@ -166,6 +166,10 @@ interface Recipient {
   prenom: string;
   mail: string | null;
   mobile: string | null;
+  /** Établissement (local en priorité, sinon national) de l'émargement
+   * ayant permis le rapprochement — null si l'adhérent n'a été retrouvé
+   * dans aucun des deux scrutins, ou si l'émargement n'en précise pas. */
+  etablissement: string | null;
   votantLocal: number | null;
   scrutinLocal: string | null;
   votantNational: number | null;
@@ -182,6 +186,7 @@ interface EmargementIdentityRow {
   prenom_norm: string;
   votant: number;
   scrutin_type: string | null;
+  affectation: string | null;
 }
 
 /** Émargements de ce seul Spelc (local ou national) pour les imports donnés
@@ -195,23 +200,28 @@ function loadEmargementIdentities(spelc: string, importIds: number[]): Emargemen
   if (importIds.length === 0) return [];
   const placeholders = importIds.map(() => "?").join(",");
   return db
-    .prepare(`SELECT nom_norm, prenom_norm, votant, scrutin_type FROM emargements WHERE spelc = ? AND import_id IN (${placeholders})`)
+    .prepare(
+      `SELECT nom_norm, prenom_norm, votant, scrutin_type, affectation FROM emargements WHERE spelc = ? AND import_id IN (${placeholders})`
+    )
     .all(spelc, ...importIds) as EmargementIdentityRow[];
 }
 
 /** Index "nom_norm|prenom_norm" -> vote agrégé (votant si AU MOINS une ligne
- * votante, dernier scrutin_type non nul rencontré) — équivalent du
- * MAX(el.votant)/MAX(el.scrutin_type) GROUP BY de l'ancienne requête SQL. */
-function indexEmargements(rows: EmargementIdentityRow[]): Map<string, { votant: number; scrutinType: string | null }> {
-  const map = new Map<string, { votant: number; scrutinType: string | null }>();
+ * votante, dernier scrutin_type/affectation non nul rencontré) — équivalent
+ * du MAX(el.votant)/MAX(el.scrutin_type) GROUP BY de l'ancienne requête SQL. */
+function indexEmargements(
+  rows: EmargementIdentityRow[]
+): Map<string, { votant: number; scrutinType: string | null; affectation: string | null }> {
+  const map = new Map<string, { votant: number; scrutinType: string | null; affectation: string | null }>();
   for (const r of rows) {
     const key = `${r.nom_norm}|${r.prenom_norm}`;
     const existing = map.get(key);
     if (existing) {
       if (r.votant) existing.votant = 1;
       if (r.scrutin_type) existing.scrutinType = r.scrutin_type;
+      if (r.affectation) existing.affectation = r.affectation;
     } else {
-      map.set(key, { votant: r.votant ? 1 : 0, scrutinType: r.scrutin_type ?? null });
+      map.set(key, { votant: r.votant ? 1 : 0, scrutinType: r.scrutin_type ?? null, affectation: r.affectation ?? null });
     }
   }
   return map;
@@ -267,7 +277,10 @@ function matchedAdherents(spelc: string): Recipient[] {
   const localIndex = indexEmargements(loadEmargementIdentities(spelc, localImportIds));
   const nationalIndex = indexEmargements(loadEmargementIdentities(spelc, nationalImportIds));
 
-  function lookup(a: { nom_norm: string; prenom_norm: string }, index: Map<string, { votant: number; scrutinType: string | null }>) {
+  function lookup(
+    a: { nom_norm: string; prenom_norm: string },
+    index: Map<string, { votant: number; scrutinType: string | null; affectation: string | null }>
+  ) {
     const exact = index.get(`${a.nom_norm}|${a.prenom_norm}`);
     if (exact) return exact;
     for (const candidate of fuzzyByIdentity.get(`${a.nom_norm}|${a.prenom_norm}`) ?? []) {
@@ -285,6 +298,7 @@ function matchedAdherents(spelc: string): Recipient[] {
       prenom: a.prenom,
       mail: a.mail,
       mobile: a.mobile,
+      etablissement: local?.affectation ?? national?.affectation ?? null,
       votantLocal: local ? local.votant : null,
       scrutinLocal: local ? local.scrutinType : null,
       votantNational: national ? national.votant : null,
@@ -490,6 +504,26 @@ router.get("/campaigns/preview", requireRole("admin_spelc"), (req, res) => {
   const smsRecipients = adherents.filter((r) => r.mobile).filter(needsRelance);
 
   res.json({ mailRecipients: mailRecipients.length, smsRecipients: smsRecipients.length, restantARelancer });
+});
+
+/**
+ * Détail nommé des adhérents restant à relancer (même filtre que
+ * `restantARelancer` ci-dessus) — voir la carte "Adhérents à relancer" du
+ * tableau de bord Spelc : liste triable/filtrable, contrairement au simple
+ * compteur de /campaigns/preview.
+ */
+router.get("/campaigns/recipients", requireRole("admin_spelc"), (req, res) => {
+  const spelc = req.user!.spelc!;
+  const recipients = matchedAdherents(spelc)
+    .filter(needsRelance)
+    .map((r) => ({
+      nom: r.nom,
+      prenom: r.prenom,
+      etablissement: r.etablissement,
+      mail: r.mail,
+      mobile: r.mobile,
+    }));
+  res.json({ recipients });
 });
 
 /**
