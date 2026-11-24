@@ -939,6 +939,115 @@ function formatJour(date: string): string {
 
 const TOUS_SPELC = "__tous__";
 
+/** Jours du scrutin (3 au 10 décembre), pour la simulation de relances
+ * (comptage sans envoi) — voir SimulationRelancesPanel ci-dessous. */
+const SCRUTIN_DAYS = [
+  "2026-12-03",
+  "2026-12-04",
+  "2026-12-05",
+  "2026-12-06",
+  "2026-12-07",
+  "2026-12-08",
+  "2026-12-09",
+  "2026-12-10",
+];
+
+interface SimulateSpelcResult {
+  spelc: string;
+  mailCount: number;
+  smsCount: number;
+  smsCreditsEstimated: number;
+  smsQuota: number | null;
+  smsUsed: number;
+  smsQuotaExceeded: boolean;
+}
+
+interface SimulateResult {
+  totalMail: number;
+  totalSms: number;
+  smsQuotaExceeded: boolean;
+  exceeded: SimulateSpelcResult[];
+  perSpelc: SimulateSpelcResult[];
+}
+
+/**
+ * Compte, pour chaque jour du scrutin, combien de relances mail/SMS
+ * seraient envoyées MAINTENANT — sans rien envoyer réellement — à partir
+ * des données actuellement importées (typiquement : réimporter le fichier
+ * de test de ce jour dans l'onglet Imports, puis cliquer sur son bouton
+ * ici). Signale en rouge un jour où au moins un Spelc dépasserait son
+ * plafond de crédits SMS si cette campagne était vraiment lancée.
+ */
+function SimulationRelancesPanel() {
+  const [results, setResults] = useState<Record<string, SimulateResult>>({});
+  const [busyDay, setBusyDay] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function runSimulate(day: string) {
+    setBusyDay(day);
+    setError(null);
+    try {
+      const res = await api.post<SimulateResult>("/brevo/campaigns/simulate", {});
+      setResults((prev) => ({ ...prev, [day]: res }));
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusyDay(null);
+    }
+  }
+
+  return (
+    <div className="mb-4">
+      <p className="mb-2 text-xs text-slate-500">
+        Comptage des relances mail/SMS qui seraient envoyées maintenant, sans rien envoyer réellement — à utiliser
+        après avoir importé le fichier de test de ce jour (onglet Imports). Un jour en rouge signale qu'au moins un
+        Spelc dépasserait son plafond de crédits SMS si cette campagne était vraiment lancée.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {SCRUTIN_DAYS.map((day) => {
+          const result = results[day];
+          const exceeded = result?.smsQuotaExceeded ?? false;
+          return (
+            <button
+              key={day}
+              disabled={busyDay !== null}
+              onClick={() => runSimulate(day)}
+              className={`rounded-md border px-3 py-1.5 text-sm font-medium disabled:opacity-50 ${
+                exceeded
+                  ? "border-red-300 bg-red-50 text-red-700 hover:bg-red-100"
+                  : "border-slate-300 text-slate-700 hover:bg-slate-50"
+              }`}
+            >
+              {busyDay === day ? "…" : formatJour(day)}
+              {result && (
+                <span className={`ml-1.5 font-normal ${exceeded ? "text-red-600" : "text-slate-500"}`}>
+                  ({result.totalMail} mail / {result.totalSms} SMS)
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+      {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+      {Object.values(results).some((r) => r.smsQuotaExceeded) && (
+        <div className="mt-3 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+          <p className="font-medium">Plafond de crédits SMS dépassé pour :</p>
+          <ul className="mt-1 list-inside list-disc">
+            {Object.entries(results).flatMap(([day, r]) =>
+              r.exceeded.map((s) => (
+                <li key={day + s.spelc}>
+                  {formatJour(day)} — {s.spelc} : {s.smsUsed} + {s.smsCreditsEstimated} crédit(s) estimé(s) &gt;{" "}
+                  {s.smsQuota} disponible(s)
+                </li>
+              ))
+            )}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /**
  * Nombre de relances mail/SMS envoyées par jour et par Spelc (relances
  * réelles uniquement, hors envois de test — voir
@@ -1067,6 +1176,7 @@ function StatistiquesRelancesPanel() {
         title="Relances par jour et par Spelc"
         subtitle="Relances réelles uniquement (hors envois de test). Cliquez sur un jour pour voir le détail par Spelc."
       >
+        <SimulationRelancesPanel />
         {dayGroups.length === 0 ? (
           <p className="text-sm text-slate-400">Aucune relance envoyée pour le moment.</p>
         ) : (

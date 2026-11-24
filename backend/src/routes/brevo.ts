@@ -933,6 +933,78 @@ router.post("/campaigns/sms", requireRole("admin_spelc"), async (req, res) => {
   res.status(201).json({ sent, errors, alreadySent, total: recipients.length, quotaReached });
 });
 
+interface SimulateSpelcResult {
+  spelc: string;
+  mailCount: number;
+  smsCount: number;
+  smsCreditsEstimated: number;
+  smsQuota: number | null;
+  smsUsed: number;
+  smsQuotaExceeded: boolean;
+}
+
+/**
+ * Compte combien de relances mail/SMS seraient envoyées MAINTENANT pour
+ * chaque Spelc, SANS rien envoyer réellement ni rien enregistrer (pas
+ * d'appel Brevo, aucune ligne insérée dans relance_tracking) — pour tester
+ * le dimensionnement d'une campagne (ex. jour par jour, en réimportant les
+ * fichiers d'émargement de test d'un jour avant chaque appel) avant de
+ * lancer les vrais envois. Même ciblage et même déduplication anti-double-
+ * envoi du jour (hasAlreadySent) que les campagnes réelles, pour un compte
+ * fidèle à ce qui serait vraiment envoyé. L'estimation de crédits SMS rend
+ * le VRAI modèle SMS du Spelc pour chaque destinataire ciblé (même moteur
+ * que l'aperçu, voir smsSegmentCount) et la compare au plafond restant
+ * (services/smsQuota.ts) : `smsQuotaExceeded` signale un Spelc dont cette
+ * campagne, si elle était vraiment lancée, dépasserait son plafond.
+ */
+router.post("/campaigns/simulate", requireRole("admin_general"), (_req, res) => {
+  const spelcs = allSpelcNames();
+  const perSpelc: SimulateSpelcResult[] = [];
+
+  for (const spelc of spelcs) {
+    const recipients = matchedAdherents(spelc).filter(needsRelance);
+
+    const mailTag = campagneTagAuto("mail", spelc);
+    const mailTargets = recipients.filter((r) => r.mail && !hasAlreadySent(spelc, "mail", mailTag, r.mail!));
+
+    const smsTag = campagneTagAuto("sms", spelc);
+    const smsTargets = recipients.filter(
+      (r) => r.mobile && !hasAlreadySent(spelc, "sms", smsTag, normalizeFrenchMobile(r.mobile!))
+    );
+
+    let smsCreditsEstimated = 0;
+    const smsTemplate = db.prepare("SELECT body FROM sms_templates WHERE spelc = ?").get(spelc) as
+      | { body: string }
+      | undefined;
+    if (smsTemplate?.body) {
+      for (const r of smsTargets) {
+        const rendered = renderTemplate(smsTemplate.body, templateFieldsFor(r, spelc));
+        smsCreditsEstimated += smsSegmentCount(rendered);
+      }
+    }
+
+    const quotaStatus = smsQuotaStatus(spelc);
+    const smsQuotaExceeded = quotaStatus.quota !== null && quotaStatus.used + smsCreditsEstimated > quotaStatus.quota;
+
+    if (mailTargets.length === 0 && smsTargets.length === 0) continue;
+    perSpelc.push({
+      spelc,
+      mailCount: mailTargets.length,
+      smsCount: smsTargets.length,
+      smsCreditsEstimated,
+      smsQuota: quotaStatus.quota,
+      smsUsed: quotaStatus.used,
+      smsQuotaExceeded,
+    });
+  }
+
+  const totalMail = perSpelc.reduce((s, r) => s + r.mailCount, 0);
+  const totalSms = perSpelc.reduce((s, r) => s + r.smsCount, 0);
+  const exceeded = perSpelc.filter((r) => r.smsQuotaExceeded);
+
+  res.json({ totalMail, totalSms, smsQuotaExceeded: exceeded.length > 0, exceeded, perSpelc });
+});
+
 /**
  * Statut du plafond de crédits SMS de ce Spelc (quota national réparti,
  * crédits déjà consommés, atteint ou non) — voir services/smsQuota.ts.
