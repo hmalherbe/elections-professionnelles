@@ -75,6 +75,14 @@ function findMailCredits(plan: { type: string; credits: number }[]): number | nu
  * services/brevo.ts (voir sendBrevoEmails/sendBrevoSms). */
 const SEND_THROTTLE_MS = 100;
 
+/** Crédits Brevo facturés par SMS envoyé, pour la simulation de relances
+ * (voir /campaigns/simulate) — taux réel constaté par l'admin général sur
+ * des envois réels de ce compte (numéro français, expéditeur
+ * alphanumérique), à préférer ici à l'estimation par segments GSM-7/UCS-2
+ * (lib/smsSegments.ts), qui suppose 1-2 crédits/SMS et sous-estimait le
+ * coût réel observé. */
+const CREDITS_PER_SMS = 4;
+
 const router = Router();
 router.use(requireAuth);
 
@@ -980,16 +988,12 @@ router.post("/campaigns/simulate", requireRole("admin_general"), (req, res) => {
       ? recipients.filter((r) => r.mobile && !hasAlreadySent(spelc, "sms", smsTag, normalizeFrenchMobile(r.mobile!)))
       : [];
 
-    let smsCreditsEstimated = 0;
-    const smsTemplate = db.prepare("SELECT body FROM sms_templates WHERE spelc = ?").get(spelc) as
-      | { body: string }
-      | undefined;
-    if (smsTemplate?.body) {
-      for (const r of smsTargets) {
-        const rendered = renderTemplate(smsTemplate.body, templateFieldsFor(r, spelc));
-        smsCreditsEstimated += smsSegmentCount(rendered);
-      }
-    }
+    // 4 crédits par SMS : taux réel constaté sur les envois de ce compte
+    // Brevo (numéro français, expéditeur alphanumérique), confirmé par
+    // l'admin général sur des envois réels — plus fiable ici que l'estimation
+    // par segments GSM-7/UCS-2 (lib/smsSegments.ts, utilisée pour l'aperçu
+    // SMS, qui ne peut pas lire le vrai coût facturé faute d'envoi réel).
+    const smsCreditsEstimated = smsTargets.length * CREDITS_PER_SMS;
 
     const quotaStatus = smsQuotaStatus(spelc);
     const smsQuotaExceeded = quotaStatus.quota !== null && quotaStatus.used + smsCreditsEstimated > quotaStatus.quota;

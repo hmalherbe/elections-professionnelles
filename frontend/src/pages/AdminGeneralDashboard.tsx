@@ -1009,18 +1009,27 @@ function SimulationRelancesPanel() {
     return results[day]?.perSpelc.find((s) => s.spelc === spelc);
   }
 
-  function totalForSpelc(spelc: string): { mail: number; sms: number } {
+  function totalForSpelc(spelc: string): { mail: number; sms: number; credits: number } {
     return simulatedDays.reduce(
       (acc, day) => {
         const c = cellFor(day, spelc);
-        return { mail: acc.mail + (c?.mailCount ?? 0), sms: acc.sms + (c?.smsCount ?? 0) };
+        return {
+          mail: acc.mail + (c?.mailCount ?? 0),
+          sms: acc.sms + (c?.smsCount ?? 0),
+          credits: acc.credits + (c?.smsCreditsEstimated ?? 0),
+        };
       },
-      { mail: 0, sms: 0 }
+      { mail: 0, sms: 0, credits: 0 }
     );
   }
 
   const grandTotalMail = simulatedDays.reduce((s, day) => s + results[day].totalMail, 0);
   const grandTotalSms = simulatedDays.reduce((s, day) => s + results[day].totalSms, 0);
+  const grandTotalCredits = simulatedDays.reduce(
+    (s, day) => s + results[day].perSpelc.reduce((ss, r) => ss + r.smsCreditsEstimated, 0),
+    0
+  );
+  const creditsForDay = (day: string) => results[day].perSpelc.reduce((s, r) => s + r.smsCreditsEstimated, 0);
 
   return (
     <div className="mb-4">
@@ -1080,16 +1089,21 @@ function SimulationRelancesPanel() {
                       return (
                         <td
                           key={day}
+                          title={
+                            c?.smsQuotaExceeded
+                              ? `Plafond SMS dépassé : ${c.smsUsed} déjà utilisé(s) + ${c.smsCreditsEstimated} estimé(s) > ${c.smsQuota} disponible(s)`
+                              : undefined
+                          }
                           className={`px-3 py-1.5 text-right tabular-nums ${
                             c?.smsQuotaExceeded ? "font-medium text-red-600" : "text-slate-500"
                           }`}
                         >
-                          {c ? `${c.mailCount} mail / ${c.smsCount} SMS` : "—"}
+                          {c ? `${c.mailCount} mail / ${c.smsCount} SMS (${c.smsCreditsEstimated} crédits)` : "—"}
                         </td>
                       );
                     })}
                     <td className="px-3 py-1.5 text-right font-medium tabular-nums text-slate-700">
-                      {total.mail} mail / {total.sms} SMS
+                      {total.mail} mail / {total.sms} SMS ({total.credits} crédits)
                     </td>
                   </tr>
                 );
@@ -1100,15 +1114,31 @@ function SimulationRelancesPanel() {
                 <td className="py-1.5 pr-4">Total</td>
                 {simulatedDays.map((day) => (
                   <td key={day} className="px-3 py-1.5 text-right tabular-nums">
-                    {results[day].totalMail} mail / {results[day].totalSms} SMS
+                    {results[day].totalMail} mail / {results[day].totalSms} SMS ({creditsForDay(day)} crédits)
                   </td>
                 ))}
                 <td className="px-3 py-1.5 text-right tabular-nums">
-                  {grandTotalMail} mail / {grandTotalSms} SMS
+                  {grandTotalMail} mail / {grandTotalSms} SMS ({grandTotalCredits} crédits)
                 </td>
               </tr>
             </tfoot>
           </table>
+        </div>
+      )}
+
+      {simulatedDays.some((day) => results[day].smsQuotaExceeded) && (
+        <div className="mt-3 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+          <p className="font-medium">Plafond de crédits SMS dépassé pour :</p>
+          <ul className="mt-1 list-inside list-disc">
+            {simulatedDays.flatMap((day) =>
+              results[day].exceeded.map((s) => (
+                <li key={day + s.spelc}>
+                  {formatJour(day)} — {s.spelc} : {s.smsUsed} déjà utilisé(s) + {s.smsCreditsEstimated} estimé(s) &gt;{" "}
+                  {s.smsQuota} disponible(s)
+                </li>
+              ))
+            )}
+          </ul>
         </div>
       )}
     </div>
