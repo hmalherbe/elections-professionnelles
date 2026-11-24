@@ -14,18 +14,26 @@ const EMAIL_COLUMN_WIDTH = 600;
 
 export const ELECTIONS_SITE_URL = "https://electionspro2026.education-superieur-recherche-jeunesse-sports.gouv.fr/";
 
+/** Phrase de la sentinelle ci-dessous, recherchée (insensible à la casse)
+ * pour savoir si un lien vers le site des élections est déjà présent —
+ * voir ensureSiteLink(). */
+const SITE_LINK_PHRASE = "pour consulter le site des élections";
+
 /**
  * Le lien du site des élections est un texte libre du modèle (comme le
  * reste du corps), pas un champ calculé comme {{logo}}/{{reseaux_sociaux}} :
  * un modèle personnalisé enregistré avant l'ajout de cette phrase (ou dont
  * l'admin l'aurait effacée) ne l'affiche donc jamais tout seul. On la
  * garantit ici, insérée juste avant {{reseaux_sociaux}} (même position que
- * dans le modèle prégarni) si ce champ est présent, sinon en fin de corps ;
- * si le lien figure déjà dans le texte (modèle prégarni chargé tel quel),
- * on ne l'ajoute pas une seconde fois.
+ * dans le modèle prégarni) si ce champ est présent, sinon en fin de corps.
+ * Détectée par la PHRASE ("pour consulter le site des élections"), pas par
+ * l'URL officielle exacte : un admin Spelc peut légitimement y mettre son
+ * propre lien (ex. le portail de vote de sa fédération) plutôt que celui du
+ * ministère — chercher l'URL exacte ne reconnaîtrait pas ce lien comme
+ * déjà présent et ajouterait un second lien, en double, à la suite.
  */
 export function ensureSiteLink(body: string): string {
-  if (body.includes(ELECTIONS_SITE_URL)) return body;
+  if (body.toLowerCase().includes(SITE_LINK_PHRASE)) return body;
   const sentence = `Pour consulter le site des élections : <a href="${ELECTIONS_SITE_URL}">${ELECTIONS_SITE_URL}</a>`;
   const suffix = `\n\n${sentence}`;
   const idx = body.indexOf("{{reseaux_sociaux}}");
