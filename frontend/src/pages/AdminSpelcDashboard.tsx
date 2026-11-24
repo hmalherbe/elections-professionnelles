@@ -531,12 +531,28 @@ function sanitizeSmsSenderInput(value: string): string {
   return value.replace(/[^A-Za-z0-9]/g, "").slice(0, 11);
 }
 
-/** Popup générique (fond semi-transparent, fermeture au clic dehors ou sur ✕) — aperçu mail/SMS ci-dessous. */
-function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+/**
+ * Popup générique (fond semi-transparent, fermeture au clic dehors ou sur ✕)
+ * — aperçu mail/SMS ci-dessous. `wide` pour l'aperçu mail : le corps du mail
+ * (wrapEmailHtml) est volontairement en largeur FIXE de 600px (table HTML,
+ * pas de CSS responsive — les clients mail comme Outlook l'ignorent), donc
+ * la popup doit être assez large pour l'afficher sans ascenseur horizontal.
+ */
+function Modal({
+  title,
+  onClose,
+  children,
+  wide = false,
+}: {
+  title: string;
+  onClose: () => void;
+  children: ReactNode;
+  wide?: boolean;
+}) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4" onClick={onClose}>
       <div
-        className="max-h-[85vh] w-full max-w-lg overflow-auto rounded-lg bg-white p-6 shadow-lg"
+        className={`max-h-[85vh] w-full overflow-auto rounded-lg bg-white p-6 shadow-lg ${wide ? "max-w-2xl" : "max-w-lg"}`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-center justify-between">
@@ -963,7 +979,7 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
       </div>
 
       {emailPreview && (
-        <Modal title="Aperçu du mail" onClose={() => setEmailPreview(null)}>
+        <Modal title="Aperçu du mail" onClose={() => setEmailPreview(null)} wide>
           <p className="mb-2 text-sm font-medium text-slate-700">Objet : {emailPreview.subject}</p>
           <div className="rounded-md border border-slate-200" dangerouslySetInnerHTML={{ __html: emailPreview.html }} />
         </Modal>
