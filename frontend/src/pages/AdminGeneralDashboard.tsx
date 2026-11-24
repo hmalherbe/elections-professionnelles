@@ -976,7 +976,7 @@ interface SimulateZipResponse {
  * route voit ses SMS suivants comptés comme bloqués (jamais envoyés), à
  * l'image d'une vraie campagne.
  */
-function SimulationRelancesPanel() {
+function SimulationRelancesPanel({ onResult }: { onResult: (r: SimulateZipResponse | null) => void }) {
   const [response, setResponse] = useState<SimulateZipResponse | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -989,6 +989,7 @@ function SimulationRelancesPanel() {
       fd.append("file", file);
       const res = await api.upload<SimulateZipResponse>("/brevo/campaigns/simulate-zip", fd);
       setResponse(res);
+      onResult(res);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -1156,6 +1157,8 @@ function StatistiquesRelancesPanel() {
   const [selectedSpelc, setSelectedSpelc] = useState(TOUS_SPELC);
   const [smsQuotas, setSmsQuotas] = useState<{ spelc: string; credits: number }[]>([]);
   const [plan, setPlan] = useState<BrevoPlanEntry[] | null>(null);
+  const [simulation, setSimulation] = useState<SimulateZipResponse | null>(null);
+  const [viewMode, setViewMode] = useState<"reel" | "simulation">("reel");
 
   useEffect(() => {
     api.get<{ rows: RelanceDailyPoint[] }>("/admin/relance-stats").then((r) => setRows(r.rows));
@@ -1175,7 +1178,9 @@ function StatistiquesRelancesPanel() {
     });
   }
 
-  const spelcs = Array.from(new Set(rows.map((r) => r.spelc))).sort((a, b) => a.localeCompare(b));
+  const spelcs = Array.from(
+    new Set([...rows.map((r) => r.spelc), ...(simulation?.days.flatMap((d) => d.perSpelc.map((s) => s.spelc)) ?? [])])
+  ).sort((a, b) => a.localeCompare(b));
 
   const dayGroups: DayGroup[] = (() => {
     const byDate = new Map<string, DaySpelcRow[]>();
@@ -1198,14 +1203,27 @@ function StatistiquesRelancesPanel() {
   const totalSms = dayGroups.reduce((s, d) => s + d.smsEnvoyes, 0);
 
   // Série quotidienne pour les graphiques : agrégée nationalement, ou
-  // filtrée sur le Spelc sélectionné.
-  const chartData =
+  // filtrée sur le Spelc sélectionné — depuis les relances réelles, ou
+  // depuis le dernier résultat de simulation importé (voir toggle
+  // réel/simulation ci-dessous).
+  const realChartData =
     selectedSpelc === TOUS_SPELC
       ? dayGroups.map((d) => ({ date: d.date, mailEnvoyes: d.mailEnvoyes, smsEnvoyes: d.smsEnvoyes }))
       : rows
           .filter((r) => r.spelc === selectedSpelc)
           .map((r) => ({ date: r.date, mailEnvoyes: r.mailEnvoyes, smsEnvoyes: r.smsEnvoyes }))
           .sort((a, b) => a.date.localeCompare(b.date));
+
+  const simulationDays = simulation?.days ?? [];
+  const simulationChartData =
+    selectedSpelc === TOUS_SPELC
+      ? simulationDays.map((d) => ({ date: d.jour, mailEnvoyes: d.totalMail, smsEnvoyes: d.totalSmsSent }))
+      : simulationDays.map((d) => {
+          const c = d.perSpelc.find((s) => s.spelc === selectedSpelc);
+          return { date: d.jour, mailEnvoyes: c?.mailCount ?? 0, smsEnvoyes: c?.smsSent ?? 0 };
+        });
+
+  const chartData = viewMode === "reel" ? realChartData : simulationChartData;
 
   const cumulData: RelanceCumulPoint[] = chartData.reduce<RelanceCumulPoint[]>((acc, r) => {
     const prev = acc[acc.length - 1];
@@ -1217,7 +1235,9 @@ function StatistiquesRelancesPanel() {
     return acc;
   }, []);
 
-  const chartSubtitle = selectedSpelc === TOUS_SPELC ? "Tous les Spelc" : selectedSpelc;
+  const chartSubtitle =
+    (selectedSpelc === TOUS_SPELC ? "Tous les Spelc" : selectedSpelc) +
+    (viewMode === "simulation" ? " — simulation" : "");
 
   // Plafond de crédits SMS à afficher en ligne de référence sur l'histogramme
   // cumulatif : celui du Spelc sélectionné, ou la somme de tous les plafonds
@@ -1269,7 +1289,7 @@ function StatistiquesRelancesPanel() {
         title="Relances par jour et par Spelc"
         subtitle="Relances réelles uniquement (hors envois de test). Cliquez sur un jour pour voir le détail par Spelc."
       >
-        <SimulationRelancesPanel />
+        <SimulationRelancesPanel onResult={setSimulation} />
         {dayGroups.length === 0 ? (
           <p className="text-sm text-slate-400">Aucune relance envoyée pour le moment.</p>
         ) : (
@@ -1321,20 +1341,48 @@ function StatistiquesRelancesPanel() {
         )}
       </Card>
 
-      <div>
-        <label className="text-xs font-medium text-slate-500">Graphiques pour :</label>
-        <select
-          className="ml-2 rounded-md border border-slate-300 px-2 py-1 text-sm"
-          value={selectedSpelc}
-          onChange={(e) => setSelectedSpelc(e.target.value)}
-        >
-          <option value={TOUS_SPELC}>Tous les Spelc</option>
-          {spelcs.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
+      <div className="flex flex-wrap items-center gap-4">
+        <div>
+          <label className="text-xs font-medium text-slate-500">Graphiques pour :</label>
+          <select
+            className="ml-2 rounded-md border border-slate-300 px-2 py-1 text-sm"
+            value={selectedSpelc}
+            onChange={(e) => setSelectedSpelc(e.target.value)}
+          >
+            <option value={TOUS_SPELC}>Tous les Spelc</option>
+            {spelcs.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="inline-flex rounded-md border border-slate-300 text-sm">
+          <button
+            type="button"
+            onClick={() => setViewMode("reel")}
+            className={`rounded-l-md px-3 py-1 ${
+              viewMode === "reel" ? "bg-blue-600 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
+            }`}
+          >
+            Réel
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("simulation")}
+            disabled={!simulation}
+            title={!simulation ? "Importez d'abord un scénario de test ci-dessus" : undefined}
+            className={`rounded-r-md border-l border-slate-300 px-3 py-1 ${
+              viewMode === "simulation"
+                ? "bg-blue-600 text-white"
+                : simulation
+                  ? "bg-white text-slate-600 hover:bg-slate-50"
+                  : "cursor-not-allowed bg-slate-50 text-slate-400"
+            }`}
+          >
+            Simulation
+          </button>
+        </div>
       </div>
 
       <Card title="Histogramme des relances par jour" subtitle={chartSubtitle}>
@@ -1351,7 +1399,13 @@ function StatistiquesRelancesPanel() {
             </BarChart>
           </ResponsiveContainer>
         </div>
-        {chartData.length === 0 && <p className="text-sm text-slate-400">Aucune relance envoyée pour le moment.</p>}
+        {chartData.length === 0 && (
+          <p className="text-sm text-slate-400">
+            {viewMode === "simulation"
+              ? "Aucun résultat de simulation pour le moment — importez un scénario de test ci-dessus."
+              : "Aucune relance envoyée pour le moment."}
+          </p>
+        )}
       </Card>
 
       <Card title="Histogramme cumulatif des relances" subtitle={chartSubtitle}>
@@ -1382,7 +1436,13 @@ function StatistiquesRelancesPanel() {
             </BarChart>
           </ResponsiveContainer>
         </div>
-        {cumulData.length === 0 && <p className="text-sm text-slate-400">Aucune relance envoyée pour le moment.</p>}
+        {cumulData.length === 0 && (
+          <p className="text-sm text-slate-400">
+            {viewMode === "simulation"
+              ? "Aucun résultat de simulation pour le moment — importez un scénario de test ci-dessus."
+              : "Aucune relance envoyée pour le moment."}
+          </p>
+        )}
       </Card>
     </div>
   );
