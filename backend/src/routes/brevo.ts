@@ -1,4 +1,6 @@
 import { Router } from "express";
+import multer from "multer";
+import * as unzipper from "unzipper";
 import { db } from "../db/index.js";
 import dayjs from "dayjs";
 import { requireAuth, requireRole, canAccessSpelc } from "../middleware/auth.js";
@@ -6,6 +8,9 @@ import { renderTemplate, buildIfTestCases, type TemplateFields } from "../lib/te
 import { wrapEmailHtml, ensureSiteLink } from "../lib/emailLayout.js";
 import { sendBrevoEmails, sendBrevoSms, fetchAccountInfo, getBrevoApiKey, sleep } from "../services/brevo.js";
 import { currentImportIds } from "../services/stats.js";
+import { runImport } from "../services/imports.js";
+import { parseEmargementsJson } from "../parsers/emargements.js";
+import { loadWorkbook, rowsAsObjects } from "../lib/xlsx.js";
 import { spelcAcademies, isSmsPlannedFor } from "../services/reference.js";
 import { getTestContactSettings } from "../services/settings.js";
 import { getSpelcSettings, updateSpelcSettings } from "../services/spelcSettings.js";
@@ -82,6 +87,10 @@ const SEND_THROTTLE_MS = 100;
  * (lib/smsSegments.ts), qui suppose 1-2 crédits/SMS et sous-estimait le
  * coût réel observé. */
 const CREDITS_PER_SMS = 4;
+
+/** Zips de scénario de test (8 jours de fichiers CCMMEP + académiques) —
+ * potentiellement volumineux, voir /campaigns/simulate-zip. */
+const campaignZipUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 200 * 1024 * 1024 } });
 
 const router = Router();
 router.use(requireAuth);
@@ -941,81 +950,252 @@ router.post("/campaigns/sms", requireRole("admin_spelc"), async (req, res) => {
   res.status(201).json({ sent, errors, alreadySent, total: recipients.length, quotaReached });
 });
 
-interface SimulateSpelcResult {
+interface SimulateSpelcDayResult {
   spelc: string;
   mailCount: number;
-  smsCount: number;
-  smsCreditsEstimated: number;
+  /** Combien de SMS auraient été nécessaires ce jour-là (avant tout blocage par le plafond). */
+  smsTargeted: number;
+  /** Combien auraient pu être réellement envoyés avant d'atteindre le plafond — voir smsBlocked. */
+  smsSent: number;
+  /** smsTargeted - smsSent : combien de SMS auraient été bloqués par le plafond ce jour-là. */
+  smsBlocked: number;
+  /** smsSent * CREDITS_PER_SMS. */
+  creditsThisDay: number;
+  /** Crédits réellement déjà consommés (relance_tracking) + simulés sur les jours précédents de ce même scénario + ce jour. */
+  creditsCumulative: number;
   smsQuota: number | null;
-  smsUsed: number;
-  smsQuotaExceeded: boolean;
+  quotaExceeded: boolean;
+}
+
+interface SimulateZipDayResult {
+  jour: string;
+  perSpelc: SimulateSpelcDayResult[];
+  totalMail: number;
+  totalSmsSent: number;
+  totalSmsBlocked: number;
+  totalCredits: number;
+}
+
+interface ZipFileError {
+  filename: string;
+  error: string;
 }
 
 /**
- * Compte combien de relances mail/SMS seraient envoyées MAINTENANT pour
- * chaque Spelc, SANS rien envoyer réellement ni rien enregistrer (pas
- * d'appel Brevo, aucune ligne insérée dans relance_tracking) — pour tester
- * le dimensionnement d'une campagne (ex. jour par jour, en réimportant les
- * fichiers d'émargement de test d'un jour avant chaque appel) avant de
- * lancer les vrais envois. Même ciblage et même déduplication anti-double-
- * envoi du jour (hasAlreadySent) que les campagnes réelles, pour un compte
- * fidèle à ce qui serait vraiment envoyé. L'estimation de crédits SMS rend
- * le VRAI modèle SMS du Spelc pour chaque destinataire ciblé (même moteur
- * que l'aperçu, voir smsSegmentCount) et la compare au plafond restant
- * (services/smsQuota.ts) : `smsQuotaExceeded` signale un Spelc dont cette
- * campagne, si elle était vraiment lancée, dépasserait son plafond.
+ * Importe un unique scénario de test multi-jours (zip contenant un fichier
+ * JSON national par jour sous "national/", et un fichier Excel académique
+ * par (académie, degré, jour) sous "academique/<YYYY-MM-DD>/<Académie>__
+ * <Degré>.xlsx" — même format de nom de fichier académique que
+ * /imports/academique-zip) et calcule, jour par jour dans l'ordre
+ * chronologique, les relances mail/SMS qui seraient effectuées — SANS
+ * JAMAIS envoyer réellement ni rien enregistrer dans relance_tracking
+ * (aucun appel Brevo). Les imports (national et académique), eux, sont
+ * RÉELS : chaque jour traité remplace l'état national courant et met à
+ * jour l'état académique courant (comme un import quotidien classique),
+ * dans l'ordre des jours pour que l'état final corresponde au dernier jour
+ * du scénario.
  *
- * Avec un `day` (YYYY-MM-DD) fourni, les SMS d'un Spelc ne sont comptés que
- * si le plan de relance SMS (voir services/reference.ts
- * isSmsPlannedFor/loadRelanceSmsPlanWorkbook, carte "Relances SMS des
- * Spelc" de l'onglet Référentiels) prévoit "Oui" ce jour-là pour ce Spelc —
- * absence de plan = non restrictif, comme avant cette fonctionnalité.
+ * Le plafond de crédits SMS est simulé de façon CUMULATIVE sur l'ensemble
+ * du scénario : on part des crédits réellement déjà consommés par chaque
+ * Spelc (services/smsQuota.ts), puis chaque jour simulé y ajoute les
+ * crédits de ce jour — dès qu'un Spelc atteindrait son plafond en cours de
+ * journée, les SMS restants de cette journée (et de toutes les suivantes
+ * tant que le dépassement persiste) sont comptés comme "bloqués"
+ * (smsBlocked), jamais comme envoyés, à l'image de la vérification faite
+ * avant chaque envoi réel (voir /campaigns/sms). Le plan de relance SMS
+ * (isSmsPlannedFor, carte "Relances SMS des Spelc" de l'onglet
+ * Référentiels) reste également respecté jour par jour.
  */
-router.post("/campaigns/simulate", requireRole("admin_general"), (req, res) => {
-  const day = (req.body?.day as string) || null;
-  const spelcs = allSpelcNames();
-  const perSpelc: SimulateSpelcResult[] = [];
+router.post(
+  "/campaigns/simulate-zip",
+  requireRole("admin_general"),
+  campaignZipUpload.single("file"),
+  async (req, res) => {
+    if (!req.file) {
+      res.status(400).json({ error: "Fichier zip requis." });
+      return;
+    }
 
-  for (const spelc of spelcs) {
-    const recipients = matchedAdherents(spelc).filter(needsRelance);
-    const smsPlanned = day === null || isSmsPlannedFor(spelc, day);
+    let directory: unzipper.CentralDirectory;
+    try {
+      directory = await unzipper.Open.buffer(req.file.buffer);
+    } catch {
+      res.status(400).json({ error: "Fichier zip invalide ou corrompu." });
+      return;
+    }
 
-    const mailTag = campagneTagAuto("mail", spelc);
-    const mailTargets = recipients.filter((r) => r.mail && !hasAlreadySent(spelc, "mail", mailTag, r.mail!));
+    const academiesConnues = new Set(
+      (db.prepare("SELECT academie FROM ref_academie_scrutins").all() as { academie: string }[]).map((r) => r.academie)
+    );
+    // Tolère une date avec ou sans tirets dans le nom (YYYY-MM-DD ou
+    // YYYYMMDD) : reconstruite avec tirets, quel que soit le format reçu.
+    const DATE_RE = /(\d{4})-?(\d{2})-?(\d{2})/;
 
-    const smsTag = campagneTagAuto("sms", spelc);
-    const smsTargets = smsPlanned
-      ? recipients.filter((r) => r.mobile && !hasAlreadySent(spelc, "sms", smsTag, normalizeFrenchMobile(r.mobile!)))
-      : [];
+    const nationalByDay = new Map<string, { raw: unknown; filename: string }>();
+    const academiqueByDay = new Map<string, { academie: string; degre: "1D" | "2D"; raw: unknown; filename: string }[]>();
+    const errors: ZipFileError[] = [];
 
-    // 4 crédits par SMS : taux réel constaté sur les envois de ce compte
-    // Brevo (numéro français, expéditeur alphanumérique), confirmé par
-    // l'admin général sur des envois réels — plus fiable ici que l'estimation
-    // par segments GSM-7/UCS-2 (lib/smsSegments.ts, utilisée pour l'aperçu
-    // SMS, qui ne peut pas lire le vrai coût facturé faute d'envoi réel).
-    const smsCreditsEstimated = smsTargets.length * CREDITS_PER_SMS;
+    for (const entry of directory.files) {
+      if (entry.type !== "File") continue;
+      const path = entry.path;
 
-    const quotaStatus = smsQuotaStatus(spelc);
-    const smsQuotaExceeded = quotaStatus.quota !== null && quotaStatus.used + smsCreditsEstimated > quotaStatus.quota;
+      if (/^national\//i.test(path) && path.toLowerCase().endsWith(".json")) {
+        const m = path.match(DATE_RE);
+        if (!m) {
+          errors.push({ filename: path, error: "Date introuvable dans le nom du fichier (attendu YYYY-MM-DD)." });
+          continue;
+        }
+        const jourNational = `${m[1]}-${m[2]}-${m[3]}`;
+        try {
+          const buffer = await entry.buffer();
+          const raw = JSON.parse(buffer.toString("utf-8"));
+          nationalByDay.set(jourNational, { raw, filename: path });
+        } catch (err) {
+          errors.push({ filename: path, error: (err as Error).message });
+        }
+        continue;
+      }
 
-    if (mailTargets.length === 0 && smsTargets.length === 0) continue;
-    perSpelc.push({
-      spelc,
-      mailCount: mailTargets.length,
-      smsCount: smsTargets.length,
-      smsCreditsEstimated,
-      smsQuota: quotaStatus.quota,
-      smsUsed: quotaStatus.used,
-      smsQuotaExceeded,
-    });
+      const academiqueMatch = path.match(/^academique\/(\d{4})-?(\d{2})-?(\d{2})\/(.+)\.xlsx$/i);
+      if (academiqueMatch) {
+        const [, y, mo, d, base] = academiqueMatch;
+        const jour = `${y}-${mo}-${d}`;
+        const sepIndex = base.lastIndexOf("__");
+        if (sepIndex === -1) {
+          errors.push({ filename: path, error: 'Nom de fichier inattendu (attendu : "<Académie>__<Degré>.xlsx").' });
+          continue;
+        }
+        const academie = base.slice(0, sepIndex);
+        const degre = base.slice(sepIndex + 2);
+        if (degre !== "1D" && degre !== "2D") {
+          errors.push({ filename: path, error: `Degré "${degre}" invalide (attendu "1D" ou "2D").` });
+          continue;
+        }
+        if (!academiesConnues.has(academie)) {
+          errors.push({ filename: path, error: `Académie "${academie}" inconnue du référentiel.` });
+          continue;
+        }
+        try {
+          const buffer = await entry.buffer();
+          const workbook = await loadWorkbook(buffer);
+          const sheet = workbook.worksheets[0];
+          if (!sheet) {
+            errors.push({ filename: path, error: "Fichier Excel sans feuille." });
+            continue;
+          }
+          const raw = { items: rowsAsObjects(sheet) };
+          const list = academiqueByDay.get(jour) ?? [];
+          list.push({ academie, degre, raw, filename: path });
+          academiqueByDay.set(jour, list);
+        } catch (err) {
+          errors.push({ filename: path, error: (err as Error).message });
+        }
+      }
+    }
+
+    const days = Array.from(new Set([...nationalByDay.keys(), ...academiqueByDay.keys()])).sort();
+    if (days.length === 0) {
+      res.status(400).json({
+        error: 'Aucun fichier reconnu dans le zip (attendu : "national/*.json" et "academique/<jour>/<Académie>__<Degré>.xlsx").',
+        errors,
+      });
+      return;
+    }
+
+    const spelcs = allSpelcNames();
+    const quotaBySpelc = new Map(spelcs.map((s) => [s, smsQuotaStatus(s)]));
+    // Crédits simulés cumulés depuis le début de CE scénario (en plus des
+    // crédits déjà réellement consommés, lus une fois dans quotaBySpelc) —
+    // jamais persisté, remis à zéro à chaque nouvel appel de cette route.
+    const simulatedCredits = new Map(spelcs.map((s) => [s, 0]));
+
+    const results: SimulateZipDayResult[] = [];
+
+    for (const jour of days) {
+      const nationalEntry = nationalByDay.get(jour);
+      if (nationalEntry) {
+        try {
+          runImport(nationalEntry.raw, {
+            scope: "national",
+            academie: null,
+            degre: null,
+            filename: nationalEntry.filename,
+            importedBy: req.user!.id,
+            snapshotDate: jour,
+          });
+        } catch (err) {
+          errors.push({ filename: nationalEntry.filename, error: (err as Error).message });
+        }
+      }
+      for (const { academie, degre, raw, filename } of academiqueByDay.get(jour) ?? []) {
+        try {
+          runImport(raw, {
+            scope: "academique",
+            academie,
+            degre,
+            filename,
+            importedBy: req.user!.id,
+            snapshotDate: jour,
+          });
+        } catch (err) {
+          errors.push({ filename, error: (err as Error).message });
+        }
+      }
+
+      const perSpelc: SimulateSpelcDayResult[] = [];
+      let totalMail = 0;
+      let totalSmsSent = 0;
+      let totalSmsBlocked = 0;
+      let totalCredits = 0;
+
+      for (const spelc of spelcs) {
+        const recipients = matchedAdherents(spelc).filter(needsRelance);
+        const smsPlanned = isSmsPlannedFor(spelc, jour);
+
+        const mailTag = campagneTagAuto("mail", spelc);
+        const mailTargets = recipients.filter((r) => r.mail && !hasAlreadySent(spelc, "mail", mailTag, r.mail!));
+
+        const smsTag = campagneTagAuto("sms", spelc);
+        const smsCandidates = smsPlanned
+          ? recipients.filter((r) => r.mobile && !hasAlreadySent(spelc, "sms", smsTag, normalizeFrenchMobile(r.mobile!)))
+          : [];
+
+        const quota = quotaBySpelc.get(spelc)!.quota;
+        const baseUsed = quotaBySpelc.get(spelc)!.used;
+        const simulatedSoFar = simulatedCredits.get(spelc)!;
+        const remainingCredits = quota === null ? Infinity : Math.max(0, quota - baseUsed - simulatedSoFar);
+        const maxSendable = quota === null ? smsCandidates.length : Math.floor(remainingCredits / CREDITS_PER_SMS);
+        const smsSent = Math.min(smsCandidates.length, maxSendable);
+        const smsBlocked = smsCandidates.length - smsSent;
+        const creditsThisDay = smsSent * CREDITS_PER_SMS;
+        const creditsCumulative = baseUsed + simulatedSoFar + creditsThisDay;
+        simulatedCredits.set(spelc, simulatedSoFar + creditsThisDay);
+
+        totalMail += mailTargets.length;
+        totalSmsSent += smsSent;
+        totalSmsBlocked += smsBlocked;
+        totalCredits += creditsThisDay;
+
+        if (mailTargets.length === 0 && smsCandidates.length === 0) continue;
+        perSpelc.push({
+          spelc,
+          mailCount: mailTargets.length,
+          smsTargeted: smsCandidates.length,
+          smsSent,
+          smsBlocked,
+          creditsThisDay,
+          creditsCumulative,
+          smsQuota: quota,
+          quotaExceeded: smsBlocked > 0,
+        });
+      }
+
+      results.push({ jour, perSpelc, totalMail, totalSmsSent, totalSmsBlocked, totalCredits });
+    }
+
+    res.json({ days: results, errors });
   }
-
-  const totalMail = perSpelc.reduce((s, r) => s + r.mailCount, 0);
-  const totalSms = perSpelc.reduce((s, r) => s + r.smsCount, 0);
-  const exceeded = perSpelc.filter((r) => r.smsQuotaExceeded);
-
-  res.json({ totalMail, totalSms, smsQuotaExceeded: exceeded.length > 0, exceeded, perSpelc });
-});
+);
 
 /**
  * Statut du plafond de crédits SMS de ce Spelc (quota national réparti,

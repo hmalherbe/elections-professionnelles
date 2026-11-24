@@ -939,140 +939,145 @@ function formatJour(date: string): string {
 
 const TOUS_SPELC = "__tous__";
 
-/** Jours du scrutin (3 au 10 décembre), pour la simulation de relances
- * (comptage sans envoi) — voir SimulationRelancesPanel ci-dessous. */
-const SCRUTIN_DAYS = [
-  "2026-12-03",
-  "2026-12-04",
-  "2026-12-05",
-  "2026-12-06",
-  "2026-12-07",
-  "2026-12-08",
-  "2026-12-09",
-  "2026-12-10",
-];
-
-interface SimulateSpelcResult {
+interface SimulateSpelcDayResult {
   spelc: string;
   mailCount: number;
-  smsCount: number;
-  smsCreditsEstimated: number;
+  smsTargeted: number;
+  smsSent: number;
+  smsBlocked: number;
+  creditsThisDay: number;
+  creditsCumulative: number;
   smsQuota: number | null;
-  smsUsed: number;
-  smsQuotaExceeded: boolean;
+  quotaExceeded: boolean;
 }
 
-interface SimulateResult {
+interface SimulateZipDayResult {
+  jour: string;
+  perSpelc: SimulateSpelcDayResult[];
   totalMail: number;
-  totalSms: number;
-  smsQuotaExceeded: boolean;
-  exceeded: SimulateSpelcResult[];
-  perSpelc: SimulateSpelcResult[];
+  totalSmsSent: number;
+  totalSmsBlocked: number;
+  totalCredits: number;
+}
+
+interface SimulateZipResponse {
+  days: SimulateZipDayResult[];
+  errors: { filename: string; error: string }[];
 }
 
 /**
- * Compte, pour chaque jour du scrutin, combien de relances mail/SMS
- * seraient envoyées MAINTENANT — sans rien envoyer réellement — à partir
- * des données actuellement importées (typiquement : réimporter le fichier
- * de test de ce jour dans l'onglet Imports, puis cliquer sur son bouton
- * ici). Signale en rouge un jour où au moins un Spelc dépasserait son
- * plafond de crédits SMS si cette campagne était vraiment lancée.
+ * Importe un scénario de test multi-jours (zip : "national/*.json" un
+ * fichier par jour, "academique/<jour>/<Académie>__<Degré>.xlsx") et
+ * calcule, jour par jour, les relances mail/SMS qui seraient effectuées —
+ * sans jamais rien envoyer réellement. Les imports eux-mêmes sont réels
+ * (remplacent l'état national/académique courant, jour après jour) ;
+ * seuls les envois mail/SMS restent simulés. Le plafond de crédits SMS est
+ * cumulé sur tout le scénario : un Spelc qui l'atteindrait en cours de
+ * route voit ses SMS suivants comptés comme bloqués (jamais envoyés), à
+ * l'image d'une vraie campagne.
  */
 function SimulationRelancesPanel() {
-  const [results, setResults] = useState<Record<string, SimulateResult>>({});
-  const [busyDay, setBusyDay] = useState<string | null>(null);
+  const [response, setResponse] = useState<SimulateZipResponse | null>(null);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function runSimulate(day: string) {
-    setBusyDay(day);
+  async function handleFile(file: File) {
+    setBusy(true);
     setError(null);
     try {
-      const res = await api.post<SimulateResult>("/brevo/campaigns/simulate", { day });
-      setResults((prev) => ({ ...prev, [day]: res }));
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await api.upload<SimulateZipResponse>("/brevo/campaigns/simulate-zip", fd);
+      setResponse(res);
     } catch (err) {
       setError((err as Error).message);
     } finally {
-      setBusyDay(null);
+      setBusy(false);
     }
   }
 
-  const simulatedDays = SCRUTIN_DAYS.filter((d) => results[d]);
+  const days = response?.days ?? [];
 
-  // Un Spelc apparaît dès qu'il a au moins une relance (mail ou SMS) un des
-  // jours déjà simulés — pas forcément tous, un Spelc peut rester sans
-  // destinataire ciblé certains jours.
-  const spelcsInResults = Array.from(
-    new Set(simulatedDays.flatMap((day) => results[day].perSpelc.map((s) => s.spelc)))
-  ).sort((a, b) => a.localeCompare(b, "fr"));
+  const spelcsInResults = Array.from(new Set(days.flatMap((d) => d.perSpelc.map((s) => s.spelc)))).sort((a, b) =>
+    a.localeCompare(b, "fr")
+  );
 
-  function cellFor(day: string, spelc: string): SimulateSpelcResult | undefined {
-    return results[day]?.perSpelc.find((s) => s.spelc === spelc);
+  function cellFor(jour: string, spelc: string): SimulateSpelcDayResult | undefined {
+    return days.find((d) => d.jour === jour)?.perSpelc.find((s) => s.spelc === spelc);
   }
 
-  function totalForSpelc(spelc: string): { mail: number; sms: number; credits: number } {
-    return simulatedDays.reduce(
-      (acc, day) => {
-        const c = cellFor(day, spelc);
+  function totalForSpelc(spelc: string): { mail: number; sms: number; blocked: number; credits: number } {
+    return days.reduce(
+      (acc, d) => {
+        const c = d.perSpelc.find((s) => s.spelc === spelc);
         return {
           mail: acc.mail + (c?.mailCount ?? 0),
-          sms: acc.sms + (c?.smsCount ?? 0),
-          credits: acc.credits + (c?.smsCreditsEstimated ?? 0),
+          sms: acc.sms + (c?.smsSent ?? 0),
+          blocked: acc.blocked + (c?.smsBlocked ?? 0),
+          credits: acc.credits + (c?.creditsThisDay ?? 0),
         };
       },
-      { mail: 0, sms: 0, credits: 0 }
+      { mail: 0, sms: 0, blocked: 0, credits: 0 }
     );
   }
 
-  const grandTotalMail = simulatedDays.reduce((s, day) => s + results[day].totalMail, 0);
-  const grandTotalSms = simulatedDays.reduce((s, day) => s + results[day].totalSms, 0);
-  const grandTotalCredits = simulatedDays.reduce(
-    (s, day) => s + results[day].perSpelc.reduce((ss, r) => ss + r.smsCreditsEstimated, 0),
-    0
-  );
-  const creditsForDay = (day: string) => results[day].perSpelc.reduce((s, r) => s + r.smsCreditsEstimated, 0);
+  const grandTotalMail = days.reduce((s, d) => s + d.totalMail, 0);
+  const grandTotalSms = days.reduce((s, d) => s + d.totalSmsSent, 0);
+  const grandTotalBlocked = days.reduce((s, d) => s + d.totalSmsBlocked, 0);
+  const grandTotalCredits = days.reduce((s, d) => s + d.totalCredits, 0);
 
   return (
     <div className="mb-4">
       <p className="mb-2 text-xs text-slate-500">
-        Comptage des relances mail/SMS qui seraient envoyées maintenant, sans rien envoyer réellement — à utiliser
-        après avoir importé le fichier de test de ce jour (onglet Imports). Un Spelc marqué "Non" ce jour-là dans le
-        plan de relance SMS (onglet Référentiels, carte "Relances SMS des Spelc") n'est pas compté pour les SMS. Une
-        cellule en rouge signale un Spelc qui dépasserait son plafond de crédits SMS ce jour-là si cette campagne
-        était vraiment lancée.
+        Importe un scénario de test multi-jours (zip : un fichier CCMMEP national par jour sous "national/", et les
+        fichiers académiques 1er/2nd degré sous "academique/&lt;jour&gt;/") et calcule, jour par jour, les relances
+        mail/SMS qui seraient effectuées — sans aucun envoi réel. Les imports eux-mêmes sont réels (remplacent l'état
+        national/académique courant à chaque jour traité). Un Spelc marqué "Non" un jour donné dans le plan de
+        relance SMS (onglet Référentiels, carte "Relances SMS des Spelc") n'est pas compté pour les SMS ce jour-là.
+        Le plafond de crédits SMS est cumulé sur tout le scénario : au-delà, les SMS suivants sont comptés comme
+        bloqués (en rouge), jamais envoyés — peut prendre plusieurs minutes selon la taille du scénario.
       </p>
-      <div className="flex flex-wrap gap-2">
-        {SCRUTIN_DAYS.map((day) => {
-          const result = results[day];
-          const exceeded = result?.smsQuotaExceeded ?? false;
-          return (
-            <button
-              key={day}
-              disabled={busyDay !== null}
-              onClick={() => runSimulate(day)}
-              className={`rounded-md border px-3 py-1.5 text-sm font-medium disabled:opacity-50 ${
-                exceeded
-                  ? "border-red-300 bg-red-50 text-red-700 hover:bg-red-100"
-                  : result
-                    ? "border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                    : "border-slate-300 text-slate-700 hover:bg-slate-50"
-              }`}
-            >
-              {busyDay === day ? "…" : `Simuler ${formatJour(day)}`}
-            </button>
-          );
-        })}
-      </div>
+      <label
+        className={`inline-flex cursor-pointer items-center rounded-md border px-3 py-1.5 text-sm font-medium ${
+          busy ? "cursor-not-allowed border-slate-300 text-slate-400" : "border-blue-300 text-blue-700 hover:bg-blue-50"
+        }`}
+      >
+        {busy ? "Import et calcul en cours…" : "Importer le scénario de test (zip)"}
+        <input
+          type="file"
+          accept=".zip"
+          disabled={busy}
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) handleFile(file);
+            e.target.value = "";
+          }}
+        />
+      </label>
       {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+      {response && response.errors.length > 0 && (
+        <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+          <p className="font-medium">{response.errors.length} fichier(s) du zip en erreur (ignoré(s)) :</p>
+          <ul className="mt-1 list-inside list-disc">
+            {response.errors.map((e, i) => (
+              <li key={i}>
+                {e.filename} : {e.error}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
-      {simulatedDays.length > 0 && (
+      {days.length > 0 && (
         <div className="mt-3 overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-500">
                 <th className="py-2 pr-4">Spelc</th>
-                {simulatedDays.map((day) => (
-                  <th key={day} className="px-3 py-2 text-right">
-                    {formatJour(day)}
+                {days.map((d) => (
+                  <th key={d.jour} className="px-3 py-2 text-right">
+                    {formatJour(d.jour)}
                   </th>
                 ))}
                 <th className="px-3 py-2 text-right font-semibold">Total</th>
@@ -1084,26 +1089,31 @@ function SimulationRelancesPanel() {
                 return (
                   <tr key={spelc} className="border-b border-slate-100">
                     <td className="py-1.5 pr-4 text-slate-700">{spelc}</td>
-                    {simulatedDays.map((day) => {
-                      const c = cellFor(day, spelc);
+                    {days.map((d) => {
+                      const c = cellFor(d.jour, spelc);
                       return (
                         <td
-                          key={day}
+                          key={d.jour}
                           title={
-                            c?.smsQuotaExceeded
-                              ? `Plafond SMS dépassé : ${c.smsUsed} déjà utilisé(s) + ${c.smsCreditsEstimated} estimé(s) > ${c.smsQuota} disponible(s)`
+                            c?.quotaExceeded
+                              ? `Plafond SMS atteint : ${c.smsBlocked} SMS bloqué(s) ce jour (cumul ${c.creditsCumulative}/${c.smsQuota} crédits)`
                               : undefined
                           }
                           className={`px-3 py-1.5 text-right tabular-nums ${
-                            c?.smsQuotaExceeded ? "font-medium text-red-600" : "text-slate-500"
+                            c?.quotaExceeded ? "font-medium text-red-600" : "text-slate-500"
                           }`}
                         >
-                          {c ? `${c.mailCount} mail / ${c.smsCount} SMS (${c.smsCreditsEstimated} crédits)` : "—"}
+                          {c
+                            ? `${c.mailCount} mail / ${c.smsSent} SMS (${c.creditsThisDay} crédits)${
+                                c.smsBlocked > 0 ? ` +${c.smsBlocked} bloqué(s)` : ""
+                              }`
+                            : "—"}
                         </td>
                       );
                     })}
                     <td className="px-3 py-1.5 text-right font-medium tabular-nums text-slate-700">
                       {total.mail} mail / {total.sms} SMS ({total.credits} crédits)
+                      {total.blocked > 0 && <span className="text-red-600"> +{total.blocked} bloqué(s)</span>}
                     </td>
                   </tr>
                 );
@@ -1112,33 +1122,19 @@ function SimulationRelancesPanel() {
             <tfoot>
               <tr className="border-t border-slate-200 bg-slate-50 font-medium text-slate-700">
                 <td className="py-1.5 pr-4">Total</td>
-                {simulatedDays.map((day) => (
-                  <td key={day} className="px-3 py-1.5 text-right tabular-nums">
-                    {results[day].totalMail} mail / {results[day].totalSms} SMS ({creditsForDay(day)} crédits)
+                {days.map((d) => (
+                  <td key={d.jour} className="px-3 py-1.5 text-right tabular-nums">
+                    {d.totalMail} mail / {d.totalSmsSent} SMS ({d.totalCredits} crédits)
+                    {d.totalSmsBlocked > 0 && <span className="text-red-600"> +{d.totalSmsBlocked} bloqué(s)</span>}
                   </td>
                 ))}
                 <td className="px-3 py-1.5 text-right tabular-nums">
                   {grandTotalMail} mail / {grandTotalSms} SMS ({grandTotalCredits} crédits)
+                  {grandTotalBlocked > 0 && <span className="text-red-600"> +{grandTotalBlocked} bloqué(s)</span>}
                 </td>
               </tr>
             </tfoot>
           </table>
-        </div>
-      )}
-
-      {simulatedDays.some((day) => results[day].smsQuotaExceeded) && (
-        <div className="mt-3 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
-          <p className="font-medium">Plafond de crédits SMS dépassé pour :</p>
-          <ul className="mt-1 list-inside list-disc">
-            {simulatedDays.flatMap((day) =>
-              results[day].exceeded.map((s) => (
-                <li key={day + s.spelc}>
-                  {formatJour(day)} — {s.spelc} : {s.smsUsed} déjà utilisé(s) + {s.smsCreditsEstimated} estimé(s) &gt;{" "}
-                  {s.smsQuota} disponible(s)
-                </li>
-              ))
-            )}
-          </ul>
         </div>
       )}
     </div>
