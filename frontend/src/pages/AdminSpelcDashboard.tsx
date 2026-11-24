@@ -574,7 +574,10 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
   const [emailPreviewIndex, setEmailPreviewIndex] = useState(0);
   const [emailPreviewBusy, setEmailPreviewBusy] = useState(false);
   const [emailPreviewError, setEmailPreviewError] = useState<string | null>(null);
-  const [smsPreview, setSmsPreview] = useState<{ content: string; length: number; credits: number } | null>(null);
+  const [smsPreview, setSmsPreview] = useState<{ label: string; content: string; length: number; credits: number }[] | null>(
+    null
+  );
+  const [smsPreviewIndex, setSmsPreviewIndex] = useState(0);
   const [smsPreviewBusy, setSmsPreviewBusy] = useState(false);
   const [smsPreviewError, setSmsPreviewError] = useState<string | null>(null);
   const [mailRows, setMailRows] = useState<RelanceMail[]>([]);
@@ -774,11 +777,12 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
     setSmsPreviewBusy(true);
     setSmsPreviewError(null);
     try {
-      const res = await api.post<{ content: string; length: number; credits: number }>("/brevo/templates/sms/preview", {
-        spelc,
-        body: smsTemplate.body,
-      });
-      setSmsPreview(res);
+      const res = await api.post<{ cases: { label: string; content: string; length: number; credits: number }[] }>(
+        "/brevo/templates/sms/preview",
+        { spelc, body: smsTemplate.body }
+      );
+      setSmsPreviewIndex(0);
+      setSmsPreview(res.cases);
     } catch (err) {
       setSmsPreviewError((err as Error).message);
     } finally {
@@ -1020,14 +1024,37 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
         </Modal>
       )}
       {smsPreview && (
-        <Modal title="Aperçu du SMS (message le plus long)" onClose={() => setSmsPreview(null)}>
+        <Modal title="Aperçu du SMS (pire cas de facturation)" onClose={() => setSmsPreview(null)}>
+          {smsPreview.length > 1 && (
+            <div className="mb-3 flex items-center justify-between gap-2 rounded-md bg-slate-50 px-2 py-1.5">
+              <button
+                type="button"
+                className="rounded px-2 py-1 text-slate-500 hover:bg-slate-200 disabled:opacity-30"
+                disabled={smsPreviewIndex === 0}
+                onClick={() => setSmsPreviewIndex((i) => Math.max(0, i - 1))}
+                aria-label="Cas précédent"
+              >
+                ←
+              </button>
+              <p className="text-center text-xs font-medium text-slate-600">{smsPreview[smsPreviewIndex].label}</p>
+              <button
+                type="button"
+                className="rounded px-2 py-1 text-slate-500 hover:bg-slate-200 disabled:opacity-30"
+                disabled={smsPreviewIndex === smsPreview.length - 1}
+                onClick={() => setSmsPreviewIndex((i) => Math.min(smsPreview.length - 1, i + 1))}
+                aria-label="Cas suivant"
+              >
+                →
+              </button>
+            </div>
+          )}
           <p className="whitespace-pre-line rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-800">
-            {smsPreview.content}
+            {smsPreview[smsPreviewIndex].content}
           </p>
           <p className="mt-3 text-sm text-slate-600">
-            Longueur : {smsPreview.length} / 160 caractères
+            Longueur : {smsPreview[smsPreviewIndex].length} / 160 caractères
             <br />
-            Crédits SMS Brevo utilisés : {smsPreview.credits}
+            Crédits SMS Brevo utilisés : {smsPreview[smsPreviewIndex].credits}
           </p>
         </Modal>
       )}

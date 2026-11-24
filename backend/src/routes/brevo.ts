@@ -533,12 +533,16 @@ router.post("/templates/email/preview", requireRole("admin_spelc", "admin_genera
 });
 
 /**
- * Aperçu du SMS de relance : parmi tous les adhérents actuellement ciblés
- * (non-votants, avec mobile), celui dont le message rendu consomme le plus
- * de crédits une fois les champs dynamiques substitués — le pire cas de
- * facturation (pas forcément le message le plus long en caractères : un
- * message plus court mais encodé en UCS-2, voir smsSegmentCount, peut
- * coûter plus cher qu'un message plus long resté en GSM-7).
+ * Aperçu du SMS de relance : un cas par condition {{#if ...}} distincte du
+ * modèle (voir buildIfTestCases, même principe que l'aperçu du mail), et
+ * pour chaque cas, parmi tous les adhérents actuellement ciblés (non-votants,
+ * avec mobile), celui dont le message rendu — une fois les deux champs
+ * booléens forcés pour activer précisément CETTE condition — consomme le
+ * plus de crédits : le pire cas de facturation pour cette branche (pas
+ * forcément le message le plus long en caractères : un message plus court
+ * mais encodé en UCS-2, voir smsSegmentCount, peut coûter plus cher qu'un
+ * message plus long resté en GSM-7). Un modèle sans aucun {{#if}} ne
+ * produit qu'un seul cas (comportement inchangé).
  */
 router.post("/templates/sms/preview", requireRole("admin_spelc", "admin_general"), (req, res) => {
   const spelc = (req.body?.spelc as string) || req.user!.spelc || "";
@@ -549,17 +553,22 @@ router.post("/templates/sms/preview", requireRole("admin_spelc", "admin_general"
     res.status(400).json({ error: "Aucun adhérent non-votant avec mobile disponible pour prévisualiser le modèle." });
     return;
   }
-  let worst = "";
-  let worstCredits = 0;
-  for (const r of recipients) {
-    const rendered = renderTemplate(String(body), templateFieldsFor(r, spelc));
-    const credits = smsSegmentCount(rendered);
-    if (credits > worstCredits || (credits === worstCredits && rendered.length > worst.length)) {
-      worst = rendered;
-      worstCredits = credits;
+  const testCases = buildIfTestCases(String(body));
+  const cases = testCases.map(({ label, overrides }) => {
+    let worst = "";
+    let worstCredits = 0;
+    for (const r of recipients) {
+      const fields = { ...templateFieldsFor(r, spelc), ...overrides };
+      const rendered = renderTemplate(String(body), fields);
+      const credits = smsSegmentCount(rendered);
+      if (credits > worstCredits || (credits === worstCredits && rendered.length > worst.length)) {
+        worst = rendered;
+        worstCredits = credits;
+      }
     }
-  }
-  res.json({ content: worst, length: worst.length, credits: worstCredits });
+    return { label, content: worst, length: worst.length, credits: worstCredits };
+  });
+  res.json({ cases });
 });
 
 /**
