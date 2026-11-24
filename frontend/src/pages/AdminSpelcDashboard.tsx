@@ -595,6 +595,8 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
   const [emailTemplateMsg, setEmailTemplateMsg] = useState<string | null>(null);
   const [testMailBusy, setTestMailBusy] = useState(false);
   const [testSmsBusy, setTestSmsBusy] = useState(false);
+  const [sendMailBusy, setSendMailBusy] = useState(false);
+  const [sendSmsBusy, setSendSmsBusy] = useState(false);
   const [trackingRows, setTrackingRows] = useState<RelanceTrackingRow[]>([]);
   const [trackingLoadedAt, setTrackingLoadedAt] = useState<Date | null>(null);
   const [trackingChecking, setTrackingChecking] = useState(false);
@@ -1061,26 +1063,33 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
 
         <div className="mt-3 flex flex-wrap items-center gap-3">
           <button
-            className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700"
+            className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
+            disabled={sendMailBusy}
             onClick={async () => {
+              setSendMailBusy(true);
               try {
                 // La campagne est envoyée avec le modèle enregistré en base (pas
                 // avec le contenu affiché à l'écran) : on l'enregistre d'abord pour
                 // que ce qui vient d'être saisi soit bien pris en compte.
                 await api.put("/brevo/templates/email", { spelc, ...emailTemplate });
-                const res = await api.post<{ sent: number; errors: number; total: number }>(
+                const res = await api.post<{ sent: number; errors: number; alreadySent: number; total: number }>(
                   "/brevo/campaigns/email",
                   {}
                 );
-                setMessage(`Mails : ${res.sent}/${res.total} envoyés, ${res.errors} erreurs.`);
+                setMessage(
+                  `Mails : ${res.sent}/${res.total} envoyés, ${res.errors} erreurs.` +
+                    (res.alreadySent > 0 ? ` ${res.alreadySent} déjà relancé(s) aujourd'hui, ignoré(s).` : "")
+                );
                 reloadTracking();
                 refreshCredits();
               } catch (err) {
                 setMessage((err as Error).message);
+              } finally {
+                setSendMailBusy(false);
               }
             }}
           >
-            Envoyer les mails
+            {sendMailBusy ? "Envoi…" : "Envoyer les mails"}
           </button>
           <button
             className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
@@ -1091,16 +1100,18 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
           </button>
           <button
             className="rounded-md bg-slate-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-900 disabled:opacity-60"
-            disabled={Boolean(smsQuota?.reached)}
+            disabled={sendSmsBusy || Boolean(smsQuota?.reached)}
             onClick={async () => {
+              setSendSmsBusy(true);
               try {
                 await api.put("/brevo/templates/sms", { spelc, body: smsTemplate.body });
-                const res = await api.post<{ sent: number; errors: number; total: number; quotaReached: boolean }>(
+                const res = await api.post<{ sent: number; errors: number; alreadySent: number; total: number; quotaReached: boolean }>(
                   "/brevo/campaigns/sms",
                   {}
                 );
                 setMessage(
                   `SMS : ${res.sent}/${res.total} envoyés, ${res.errors} erreurs.` +
+                    (res.alreadySent > 0 ? ` ${res.alreadySent} déjà relancé(s) aujourd'hui, ignoré(s).` : "") +
                     (res.quotaReached ? " Plafond de crédits SMS atteint en cours d'envoi : campagne interrompue." : "")
                 );
                 reloadTracking();
@@ -1108,10 +1119,12 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
                 refreshSmsQuota();
               } catch (err) {
                 setMessage((err as Error).message);
+              } finally {
+                setSendSmsBusy(false);
               }
             }}
           >
-            Envoyer les SMS
+            {sendSmsBusy ? "Envoi…" : "Envoyer les SMS"}
           </button>
           <button
             className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"

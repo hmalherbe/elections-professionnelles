@@ -274,6 +274,12 @@ export function migrate(): void {
   // déclaré par son Spelc sous l'autre nom (voir services/fuzzyMatching.ts).
   addColumnIfMissing("emargements", "nom_naissance", "TEXT");
   addColumnIfMissing("emargements", "nom_naissance_norm", "TEXT");
+  // Nombre de crédits Brevo réellement consommés par CE message (1 pour un
+  // mail, variable pour un SMS selon encodage/longueur — voir
+  // lib/smsSegments.ts) : le plafond SMS par Spelc (services/smsQuota.ts)
+  // sommait auparavant le nombre de SMS envoyés, pas les crédits réels,
+  // sous-estimant la consommation dès qu'un message dépassait 1 crédit.
+  addColumnIfMissing("relance_tracking", "credits", "INTEGER NOT NULL DEFAULT 1");
 
   migrateScopeIncludesGeneral();
   migrateFuzzyMatchesToIdentity();

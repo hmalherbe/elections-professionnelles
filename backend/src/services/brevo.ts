@@ -81,6 +81,35 @@ async function describeBrevoError(response: Response): Promise<string> {
   return `HTTP ${response.status}${text ? ` : ${text.slice(0, 500)}` : ""}`;
 }
 
+export function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Nombre de tentatives supplémentaires après un 429 (limite de débit Brevo)
+ * avant d'abandonner et de compter l'envoi en échec — jamais une boucle
+ * infinie. */
+const MAX_429_RETRIES = 1;
+const DEFAULT_RETRY_DELAY_MS = 2000;
+
+/**
+ * Relance une requête Brevo ayant répondu 429 (trop de requêtes), en
+ * respectant l'en-tête Retry-After si Brevo le fournit, sinon un délai par
+ * défaut, jusqu'à MAX_429_RETRIES tentatives. Les autres erreurs HTTP (4xx/5xx
+ * hors 429) ne sont jamais ré-essayées : ce sont des erreurs définitives
+ * (contenu refusé, destinataire invalide...), pas une simple saturation
+ * temporaire — les réessayer ferait perdre du temps pour rien.
+ */
+async function fetchWithRetry(url: string, init: RequestInit): Promise<Response> {
+  let response = await fetch(url, init);
+  for (let attempt = 0; response.status === 429 && attempt < MAX_429_RETRIES; attempt++) {
+    const retryAfterSeconds = Number(response.headers.get("retry-after"));
+    const delayMs = Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0 ? retryAfterSeconds * 1000 : DEFAULT_RETRY_DELAY_MS;
+    await sleep(delayMs);
+    response = await fetch(url, init);
+  }
+  return response;
+}
+
 export async function sendBrevoEmails(payload: SendEmailPayload): Promise<BrevoSendSummary> {
   let sent = 0;
   let errors = 0;
@@ -88,7 +117,7 @@ export async function sendBrevoEmails(payload: SendEmailPayload): Promise<BrevoS
   let errorMessage: string | null = null;
   for (const recipient of payload.to) {
     try {
-      const response = await fetch(`${BREVO_BASE}/smtp/email`, {
+      const response = await fetchWithRetry(`${BREVO_BASE}/smtp/email`, {
         method: "POST",
         headers: {
           "api-key": payload.apiKey,
@@ -138,7 +167,7 @@ export async function sendBrevoSms(payload: SendSmsPayload): Promise<BrevoSendSu
   let errorMessage: string | null = null;
   for (const recipient of payload.recipients) {
     try {
-      const response = await fetch(`${BREVO_BASE}/transactionalSMS/sms`, {
+      const response = await fetchWithRetry(`${BREVO_BASE}/transactionalSMS/sms`, {
         method: "POST",
         headers: {
           "api-key": payload.apiKey,

@@ -16,6 +16,10 @@ export interface RelanceTrackingInput {
   messageId: string | null;
   /** Raison de l'échec d'envoi (voir services/brevo.ts), affichée à l'admin en survol du statut. */
   errorMessage?: string | null;
+  /** Crédits Brevo réellement consommés par ce message (1 pour un mail ;
+   * variable pour un SMS, voir lib/smsSegments.ts) — sert au plafond de
+   * crédits SMS par Spelc (services/smsQuota.ts). Défaut 1. */
+  credits?: number;
 }
 
 /** Journal par personne, distinct du journal NDJSON (lib/relanceLog.ts) qui reste
@@ -24,8 +28,8 @@ export interface RelanceTrackingInput {
 export function insertRelanceTracking(entry: RelanceTrackingInput): void {
   db.prepare(
     `INSERT INTO relance_tracking
-       (owner_user_id, type, scope, campagne_tag, nom, prenom, contact, test_mode, send_ok, message_id, error_message)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+       (owner_user_id, type, scope, campagne_tag, nom, prenom, contact, test_mode, send_ok, message_id, error_message, credits)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     entry.ownerUserId,
     entry.type,
@@ -37,8 +41,28 @@ export function insertRelanceTracking(entry: RelanceTrackingInput): void {
     entry.testMode ? 1 : 0,
     entry.sendOk ? 1 : 0,
     entry.messageId,
-    entry.errorMessage ?? null
+    entry.errorMessage ?? null,
+    entry.credits ?? 1
   );
+}
+
+/**
+ * Un envoi réel (hors mode test) a-t-il déjà réussi pour ce destinataire,
+ * cette campagne et ce Spelc ? Protège contre un double envoi de la même
+ * relance (double-clic, requête relancée après un délai, deux onglets
+ * ouverts en même temps) : le tag de campagne étant généré une fois par
+ * jour et par Spelc (voir campagneTagAuto), une même personne ne reçoit
+ * ainsi jamais deux fois la même relance le même jour.
+ */
+export function hasAlreadySent(scope: string, type: "mail" | "sms", campagneTag: string, contact: string): boolean {
+  const row = db
+    .prepare(
+      `SELECT 1 FROM relance_tracking
+       WHERE scope = ? AND type = ? AND campagne_tag = ? AND contact = ? AND test_mode = 0 AND send_ok = 1
+       LIMIT 1`
+    )
+    .get(scope, type, campagneTag, contact);
+  return Boolean(row);
 }
 
 export interface RelanceTrackingRow {

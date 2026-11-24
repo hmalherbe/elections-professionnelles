@@ -4,7 +4,7 @@ import dayjs from "dayjs";
 import { requireAuth, requireRole, canAccessSpelc } from "../middleware/auth.js";
 import { renderTemplate, type TemplateFields } from "../lib/template.js";
 import { wrapEmailHtml, ensureSiteLink } from "../lib/emailLayout.js";
-import { sendBrevoEmails, sendBrevoSms, fetchAccountInfo, getBrevoApiKey } from "../services/brevo.js";
+import { sendBrevoEmails, sendBrevoSms, fetchAccountInfo, getBrevoApiKey, sleep } from "../services/brevo.js";
 import { currentImportIds } from "../services/stats.js";
 import { spelcAcademies } from "../services/reference.js";
 import { getTestContactSettings } from "../services/settings.js";
@@ -13,6 +13,7 @@ import { buildLogoHtml, buildBannerHtml, buildSocialLinksHtml, type SocialLinks 
 import { appendRelanceLog } from "../lib/relanceLog.js";
 import {
   insertRelanceTracking,
+  hasAlreadySent,
   listRelanceTrackingByScope,
   clearRelanceTrackingByScope,
   refreshPendingRelanceTracking,
@@ -57,6 +58,21 @@ const RUGBY_BANNER_PATH = "/api/assets/logo/rugby.png";
 function withDemoLogo(html: string): string {
   return isRelanceOnly() ? buildLogoHtml("/api/assets/logo/spelc.png") + html : html;
 }
+
+/** Crédits mail restants sur le compte Brevo (miroir de findMailCredits,
+ * AdminSpelcDashboard.tsx) — seul le bandeau d'avertissement côté
+ * interface s'appuyait dessus jusqu'ici ; une campagne mail pouvait donc
+ * être lancée même avec des crédits insuffisants, sans aucun blocage
+ * serveur (voir /campaigns/email ci-dessous). */
+function findMailCredits(plan: { type: string; credits: number }[]): number | null {
+  return plan.find((p) => !p.type.toLowerCase().includes("sms"))?.credits ?? null;
+}
+
+/** Délai entre deux envois Brevo successifs d'une même campagne, pour ne
+ * pas saturer l'API (plusieurs Spelcs partagent la même clé Brevo) — la
+ * limite de débit Brevo elle-même est gérée par fetchWithRetry côté
+ * services/brevo.ts (voir sendBrevoEmails/sendBrevoSms). */
+const SEND_THROTTLE_MS = 100;
 
 const router = Router();
 router.use(requireAuth);
@@ -444,10 +460,11 @@ router.post("/templates/sms/test", requireRole("admin_spelc", "admin_general"), 
   }
   const fields = templateFieldsFor(recipient, spelc);
   const campagneTag = smsCampagneTag(spelc, "test-modele");
+  const content = renderTemplate(String(body), fields);
   const result = await sendBrevoSms({
     apiKey,
     recipients: [normalizeFrenchMobile(testMobile)],
-    content: renderTemplate(String(body), fields),
+    content,
     tag: campagneTag,
     sender: resolveSmsSender(spelc),
   });
@@ -475,6 +492,7 @@ router.post("/templates/sms/test", requireRole("admin_spelc", "admin_general"), 
     sendOk: result.sent > 0,
     messageId: result.messageId,
     errorMessage: result.errorMessage,
+    credits: smsSegmentCount(content),
   });
   res.json({ sent: result.sent, errors: result.errors, errorMessage: result.errorMessage });
 });
@@ -634,13 +652,37 @@ router.post("/campaigns/email", requireRole("admin_spelc"), async (req, res) => 
     html: wrapEmailHtml(withDemoLogo(renderTemplate(ensureSiteLink(template.body), templateFieldsFor(r, spelc)))),
   }));
 
+  // Vérification des crédits mail Brevo AVANT l'envoi : jusqu'ici seul un
+  // bandeau informatif côté interface (voir AdminSpelcDashboard.tsx)
+  // prévenait, sans empêcher l'admin de lancer quand même une campagne
+  // vouée à échouer en partie faute de crédits.
+  const account = await fetchAccountInfo(apiKey);
+  if (account) {
+    const mailCredits = findMailCredits(account.plan);
+    if (mailCredits !== null && to.length > mailCredits) {
+      res.status(400).json({
+        error: `Crédits mail Brevo insuffisants : ${to.length} destinataire(s) ciblé(s), mais seulement ${mailCredits} crédit(s) mail restant(s) sur le compte Brevo.`,
+      });
+      return;
+    }
+  }
+
   const campagneTag = campagneTagAuto("mail", spelc);
 
   // Brevo n'acceptant pas un contenu par destinataire en un seul appel groupé sans template,
   // on envoie chaque email individuellement avec son contenu personnalisé.
   let sent = 0;
   let errors = 0;
+  let alreadySent = 0;
   for (const item of to) {
+    // Protège contre un double envoi de la même relance (double-clic,
+    // requête relancée après un délai, deux onglets ouverts en même temps) :
+    // si ce destinataire a déjà reçu cette campagne (même tag, donc même
+    // jour) avec succès, on ne renvoie pas — voir hasAlreadySent.
+    if (hasAlreadySent(spelc, "mail", campagneTag, item.email)) {
+      alreadySent++;
+      continue;
+    }
     const result = await sendBrevoEmails({
       apiKey,
       to: [{ email: item.email, name: item.name }],
@@ -675,9 +717,10 @@ router.post("/campaigns/email", requireRole("admin_spelc"), async (req, res) => 
       messageId: result.messageId,
       errorMessage: result.errorMessage,
     });
+    await sleep(SEND_THROTTLE_MS);
   }
 
-  res.status(201).json({ sent, errors, total: to.length });
+  res.status(201).json({ sent, errors, alreadySent, total: to.length });
 });
 
 router.post("/campaigns/sms", requireRole("admin_spelc"), async (req, res) => {
@@ -710,11 +753,13 @@ router.post("/campaigns/sms", requireRole("admin_spelc"), async (req, res) => {
   const smsSender = resolveSmsSender(spelc);
   let sent = 0;
   let errors = 0;
+  let alreadySent = 0;
   // Plus de plafond manuel par envoi (voir AdminSpelcDashboard.tsx) : on
   // vérifie le plafond de crédits SMS du Spelc (services/smsQuota.ts) avant
   // CHAQUE envoi plutôt qu'une seule fois au début, pour ne jamais le
   // dépasser au fil d'une campagne qui toucherait plus de destinataires que
-  // de crédits restants.
+  // de crédits restants. Ce plafond compte désormais les crédits réels
+  // (voir smsQuota.ts/smsSegmentCount), pas simplement le nombre de SMS.
   let quotaReached = false;
   for (const r of recipients) {
     if (smsQuotaStatus(spelc).reached) {
@@ -722,10 +767,18 @@ router.post("/campaigns/sms", requireRole("admin_spelc"), async (req, res) => {
       break;
     }
     const content = renderTemplate(template.body, templateFieldsFor(r, spelc));
-    const contact = r.mobile!;
+    const contact = normalizeFrenchMobile(r.mobile!);
+    // Protège contre un double envoi de la même relance (double-clic,
+    // requête relancée après un délai, deux onglets ouverts en même
+    // temps) : si ce destinataire a déjà reçu cette campagne (même tag,
+    // donc même jour) avec succès, on ne renvoie pas — voir hasAlreadySent.
+    if (hasAlreadySent(spelc, "sms", campagneTag, contact)) {
+      alreadySent++;
+      continue;
+    }
     const result = await sendBrevoSms({
       apiKey,
-      recipients: [normalizeFrenchMobile(contact)],
+      recipients: [contact],
       content,
       tag: campagneTag,
       sender: smsSender,
@@ -751,15 +804,17 @@ router.post("/campaigns/sms", requireRole("admin_spelc"), async (req, res) => {
       campagneTag,
       nom: r.nom,
       prenom: r.prenom,
-      contact: normalizeFrenchMobile(contact),
+      contact,
       testMode: false,
       sendOk: result.sent > 0,
       messageId: result.messageId,
       errorMessage: result.errorMessage,
+      credits: smsSegmentCount(content),
     });
+    await sleep(SEND_THROTTLE_MS);
   }
 
-  res.status(201).json({ sent, errors, total: recipients.length, quotaReached });
+  res.status(201).json({ sent, errors, alreadySent, total: recipients.length, quotaReached });
 });
 
 /**
