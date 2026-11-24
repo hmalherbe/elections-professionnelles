@@ -78,6 +78,17 @@ export function migrate(): void {
       PRIMARY KEY (spelc, jour)
     );
 
+    -- Taux de participation simulé par jour du scrutin (fichier Excel chargé
+    -- par l'admin général, onglet Référentiels — voir services/reference.ts
+    -- loadParticipationSimulWorkbook) : "taux de votants parmi les restants
+    -- à voter" ce jour-là (taux de hasard, pas cumulatif), utilisé comme
+    -- référence pour générer un scénario de test des relances (voir carte
+    -- "Simulation taux de participation").
+    CREATE TABLE IF NOT EXISTS ref_participation_simul (
+      jour TEXT PRIMARY KEY,
+      taux REAL NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS imports (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       scope TEXT NOT NULL CHECK (scope IN ('national','academique')),

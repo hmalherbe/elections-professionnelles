@@ -9,6 +9,8 @@ import {
   loadSmsQuotaWorkbook,
   loadRelanceSmsPlanWorkbook,
   listRelanceSmsPlan,
+  loadParticipationSimulWorkbook,
+  listParticipationSimul,
   clearDeptCache,
 } from "../services/reference.js";
 import { getTestContactSettings, setSetting } from "../services/settings.js";
@@ -195,6 +197,28 @@ router.post("/reference/relance-sms-plan", upload.single("file"), async (req, re
 
 router.get("/reference/relance-sms-plan", (_req, res) => {
   res.json({ rows: listRelanceSmsPlan() });
+});
+
+/**
+ * Taux de participation simulé par jour du scrutin (colonnes "Date" /
+ * "participation") — voir loadParticipationSimulWorkbook, utilisé pour
+ * générer un scénario de test des relances.
+ */
+router.post("/reference/participation-simul", upload.single("file"), async (req, res) => {
+  if (!req.file) {
+    res.status(400).json({ error: "Fichier requis." });
+    return;
+  }
+  try {
+    const result = await loadParticipationSimulWorkbook(req.file.buffer);
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+router.get("/reference/participation-simul", (_req, res) => {
+  res.json({ rows: listParticipationSimul() });
 });
 
 router.post("/reference/academie-scrutins", upload.single("file"), async (req, res) => {

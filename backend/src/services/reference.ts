@@ -221,6 +221,50 @@ export function isSmsPlannedFor(spelc: string, jour: string): boolean {
   return row ? Boolean(row.planifie) : true;
 }
 
+/**
+ * Taux de participation simulé par jour du scrutin ("Date" / "participation"
+ * en colonnes A/B, une ligne par jour) — "taux de votants parmi les
+ * restants à voter" ce jour-là (taux de hasard : à ne pas confondre avec un
+ * taux cumulé ou une part fixe du corps électoral total). Sert de référence
+ * pour générer un scénario de test des relances (voir carte "Simulation
+ * taux de participation", onglet Référentiels). Remplacement intégral à
+ * chaque chargement, voir loadDepartementsWorkbook.
+ */
+export async function loadParticipationSimulWorkbook(buffer: Buffer): Promise<{ count: number }> {
+  const wb = await loadWorkbook(buffer);
+  const sheet = wb.worksheets[0];
+
+  const insert = db.prepare("INSERT INTO ref_participation_simul (jour, taux) VALUES (?, ?)");
+  let count = 0;
+  const tx = db.transaction(() => {
+    db.prepare("DELETE FROM ref_participation_simul").run();
+    sheet.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) return; // en-tête
+      const jour = parseDayHeaderCell(normalizeCellValue(row.getCell(1).value));
+      const taux = normalizeCellValue(row.getCell(2).value);
+      if (!jour || taux == null || taux === "") return;
+      const tauxNum = Number(taux);
+      if (!Number.isFinite(tauxNum)) return;
+      insert.run(jour, tauxNum);
+      count++;
+    });
+  });
+  tx();
+  return { count };
+}
+
+export interface ParticipationSimulRow {
+  jour: string;
+  taux: number;
+}
+
+/** Taux de participation simulé actuellement chargé, pour affichage (carte
+ * "Simulation taux de participation", onglet Référentiels) et pour générer
+ * un scénario de test — voir loadParticipationSimulWorkbook. */
+export function listParticipationSimul(): ParticipationSimulRow[] {
+  return db.prepare("SELECT jour, taux FROM ref_participation_simul ORDER BY jour").all() as ParticipationSimulRow[];
+}
+
 /** Remplacement intégral à chaque chargement, voir loadDepartementsWorkbook. */
 export async function loadAcademieScrutinsWorkbook(buffer: Buffer): Promise<{ count: number }> {
   const wb = await loadWorkbook(buffer);

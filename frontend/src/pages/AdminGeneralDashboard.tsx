@@ -1763,6 +1763,22 @@ function ReferentielsPanel() {
           return `${res.count} case(s) Oui/Non chargée(s).`;
         }}
       />
+      <FileUploadCard
+        title="Simulation taux de participation"
+        subtitle={
+          'Taux de participation au CCMMEP par jour de vote (colonnes "Date" et "participation"), ' +
+          '"taux de votants parmi les restants à voter" ce jour-là (pas un taux cumulé). Sert de référence pour ' +
+          "générer un scénario de test des relances (zip national + académique, voir onglet Statistiques relances)."
+        }
+        expectedColumns={["Date", "participation"]}
+        accept=".xlsx"
+        onUpload={async (file) => {
+          const fd = new FormData();
+          fd.append("file", file);
+          const res = await api.upload<{ count: number }>("/admin/reference/participation-simul", fd);
+          return `${res.count} jour(s) chargé(s).`;
+        }}
+      />
     </div>
   );
 }
