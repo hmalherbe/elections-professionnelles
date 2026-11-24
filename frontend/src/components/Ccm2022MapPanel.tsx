@@ -3,11 +3,12 @@ import { CCM_2022_ACADEMIE_MAP, type CcmOsEntry } from "../data/ccm2022AcademieM
 import { CCM_2022_DEPARTEMENTS, CCM_2022_SPELCS } from "../data/ccm2022Breakdowns";
 import { CCM_2022_DEPARTEMENT_GEO } from "../data/ccm2022DepartementGeo";
 import { CCM_2022_SPELC_GEO } from "../data/ccm2022SpelcGeo";
-import { OS_COLORS, OS_LABELS, TABLE_OS, formatVotes, leaderInfo, votesFor } from "../lib/ccm2022";
+import { OS_COLORS, OS_LABELS, TABLE_OS, formatVotes, leaderInfo, siegesFor, votesFor } from "../lib/ccm2022";
 import { Card } from "./Card";
 
 type Scrutin = "1D" | "2D";
 type Vue = "academie" | "departement" | "spelc";
+type Metric = "votes" | "sieges";
 
 const VUE_LABELS: Record<Vue, string> = {
   academie: "Académie",
@@ -32,6 +33,7 @@ interface MapShape {
 export function Ccm2022MapPanel() {
   const [scrutin, setScrutin] = useState<Scrutin>("1D");
   const [vue, setVue] = useState<Vue>("academie");
+  const [metric, setMetric] = useState<Metric>("votes");
   const [selected, setSelected] = useState<{ label: string; entries: CcmOsEntry[]; orphan?: boolean } | null>(null);
 
   const data = CCM_2022_ACADEMIE_MAP;
@@ -97,11 +99,13 @@ export function Ccm2022MapPanel() {
     ).sort((a, b) => a.name.localeCompare(b.name, "fr"));
   }, [data, overseas, scrutin, vue]);
 
+  const valueFor = metric === "votes" ? votesFor : siegesFor;
+
   const tableTotals = useMemo(() => {
     const totals: Record<string, number> = {};
-    for (const os of TABLE_OS) totals[os] = tableRows.reduce((sum, r) => sum + votesFor(r.entries, os), 0);
+    for (const os of TABLE_OS) totals[os] = tableRows.reduce((sum, r) => sum + valueFor(r.entries, os), 0);
     return totals;
-  }, [tableRows]);
+  }, [tableRows, valueFor]);
 
   return (
     <div className="space-y-4">
@@ -323,9 +327,25 @@ export function Ccm2022MapPanel() {
       </div>
 
       <Card title={`Tableau des résultats — ${scrutin === "1D" ? "1er degré" : "2nd degré"}`}>
-        <p className="mb-3 text-xs text-slate-500">
-          Nombre de voix obtenues par chaque organisation syndicale, {vue === "spelc" ? "Spelc par Spelc" : vue === "departement" ? "département par département" : "académie par académie"} (métropole et outre-mer) — vue sélectionnée ci-dessus.
-        </p>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-xs text-slate-500">
+            Nombre de {metric === "votes" ? "voix" : "sièges"} obtenu{metric === "votes" ? "es" : "s"} par chaque
+            organisation syndicale, {vue === "spelc" ? "Spelc par Spelc" : vue === "departement" ? "département par département" : "académie par académie"} (métropole et outre-mer) — vue sélectionnée ci-dessus.
+          </p>
+          <div className="inline-flex shrink-0 rounded-md border border-slate-200 bg-slate-50 p-1">
+            {(["votes", "sieges"] as Metric[]).map((m) => (
+              <button
+                key={m}
+                onClick={() => setMetric(m)}
+                className={`rounded px-3 py-1 text-sm font-medium ${
+                  metric === m ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"
+                }`}
+              >
+                {m === "votes" ? "Voix" : "Sièges"}
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -344,12 +364,12 @@ export function Ccm2022MapPanel() {
             </thead>
             <tbody>
               {tableRows.map(({ name, entries }) => {
-                const total = TABLE_OS.reduce((sum, os) => sum + votesFor(entries, os), 0);
+                const total = TABLE_OS.reduce((sum, os) => sum + valueFor(entries, os), 0);
                 return (
                   <tr key={name} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
                     <td className="py-1.5 pr-4 text-slate-700">{name}</td>
                     {TABLE_OS.map((os) => {
-                      const v = votesFor(entries, os);
+                      const v = valueFor(entries, os);
                       return (
                         <td key={os} className={`px-3 py-1.5 text-right tabular-nums ${v ? "text-slate-700" : "text-slate-300"}`}>
                           {v ? formatVotes(v) : "–"}

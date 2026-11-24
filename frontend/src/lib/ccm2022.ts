@@ -36,3 +36,7 @@ export function formatVotes(n: number): string {
 export function votesFor(entries: CcmOsEntry[], os: string): number {
   return entries.find((e) => e.os === os)?.votes ?? 0;
 }
+
+export function siegesFor(entries: CcmOsEntry[], os: string): number {
+  return entries.find((e) => e.os === os)?.sieges ?? 0;
+}
