@@ -144,7 +144,7 @@ function parseDayHeaderCell(value: unknown): string | null {
  * enregistrée : l'absence de ligne reste alors non restrictive côté
  * simulation. Remplacement intégral à chaque chargement.
  */
-export async function loadRelanceSmsPlanWorkbook(buffer: Buffer): Promise<{ count: number }> {
+export async function loadRelanceSmsPlanWorkbook(buffer: Buffer): Promise<{ count: number; quotasUpdated: number }> {
   const wb = await loadWorkbook(buffer);
   const sheet = wb.getWorksheet("Relances SMS");
   if (!sheet) throw new Error('Feuille "Relances SMS" introuvable dans le fichier.');
@@ -171,26 +171,53 @@ export async function loadRelanceSmsPlanWorkbook(buffer: Buffer): Promise<{ coun
     throw new Error('Aucune colonne de date reconnue dans la feuille "Relances SMS".');
   }
 
-  const insert = db.prepare("INSERT INTO ref_relance_sms_plan (spelc, jour, planifie) VALUES (?, ?, ?)");
+  // Colonne "Crédits SMS" (quota alloué par Spelc) : optionnelle, cherchée
+  // sur toute la ligne d'en-tête (pas seulement après les colonnes de jour,
+  // une colonne "Nb adhérents" pouvant s'intercaler avant elle). Absente
+  // d'anciennes versions du fichier : dans ce cas ref_sms_quota n'est pas
+  // touché, seul le plan Oui/Non est chargé — voir carte "Crédits SMS par
+  // Spelc" (onglet Référentiels) pour le charger séparément.
+  let creditsCol = -1;
+  headerRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+    if (creditsCol !== -1) return;
+    const label = stripAccents(String(normalizeCellValue(cell.value) ?? "").trim().toLowerCase());
+    if (label === "credits sms") creditsCol = colNumber;
+  });
+
+  const insertPlan = db.prepare("INSERT INTO ref_relance_sms_plan (spelc, jour, planifie) VALUES (?, ?, ?)");
+  const insertQuota = db.prepare(
+    "INSERT INTO ref_sms_quota (spelc, credits, updated_at) VALUES (?, ?, datetime('now'))"
+  );
   let count = 0;
+  let quotasUpdated = 0;
   const tx = db.transaction(() => {
     db.prepare("DELETE FROM ref_relance_sms_plan").run();
+    if (creditsCol !== -1) db.prepare("DELETE FROM ref_sms_quota").run();
     sheet.eachRow((row, rowNumber) => {
       if (rowNumber <= headerRowNumber) return;
       const spelc = normalizeCellValue(row.getCell(1).value);
       if (spelc == null || String(spelc).trim() === "") return;
+      const spelcName = String(spelc).trim();
       for (const { col, jour } of dayColumns) {
         const raw = String(normalizeCellValue(row.getCell(col).value) ?? "")
           .trim()
           .toLowerCase();
         if (raw !== "oui" && raw !== "non") continue;
-        insert.run(String(spelc).trim(), jour, raw === "oui" ? 1 : 0);
+        insertPlan.run(spelcName, jour, raw === "oui" ? 1 : 0);
         count++;
+      }
+      if (creditsCol !== -1) {
+        const credits = normalizeCellValue(row.getCell(creditsCol).value);
+        const creditsNum = Number(credits);
+        if (credits != null && credits !== "" && Number.isFinite(creditsNum)) {
+          insertQuota.run(spelcName, Math.round(creditsNum));
+          quotasUpdated++;
+        }
       }
     });
   });
   tx();
-  return { count };
+  return { count, quotasUpdated };
 }
 
 export interface RelanceSmsPlanRow {

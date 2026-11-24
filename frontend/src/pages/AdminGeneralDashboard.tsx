@@ -1749,18 +1749,26 @@ function ReferentielsPanel() {
       <FileUploadCard
         title="Relances SMS des Spelc"
         subtitle={
-          'Plan de relance SMS par Spelc et par jour du scrutin (feuille "Relances SMS" du fichier : colonne Spelc ' +
-          'puis une colonne "Oui"/"Non" par jour, 03/12 à 10/12). Utilisé par la simulation de relances (onglet ' +
-          "Statistiques relances) : un Spelc marqué \"Non\" un jour n'est pas compté ce jour-là pour les SMS. " +
-          'Aucune ligne pour un couple Spelc/jour = non restrictif.'
+          'Plan de relance SMS par Spelc et par jour du scrutin (feuille "Relances SMS" du fichier : colonne Spelc, ' +
+          'une colonne "Oui"/"Non" par jour (03/12 à 10/12), puis en colonne "Crédits SMS" le plafond de crédits SMS ' +
+          "alloué à ce Spelc — remplace alors la carte « Crédits SMS par Spelc » pour ce chargement). Utilisé par la " +
+          "simulation de relances (onglet Statistiques relances) : un Spelc marqué \"Non\" un jour n'est pas compté " +
+          "ce jour-là pour les SMS. Aucune ligne pour un couple Spelc/jour = non restrictif."
         }
-        expectedColumns={["Spelc", "03/12", "04/12", "…", "10/12"]}
+        expectedColumns={["Spelc", "03/12", "04/12", "…", "10/12", "Nb adhérents", "Crédits SMS"]}
         accept=".xlsx"
         onUpload={async (file) => {
           const fd = new FormData();
           fd.append("file", file);
-          const res = await api.upload<{ count: number }>("/admin/reference/relance-sms-plan", fd);
-          return `${res.count} case(s) Oui/Non chargée(s).`;
+          const res = await api.upload<{ count: number; quotasUpdated: number }>(
+            "/admin/reference/relance-sms-plan",
+            fd
+          );
+          let message = `${res.count} case(s) Oui/Non chargée(s).`;
+          if (res.quotasUpdated > 0) {
+            message += ` Plafond de crédits SMS mis à jour pour ${res.quotasUpdated} Spelc (colonne "Crédits SMS").`;
+          }
+          return message;
         }}
       />
       <FileUploadCard
