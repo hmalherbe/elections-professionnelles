@@ -24,7 +24,7 @@ import { normalizeFrenchMobile } from "../lib/phone.js";
 import { isValidSmsSender, suggestSmsSender } from "../lib/smsSender.js";
 import { isRelanceOnly } from "../lib/appMode.js";
 import { smsQuotaStatus } from "../services/smsQuota.js";
-import { smsSegmentCount } from "../lib/smsSegments.js";
+import { smsSegmentCount, analyzeSmsEncoding } from "../lib/smsSegments.js";
 
 /** Préfixe le tag Brevo d'une campagne SMS par le nom du Spelc, pour que les
  * envois de chaque Spelc soient identifiables à la fois dans le tableau de
@@ -590,11 +590,15 @@ router.post("/templates/sms/preview", requireRole("admin_spelc", "admin_general"
         worstRecipient = r;
       }
     }
+    const encodingInfo = analyzeSmsEncoding(worst);
     return {
       label: worstRecipient ? `${label} — ${worstRecipient.prenom} ${worstRecipient.nom}` : label,
       content: worst,
       length: worst.length,
       credits: worstCredits,
+      encoding: encodingInfo.encoding,
+      maxCharsPerSegment: encodingInfo.maxCharsPerSegment,
+      offendingChars: encodingInfo.offendingChars,
     };
   });
   res.json({ cases });

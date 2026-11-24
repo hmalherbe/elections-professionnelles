@@ -31,6 +31,53 @@ function gsm7Length(text: string): number | null {
   return length;
 }
 
+/** Caractères distincts (par ordre de première apparition) absents de
+ * l'alphabet GSM-7 — ceux qui, à eux seuls, forcent tout le message en
+ * UCS-2 (voir gsm7Length) — pour expliquer à l'admin, dans l'aperçu, POURQUOI
+ * un message en apparence plus court peut coûter plus de crédits qu'un
+ * message plus long resté en GSM-7. */
+function offendingChars(text: string): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const ch of text) {
+    if (!GSM7_BASIC.includes(ch) && !GSM7_EXTENDED.includes(ch) && !seen.has(ch)) {
+      seen.add(ch);
+      result.push(ch);
+    }
+  }
+  return result;
+}
+
+export interface SmsEncodingInfo {
+  encoding: "GSM-7" | "UCS-2";
+  /** Crédits Brevo, approximativement (voir smsSegmentCount). */
+  segments: number;
+  /** Capacité d'un segment pour cet encodage et ce nombre de segments
+   * (160/70 pour un SMS simple, 153/67 par partie au-delà). */
+  maxCharsPerSegment: number;
+  /** Caractères ayant forcé l'encodage UCS-2 ; tableau vide si GSM-7. */
+  offendingChars: string[];
+}
+
+/**
+ * Détaille l'encodage réel d'un message (GSM-7 ou UCS-2), le nombre de
+ * segments qui en résulte et, si UCS-2, les caractères responsables — pour
+ * affichage dans l'aperçu SMS (sans ce détail, un message de 92 caractères
+ * facturé 2 crédits alors qu'un message de 101 caractères n'en coûte qu'1
+ * semble incohérent : seul l'encodage, pas la longueur brute, détermine la
+ * taille d'un segment).
+ */
+export function analyzeSmsEncoding(text: string): SmsEncodingInfo {
+  const gsm = gsm7Length(text);
+  if (gsm !== null) {
+    const segments = gsm <= 160 ? 1 : Math.ceil(gsm / 153);
+    return { encoding: "GSM-7", segments, maxCharsPerSegment: segments <= 1 ? 160 : 153, offendingChars: [] };
+  }
+  const length = [...text].length;
+  const segments = length <= 70 ? 1 : Math.ceil(length / 67);
+  return { encoding: "UCS-2", segments, maxCharsPerSegment: segments <= 1 ? 70 : 67, offendingChars: offendingChars(text) };
+}
+
 /**
  * Nombre de segments (= crédits Brevo, approximativement) consommés par ce
  * message, en tenant compte de l'encodage réel (GSM-7 si tous les
@@ -41,10 +88,5 @@ function gsm7Length(text: string): number | null {
  * destination), donc ce nombre reste indicatif.
  */
 export function smsSegmentCount(text: string): number {
-  const gsm = gsm7Length(text);
-  if (gsm !== null) {
-    return gsm <= 160 ? 1 : Math.ceil(gsm / 153);
-  }
-  const length = [...text].length;
-  return length <= 70 ? 1 : Math.ceil(length / 67);
+  return analyzeSmsEncoding(text).segments;
 }

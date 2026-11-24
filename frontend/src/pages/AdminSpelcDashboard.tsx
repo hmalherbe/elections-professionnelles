@@ -574,9 +574,18 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
   const [emailPreviewIndex, setEmailPreviewIndex] = useState(0);
   const [emailPreviewBusy, setEmailPreviewBusy] = useState(false);
   const [emailPreviewError, setEmailPreviewError] = useState<string | null>(null);
-  const [smsPreview, setSmsPreview] = useState<{ label: string; content: string; length: number; credits: number }[] | null>(
-    null
-  );
+  const [smsPreview, setSmsPreview] = useState<
+    {
+      label: string;
+      content: string;
+      length: number;
+      credits: number;
+      encoding: "GSM-7" | "UCS-2";
+      maxCharsPerSegment: number;
+      offendingChars: string[];
+    }[]
+    | null
+  >(null);
   const [smsPreviewIndex, setSmsPreviewIndex] = useState(0);
   const [smsPreviewBusy, setSmsPreviewBusy] = useState(false);
   const [smsPreviewError, setSmsPreviewError] = useState<string | null>(null);
@@ -777,10 +786,17 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
     setSmsPreviewBusy(true);
     setSmsPreviewError(null);
     try {
-      const res = await api.post<{ cases: { label: string; content: string; length: number; credits: number }[] }>(
-        "/brevo/templates/sms/preview",
-        { spelc, body: smsTemplate.body }
-      );
+      const res = await api.post<{
+        cases: {
+          label: string;
+          content: string;
+          length: number;
+          credits: number;
+          encoding: "GSM-7" | "UCS-2";
+          maxCharsPerSegment: number;
+          offendingChars: string[];
+        }[];
+      }>("/brevo/templates/sms/preview", { spelc, body: smsTemplate.body });
       setSmsPreviewIndex(0);
       setSmsPreview(res.cases);
     } catch (err) {
@@ -1052,10 +1068,25 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
             {smsPreview[smsPreviewIndex].content}
           </p>
           <p className="mt-3 text-sm text-slate-600">
-            Longueur : {smsPreview[smsPreviewIndex].length} / 160 caractères
+            Longueur : {smsPreview[smsPreviewIndex].length} / {smsPreview[smsPreviewIndex].maxCharsPerSegment} caractères
+            (encodage {smsPreview[smsPreviewIndex].encoding})
             <br />
             Crédits SMS Brevo utilisés : {smsPreview[smsPreviewIndex].credits}
           </p>
+          {smsPreview[smsPreviewIndex].encoding === "UCS-2" && (
+            <p className="mt-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">
+              Ce message est encodé en UCS-2 (70 caractères par SMS au lieu de 160 en encodage standard GSM-7), à cause
+              {smsPreview[smsPreviewIndex].offendingChars.length > 1 ? " des caractères " : " du caractère "}
+              {smsPreview[smsPreviewIndex].offendingChars.map((c, i) => (
+                <code key={i} className="mx-0.5 rounded bg-amber-100 px-1 font-mono">
+                  {c === " " ? "␣" : c}
+                </code>
+              ))}
+              — souvent une apostrophe ou un guillemet typographique (’ “ ”) au lieu d'une apostrophe droite ('), ou un
+              tiret cadratin (—) au lieu d'un tiret simple (-). Un message plus court mais en UCS-2 peut ainsi coûter
+              plus de crédits qu'un message plus long resté en GSM-7.
+            </p>
+          )}
         </Modal>
       )}
       {smsPreviewError && (

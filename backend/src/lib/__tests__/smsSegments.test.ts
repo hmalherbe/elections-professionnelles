@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { smsSegmentCount } from "../smsSegments.js";
+import { smsSegmentCount, analyzeSmsEncoding } from "../smsSegments.js";
 
 describe("smsSegmentCount", () => {
   it("compte 1 pour un message GSM-7 court (<= 160 caractères)", () => {
@@ -38,5 +38,39 @@ describe("smsSegmentCount", () => {
     // 159 'a' (GSM-7 basique) + 1 '€' (etendu, compte double) = 161 unites GSM-7 -> depasse 160.
     const text = "a".repeat(159) + "€";
     expect(smsSegmentCount(text)).toBe(Math.ceil(161 / 153));
+  });
+});
+
+describe("analyzeSmsEncoding", () => {
+  it("un message de 92 caracteres en UCS-2 coute plus que 101 caracteres en GSM-7 (longueur brute non pertinente)", () => {
+    // 92 caracteres mais avec une apostrophe typographique -> UCS-2, > 70 -> 2 segments.
+    const text92 = "’" + "a".repeat(91);
+    const info92 = analyzeSmsEncoding(text92);
+    expect(info92.encoding).toBe("UCS-2");
+    expect(info92.segments).toBe(2);
+    expect(info92.offendingChars).toEqual(["’"]);
+
+    // 101 caracteres, tous GSM-7 -> reste 1 segment malgre une longueur superieure.
+    const text101 = "a".repeat(101);
+    const info101 = analyzeSmsEncoding(text101);
+    expect(info101.encoding).toBe("GSM-7");
+    expect(info101.segments).toBe(1);
+    expect(info101.offendingChars).toEqual([]);
+
+    expect(text92.length).toBeLessThan(text101.length);
+    expect(info92.segments).toBeGreaterThan(info101.segments);
+  });
+
+  it("liste chaque caractere fautif une seule fois, dans l'ordre de premiere apparition", () => {
+    const info = analyzeSmsEncoding("Plus d’info — vite’");
+    expect(info.encoding).toBe("UCS-2");
+    expect(info.offendingChars).toEqual(["’", "—"]);
+  });
+
+  it("maxCharsPerSegment reflete l'encodage et le nombre de segments", () => {
+    expect(analyzeSmsEncoding("a".repeat(160)).maxCharsPerSegment).toBe(160);
+    expect(analyzeSmsEncoding("a".repeat(161)).maxCharsPerSegment).toBe(153);
+    expect(analyzeSmsEncoding("’".repeat(70)).maxCharsPerSegment).toBe(70);
+    expect(analyzeSmsEncoding("’".repeat(71)).maxCharsPerSegment).toBe(67);
   });
 });
