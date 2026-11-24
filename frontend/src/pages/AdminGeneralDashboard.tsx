@@ -987,7 +987,7 @@ function SimulationRelancesPanel() {
     setBusyDay(day);
     setError(null);
     try {
-      const res = await api.post<SimulateResult>("/brevo/campaigns/simulate", {});
+      const res = await api.post<SimulateResult>("/brevo/campaigns/simulate", { day });
       setResults((prev) => ({ ...prev, [day]: res }));
     } catch (err) {
       setError((err as Error).message);
@@ -1026,8 +1026,10 @@ function SimulationRelancesPanel() {
     <div className="mb-4">
       <p className="mb-2 text-xs text-slate-500">
         Comptage des relances mail/SMS qui seraient envoyées maintenant, sans rien envoyer réellement — à utiliser
-        après avoir importé le fichier de test de ce jour (onglet Imports). Une cellule en rouge signale un Spelc qui
-        dépasserait son plafond de crédits SMS ce jour-là si cette campagne était vraiment lancée.
+        après avoir importé le fichier de test de ce jour (onglet Imports). Un Spelc marqué "Non" ce jour-là dans le
+        plan de relance SMS (onglet Référentiels, carte "Relances SMS des Spelc") n'est pas compté pour les SMS. Une
+        cellule en rouge signale un Spelc qui dépasserait son plafond de crédits SMS ce jour-là si cette campagne
+        était vraiment lancée.
       </p>
       <div className="flex flex-wrap gap-2">
         {SCRUTIN_DAYS.map((day) => {
@@ -1716,6 +1718,23 @@ function ReferentielsPanel() {
           fd.append("file", file);
           const res = await api.upload<{ count: number }>("/admin/reference/sms-quota", fd);
           return `${res.count} Spelc(s) chargé(s).`;
+        }}
+      />
+      <FileUploadCard
+        title="Relances SMS des Spelc"
+        subtitle={
+          'Plan de relance SMS par Spelc et par jour du scrutin (feuille "Relances SMS" du fichier : colonne Spelc ' +
+          'puis une colonne "Oui"/"Non" par jour, 03/12 à 10/12). Utilisé par la simulation de relances (onglet ' +
+          "Statistiques relances) : un Spelc marqué \"Non\" un jour n'est pas compté ce jour-là pour les SMS. " +
+          'Aucune ligne pour un couple Spelc/jour = non restrictif.'
+        }
+        expectedColumns={["Spelc", "03/12", "04/12", "…", "10/12"]}
+        accept=".xlsx"
+        onUpload={async (file) => {
+          const fd = new FormData();
+          fd.append("file", file);
+          const res = await api.upload<{ count: number }>("/admin/reference/relance-sms-plan", fd);
+          return `${res.count} case(s) Oui/Non chargée(s).`;
         }}
       />
     </div>

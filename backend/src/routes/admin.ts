@@ -7,6 +7,8 @@ import {
   loadAcademieScrutinsWorkbook,
   loadDepartementsWorkbook,
   loadSmsQuotaWorkbook,
+  loadRelanceSmsPlanWorkbook,
+  listRelanceSmsPlan,
   clearDeptCache,
 } from "../services/reference.js";
 import { getTestContactSettings, setSetting } from "../services/settings.js";
@@ -171,6 +173,28 @@ router.post("/reference/sms-quota", upload.single("file"), async (req, res) => {
   } catch (err) {
     res.status(400).json({ error: (err as Error).message });
   }
+});
+
+/**
+ * Plan de relance SMS par Spelc et par jour du scrutin (Oui/Non), saisi
+ * manuellement par la fédération — voir loadRelanceSmsPlanWorkbook, utilisé
+ * en mode simulation par /brevo/campaigns/simulate.
+ */
+router.post("/reference/relance-sms-plan", upload.single("file"), async (req, res) => {
+  if (!req.file) {
+    res.status(400).json({ error: "Fichier requis." });
+    return;
+  }
+  try {
+    const result = await loadRelanceSmsPlanWorkbook(req.file.buffer);
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+router.get("/reference/relance-sms-plan", (_req, res) => {
+  res.json({ rows: listRelanceSmsPlan() });
 });
 
 router.post("/reference/academie-scrutins", upload.single("file"), async (req, res) => {

@@ -6,7 +6,7 @@ import { renderTemplate, buildIfTestCases, type TemplateFields } from "../lib/te
 import { wrapEmailHtml, ensureSiteLink } from "../lib/emailLayout.js";
 import { sendBrevoEmails, sendBrevoSms, fetchAccountInfo, getBrevoApiKey, sleep } from "../services/brevo.js";
 import { currentImportIds } from "../services/stats.js";
-import { spelcAcademies } from "../services/reference.js";
+import { spelcAcademies, isSmsPlannedFor } from "../services/reference.js";
 import { getTestContactSettings } from "../services/settings.js";
 import { getSpelcSettings, updateSpelcSettings } from "../services/spelcSettings.js";
 import { buildLogoHtml, buildBannerHtml, buildSocialLinksHtml, type SocialLinks } from "../lib/socialLinks.js";
@@ -956,21 +956,29 @@ interface SimulateSpelcResult {
  * que l'aperçu, voir smsSegmentCount) et la compare au plafond restant
  * (services/smsQuota.ts) : `smsQuotaExceeded` signale un Spelc dont cette
  * campagne, si elle était vraiment lancée, dépasserait son plafond.
+ *
+ * Avec un `day` (YYYY-MM-DD) fourni, les SMS d'un Spelc ne sont comptés que
+ * si le plan de relance SMS (voir services/reference.ts
+ * isSmsPlannedFor/loadRelanceSmsPlanWorkbook, carte "Relances SMS des
+ * Spelc" de l'onglet Référentiels) prévoit "Oui" ce jour-là pour ce Spelc —
+ * absence de plan = non restrictif, comme avant cette fonctionnalité.
  */
-router.post("/campaigns/simulate", requireRole("admin_general"), (_req, res) => {
+router.post("/campaigns/simulate", requireRole("admin_general"), (req, res) => {
+  const day = (req.body?.day as string) || null;
   const spelcs = allSpelcNames();
   const perSpelc: SimulateSpelcResult[] = [];
 
   for (const spelc of spelcs) {
     const recipients = matchedAdherents(spelc).filter(needsRelance);
+    const smsPlanned = day === null || isSmsPlannedFor(spelc, day);
 
     const mailTag = campagneTagAuto("mail", spelc);
     const mailTargets = recipients.filter((r) => r.mail && !hasAlreadySent(spelc, "mail", mailTag, r.mail!));
 
     const smsTag = campagneTagAuto("sms", spelc);
-    const smsTargets = recipients.filter(
-      (r) => r.mobile && !hasAlreadySent(spelc, "sms", smsTag, normalizeFrenchMobile(r.mobile!))
-    );
+    const smsTargets = smsPlanned
+      ? recipients.filter((r) => r.mobile && !hasAlreadySent(spelc, "sms", smsTag, normalizeFrenchMobile(r.mobile!)))
+      : [];
 
     let smsCreditsEstimated = 0;
     const smsTemplate = db.prepare("SELECT body FROM sms_templates WHERE spelc = ?").get(spelc) as

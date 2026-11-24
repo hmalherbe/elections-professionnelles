@@ -63,6 +63,21 @@ export function migrate(): void {
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
+    -- Plan de relance SMS par Spelc et par jour du scrutin (Oui/Non), saisi
+    -- manuellement par la fédération (fichier Excel chargé par l'admin
+    -- général, onglet Référentiels — voir services/reference.ts
+    -- loadRelanceSmsPlanWorkbook). Utilisé par la simulation de relances
+    -- (/brevo/campaigns/simulate) pour ne compter les SMS d'un Spelc, un
+    -- jour donné, que si ce plan prévoit "Oui" ce jour-là. L'absence de
+    -- ligne pour un couple Spelc/jour n'est pas restrictive (pas de plan
+    -- saisi = pas de restriction).
+    CREATE TABLE IF NOT EXISTS ref_relance_sms_plan (
+      spelc TEXT NOT NULL,
+      jour TEXT NOT NULL,
+      planifie INTEGER NOT NULL,
+      PRIMARY KEY (spelc, jour)
+    );
+
     CREATE TABLE IF NOT EXISTS imports (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       scope TEXT NOT NULL CHECK (scope IN ('national','academique')),

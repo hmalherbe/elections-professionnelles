@@ -114,6 +114,113 @@ export async function loadSmsQuotaWorkbook(buffer: Buffer): Promise<{ count: num
   return { count };
 }
 
+/** Convertit une cellule d'en-tête de jour en "YYYY-MM-DD" — le fichier
+ * observé mélange un format texte "JJ/MM/AAAA" (première colonne) et de
+ * vraies dates Excel (colonnes suivantes, lues par ExcelJS comme des objets
+ * Date) : les deux doivent être reconnus pour que les colonnes s'alignent.
+ * `null` si la cellule n'est ni l'un ni l'autre (fin des colonnes de jour). */
+function parseDayHeaderCell(value: unknown): string | null {
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  if (typeof value === "string") {
+    const m = value.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (m) {
+      const [, d, mo, y] = m;
+      return `${y}-${mo.padStart(2, "0")}-${d.padStart(2, "0")}`;
+    }
+  }
+  return null;
+}
+
+/**
+ * Plan de relance SMS par Spelc et par jour du scrutin ("Oui"/"Non"), saisi
+ * manuellement par la fédération (feuille "Relances SMS" du fichier
+ * uploadé, colonne Spelc puis une colonne par jour) — voir
+ * ref_relance_sms_plan (db/index.ts) et son usage dans
+ * /brevo/campaigns/simulate (mode simulation). La ligne d'en-tête ("Spelc")
+ * n'est pas forcément la première ligne de la feuille (une étiquette libre,
+ * ex. "CREDITS SMS RESTANTS", peut occuper une ligne au-dessus sur d'autres
+ * colonnes) : on la cherche par son contenu plutôt que par sa position.
+ * Une cellule vide (ni "Oui" ni "Non") pour un couple Spelc/jour n'est pas
+ * enregistrée : l'absence de ligne reste alors non restrictive côté
+ * simulation. Remplacement intégral à chaque chargement.
+ */
+export async function loadRelanceSmsPlanWorkbook(buffer: Buffer): Promise<{ count: number }> {
+  const wb = await loadWorkbook(buffer);
+  const sheet = wb.getWorksheet("Relances SMS");
+  if (!sheet) throw new Error('Feuille "Relances SMS" introuvable dans le fichier.');
+
+  let headerRowNumber = -1;
+  sheet.eachRow((row, rowNumber) => {
+    if (headerRowNumber !== -1) return;
+    if (String(normalizeCellValue(row.getCell(1).value) ?? "").trim().toLowerCase() === "spelc") {
+      headerRowNumber = rowNumber;
+    }
+  });
+  if (headerRowNumber === -1) {
+    throw new Error('Ligne d\'en-tête ("Spelc") introuvable dans la feuille "Relances SMS".');
+  }
+
+  const headerRow = sheet.getRow(headerRowNumber);
+  const dayColumns: { col: number; jour: string }[] = [];
+  for (let col = 2; ; col++) {
+    const jour = parseDayHeaderCell(normalizeCellValue(headerRow.getCell(col).value));
+    if (!jour) break;
+    dayColumns.push({ col, jour });
+  }
+  if (dayColumns.length === 0) {
+    throw new Error('Aucune colonne de date reconnue dans la feuille "Relances SMS".');
+  }
+
+  const insert = db.prepare("INSERT INTO ref_relance_sms_plan (spelc, jour, planifie) VALUES (?, ?, ?)");
+  let count = 0;
+  const tx = db.transaction(() => {
+    db.prepare("DELETE FROM ref_relance_sms_plan").run();
+    sheet.eachRow((row, rowNumber) => {
+      if (rowNumber <= headerRowNumber) return;
+      const spelc = normalizeCellValue(row.getCell(1).value);
+      if (spelc == null || String(spelc).trim() === "") return;
+      for (const { col, jour } of dayColumns) {
+        const raw = String(normalizeCellValue(row.getCell(col).value) ?? "")
+          .trim()
+          .toLowerCase();
+        if (raw !== "oui" && raw !== "non") continue;
+        insert.run(String(spelc).trim(), jour, raw === "oui" ? 1 : 0);
+        count++;
+      }
+    });
+  });
+  tx();
+  return { count };
+}
+
+export interface RelanceSmsPlanRow {
+  spelc: string;
+  jour: string;
+  planifie: boolean;
+}
+
+/** Plan de relance SMS actuellement chargé, pour affichage (carte "Relances
+ * SMS des Spelc", onglet Référentiels) — voir loadRelanceSmsPlanWorkbook. */
+export function listRelanceSmsPlan(): RelanceSmsPlanRow[] {
+  const rows = db
+    .prepare("SELECT spelc, jour, planifie FROM ref_relance_sms_plan ORDER BY spelc, jour")
+    .all() as { spelc: string; jour: string; planifie: number }[];
+  return rows.map((r) => ({ spelc: r.spelc, jour: r.jour, planifie: Boolean(r.planifie) }));
+}
+
+/**
+ * Un Spelc est-il planifié pour relancer par SMS ce jour-là ? `true` par
+ * défaut si ce couple Spelc/jour n'a pas de ligne dans le plan (pas de plan
+ * saisi = pas de restriction, voir loadRelanceSmsPlanWorkbook) — seule une
+ * ligne explicite "Non" bloque.
+ */
+export function isSmsPlannedFor(spelc: string, jour: string): boolean {
+  const row = db
+    .prepare("SELECT planifie FROM ref_relance_sms_plan WHERE spelc = ? AND jour = ?")
+    .get(spelc, jour) as { planifie: number } | undefined;
+  return row ? Boolean(row.planifie) : true;
+}
+
 /** Remplacement intégral à chaque chargement, voir loadDepartementsWorkbook. */
 export async function loadAcademieScrutinsWorkbook(buffer: Buffer): Promise<{ count: number }> {
   const wb = await loadWorkbook(buffer);
