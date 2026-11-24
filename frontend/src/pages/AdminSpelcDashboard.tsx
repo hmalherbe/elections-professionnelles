@@ -910,7 +910,7 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
           <div className="mb-2 flex gap-2">
             <button
               type="button"
-              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
+              className="rounded-md border border-blue-300 px-3 py-1.5 text-sm text-blue-700 hover:bg-blue-50"
               onClick={() =>
                 api.get<{ subject: string; body: string }>(`/brevo/templates/email${qs({ spelc })}`).then(setEmailTemplate)
               }
@@ -919,7 +919,7 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
             </button>
             <button
               type="button"
-              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
+              className="rounded-md border border-blue-300 px-3 py-1.5 text-sm text-blue-700 hover:bg-blue-50"
               onClick={async () => {
                 setEmailTemplateMsg(null);
                 try {
@@ -934,7 +934,7 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
             </button>
             <button
               type="button"
-              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 disabled:opacity-60"
+              className="rounded-md border border-blue-300 px-3 py-1.5 text-sm text-blue-700 hover:bg-blue-50 disabled:opacity-60"
               disabled={emailPreviewBusy}
               onClick={previewEmail}
             >
@@ -962,7 +962,7 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
           <div className="mb-2 flex gap-2">
             <button
               type="button"
-              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 disabled:opacity-60"
+              className="rounded-md border border-blue-300 px-3 py-1.5 text-sm text-blue-700 hover:bg-blue-50 disabled:opacity-60"
               disabled={smsPreviewBusy}
               onClick={previewSms}
             >
