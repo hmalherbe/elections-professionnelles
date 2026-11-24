@@ -146,6 +146,47 @@ router.put("/templates/sms", requireRole("admin_spelc", "admin_general"), (req, 
   res.json({ ok: true });
 });
 
+/** Tous les Spelc connus du référentiel (voir ref_spelc / GET /admin/reference/spelcs). */
+function allSpelcNames(): string[] {
+  return (db.prepare("SELECT spelc FROM ref_spelc ORDER BY spelc").all() as { spelc: string }[]).map((r) => r.spelc);
+}
+
+/**
+ * Écrase le modèle de mail de TOUS les Spelc par ce contenu — chaque Spelc
+ * n'ayant jusqu'ici qu'un modèle propre à son propre compte (table
+ * email_templates, clé primaire spelc), rien ne permettait de propager un
+ * modèle "officiel" à tous les comptes admin Spelc sans passer un par un par
+ * chaque compte. Réservé à l'admin général ; écrase sans confirmation
+ * supplémentaire le modèle existant de chaque Spelc, y compris une
+ * éventuelle personnalisation déjà en place.
+ */
+router.put("/templates/email/apply-to-all", requireRole("admin_general"), (req, res) => {
+  const { subject = "", body = "" } = req.body ?? {};
+  const spelcs = allSpelcNames();
+  const upsert = db.prepare(
+    `INSERT INTO email_templates (spelc, subject, body, updated_at) VALUES (?, ?, ?, datetime('now'))
+     ON CONFLICT(spelc) DO UPDATE SET subject = excluded.subject, body = excluded.body, updated_at = datetime('now')`
+  );
+  db.transaction((names: string[]) => {
+    for (const s of names) upsert.run(s, String(subject), String(body));
+  })(spelcs);
+  res.json({ applied: spelcs.length });
+});
+
+/** Équivalent SMS de /templates/email/apply-to-all, voir ce commentaire. */
+router.put("/templates/sms/apply-to-all", requireRole("admin_general"), (req, res) => {
+  const { body = "" } = req.body ?? {};
+  const spelcs = allSpelcNames();
+  const upsert = db.prepare(
+    `INSERT INTO sms_templates (spelc, body, updated_at) VALUES (?, ?, datetime('now'))
+     ON CONFLICT(spelc) DO UPDATE SET body = excluded.body, updated_at = datetime('now')`
+  );
+  db.transaction((names: string[]) => {
+    for (const s of names) upsert.run(s, String(body));
+  })(spelcs);
+  res.json({ applied: spelcs.length });
+});
+
 /**
  * Réglages propres à un Spelc pour ses relances : logo + réseaux sociaux
  * insérés dans ses modèles de mail, et mail/mobile de test propres à ce

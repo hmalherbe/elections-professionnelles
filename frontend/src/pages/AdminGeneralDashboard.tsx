@@ -10,7 +10,7 @@ import { ParticipationMapPanel } from "../components/ParticipationMapPanel";
 import { PivotTree } from "../components/PivotTree";
 import { ScrutinsTab } from "../components/ScrutinsTab";
 import { findMailCredits, findSmsCredits, type BrevoPlanEntry } from "./AdminSpelcDashboard";
-import { api } from "../lib/api";
+import { api, qs } from "../lib/api";
 import { CATEGORICAL } from "../lib/colors";
 import { parseSqliteUtc } from "../lib/date";
 import type { AcademieNode, AcademieScrutin, CourbePoint, ImportRecord, ManagedUser, RelanceDailyPoint } from "../lib/types";
@@ -167,8 +167,162 @@ function ParametresPanel() {
         {thresholdMsg && <p className="mt-2 text-sm text-slate-600">{thresholdMsg}</p>}
       </Card>
 
+      <ModeleRelanceGlobalPanel />
       <ReinitialiserPanel />
     </div>
+  );
+}
+
+/**
+ * Chaque Spelc n'a qu'un modèle de mail/SMS propre à son propre compte
+ * (tables email_templates/sms_templates, une ligne par Spelc) : rien ne
+ * permettait jusqu'ici de propager un modèle "officiel" à tous les comptes
+ * admin Spelc d'un coup, sans se connecter un par un à chacun. Charge le
+ * modèle actuel d'un Spelc choisi (pour partir d'un contenu déjà en place),
+ * ou saisie libre, puis applique à tous les Spelc d'un clic.
+ */
+function ModeleRelanceGlobalPanel() {
+  const [spelcs, setSpelcs] = useState<string[]>([]);
+  const [sourceSpelc, setSourceSpelc] = useState("");
+  const [emailSubject, setEmailSubject] = useState("");
+  const [emailBody, setEmailBody] = useState("");
+  const [smsBody, setSmsBody] = useState("");
+  const [loadMsg, setLoadMsg] = useState<string | null>(null);
+  const [applyEmailMsg, setApplyEmailMsg] = useState<string | null>(null);
+  const [applySmsMsg, setApplySmsMsg] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    api.get<{ spelcs: { spelc: string }[] }>("/admin/reference/spelcs").then((r) => {
+      const names = r.spelcs.map((s) => s.spelc);
+      setSpelcs(names);
+      if (names.length > 0) setSourceSpelc((prev) => prev || names[0]);
+    });
+  }, []);
+
+  async function loadFromSpelc() {
+    if (!sourceSpelc) return;
+    setBusy(true);
+    setLoadMsg(null);
+    try {
+      const [mail, sms] = await Promise.all([
+        api.get<{ subject: string; body: string }>(`/brevo/templates/email${qs({ spelc: sourceSpelc })}`),
+        api.get<{ body: string }>(`/brevo/templates/sms${qs({ spelc: sourceSpelc })}`),
+      ]);
+      setEmailSubject(mail.subject);
+      setEmailBody(mail.body);
+      setSmsBody(sms.body);
+      setLoadMsg(`Modèle de « ${sourceSpelc} » chargé dans les champs ci-dessous.`);
+    } catch (err) {
+      setLoadMsg((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function applyEmailToAll() {
+    if (!window.confirm(`Écraser le modèle de mail actuel de TOUS les Spelc (${spelcs.length}) par ce contenu ?`)) return;
+    setBusy(true);
+    setApplyEmailMsg(null);
+    try {
+      const res = await api.put<{ applied: number }>("/brevo/templates/email/apply-to-all", {
+        subject: emailSubject,
+        body: emailBody,
+      });
+      setApplyEmailMsg(`Modèle de mail appliqué à ${res.applied} Spelc.`);
+    } catch (err) {
+      setApplyEmailMsg((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function applySmsToAll() {
+    if (!window.confirm(`Écraser le modèle de SMS actuel de TOUS les Spelc (${spelcs.length}) par ce contenu ?`)) return;
+    setBusy(true);
+    setApplySmsMsg(null);
+    try {
+      const res = await api.put<{ applied: number }>("/brevo/templates/sms/apply-to-all", { body: smsBody });
+      setApplySmsMsg(`Modèle de SMS appliqué à ${res.applied} Spelc.`);
+    } catch (err) {
+      setApplySmsMsg((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card
+      title="Modèle de relance — appliquer à tous les Spelc"
+      subtitle="Chaque Spelc a son propre modèle de mail/SMS de relance (onglet « Relances adhérents » de son compte). Pour diffuser un modèle commun à tous d'un coup, chargez-en un existant ci-dessous (ou saisissez-le directement), puis appliquez-le à tous les Spelc. Écrase, sans possibilité d'annulation, le modèle déjà en place de chaque Spelc."
+    >
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <label className="text-xs font-medium text-slate-500">Charger le modèle actuel de :</label>
+        <select
+          className="rounded-md border border-slate-300 px-2 py-1 text-sm"
+          value={sourceSpelc}
+          onChange={(e) => setSourceSpelc(e.target.value)}
+        >
+          {spelcs.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </select>
+        <button
+          disabled={busy || !sourceSpelc}
+          onClick={loadFromSpelc}
+          className="rounded-md border border-blue-300 px-3 py-1.5 text-sm font-medium text-blue-700 hover:bg-blue-50 disabled:opacity-50"
+        >
+          Charger
+        </button>
+      </div>
+      {loadMsg && <p className="mb-3 text-sm text-slate-600">{loadMsg}</p>}
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div>
+          <h4 className="mb-2 text-sm font-semibold text-slate-800">Mail</h4>
+          <input
+            className="mb-2 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+            placeholder="Objet du mail"
+            value={emailSubject}
+            onChange={(e) => setEmailSubject(e.target.value)}
+          />
+          <textarea
+            className="h-40 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+            placeholder="Corps du mail"
+            value={emailBody}
+            onChange={(e) => setEmailBody(e.target.value)}
+          />
+          <button
+            disabled={busy || spelcs.length === 0}
+            onClick={applyEmailToAll}
+            className="mt-2 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+          >
+            Appliquer à tous les Spelc
+          </button>
+          {applyEmailMsg && <p className="mt-2 text-sm text-slate-600">{applyEmailMsg}</p>}
+        </div>
+
+        <div>
+          <h4 className="mb-2 text-sm font-semibold text-slate-800">SMS</h4>
+          <textarea
+            className="h-40 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+            placeholder="Contenu du SMS"
+            value={smsBody}
+            onChange={(e) => setSmsBody(e.target.value)}
+          />
+          <button
+            disabled={busy || spelcs.length === 0}
+            onClick={applySmsToAll}
+            className="mt-2 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+          >
+            Appliquer à tous les Spelc
+          </button>
+          {applySmsMsg && <p className="mt-2 text-sm text-slate-600">{applySmsMsg}</p>}
+        </div>
+      </div>
+    </Card>
   );
 }
 
