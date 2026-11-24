@@ -1083,7 +1083,7 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
             Envoyer les mails
           </button>
           <button
-            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 disabled:opacity-60"
+            className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
             disabled={testMailBusy}
             onClick={sendTestMail}
           >
@@ -1114,7 +1114,7 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
             Envoyer les SMS
           </button>
           <button
-            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 disabled:opacity-60"
+            className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
             disabled={testSmsBusy || Boolean(smsQuota?.reached)}
             onClick={sendTestSms}
           >
