@@ -498,33 +498,52 @@ router.post("/templates/sms/test", requireRole("admin_spelc", "admin_general"), 
 });
 
 /**
+ * Parmi `recipients`, ceux dont la situation RÉELLE (sans aucun forçage)
+ * correspond déjà exactement à `overrides` — ex. pour le cas "CCMMEP non
+ * voté et scrutin local non voté", un adhérent réellement non-votant aux
+ * deux scrutins, pas un adhérent quelconque sur qui on forcerait ces deux
+ * champs. Utilisé pour montrer un adhérent authentiquement représentatif de
+ * chaque cas de test plutôt que toujours le même (voir buildIfTestCases),
+ * avec un repli sur le forçage de champs seulement si aucun adhérent réel
+ * ne correspond à cette combinaison précise.
+ */
+function recipientsMatchingCase(recipients: Recipient[], spelc: string, overrides: Record<string, boolean>): Recipient[] {
+  return recipients.filter((r) => {
+    const fields = templateFieldsFor(r, spelc);
+    return Object.entries(overrides).every(([key, value]) => Boolean(fields[key]) === value);
+  });
+}
+
+/**
  * Aperçu du mail de relance (contenu actuellement saisi à l'écran, pas
- * forcément encore enregistré), rendu avec les champs dynamiques du premier
- * adhérent non-votant du Spelc — même pipeline de rendu que l'envoi réel
+ * forcément encore enregistré) — même pipeline de rendu que l'envoi réel
  * (renderTemplate + wrapEmailHtml + ensureSiteLink), mais sans aucun envoi.
  * Un cas par condition {{#if ...}} distincte du modèle (voir
- * buildIfTestCases) : chaque cas substitue aux champs réels de l'adhérent
- * la combinaison de valeurs booléennes qui active CETTE condition
- * précisément, pour permettre de vérifier visuellement chaque branche du
- * modèle sans deviner un adhérent réel qui s'y trouve. Un modèle sans
- * aucun {{#if}} ne produit qu'un seul cas (comportement inchangé).
+ * buildIfTestCases) : pour chaque cas, on cherche un adhérent réellement
+ * dans cette situation (recipientsMatchingCase) pour montrer un rendu
+ * authentique avec un nom différent par cas plutôt que toujours le même ;
+ * à défaut (aucun adhérent réel ne correspond à cette combinaison), on
+ * retombe sur le premier adhérent non-votant avec les deux champs booléens
+ * forcés, comme avant. Un modèle sans aucun {{#if}} ne produit qu'un seul
+ * cas (comportement inchangé).
  */
 router.post("/templates/email/preview", requireRole("admin_spelc", "admin_general"), (req, res) => {
   const spelc = (req.body?.spelc as string) || req.user!.spelc || "";
   if (!spelc || !assertSpelcAccess(req, res, spelc)) return;
   const { subject = "", body = "" } = req.body ?? {};
-  const recipient = firstNonVotantAdherent(spelc);
-  if (!recipient) {
+  const fallbackRecipient = firstNonVotantAdherent(spelc);
+  if (!fallbackRecipient) {
     res.status(400).json({ error: "Aucun adhérent non-votant disponible pour prévisualiser le modèle." });
     return;
   }
-  const baseFields = templateFieldsFor(recipient, spelc);
+  const pool = matchedAdherents(spelc);
   const testCases = buildIfTestCases(`${String(subject)}\n${String(body)}`);
   res.json({
     cases: testCases.map(({ label, overrides }) => {
-      const fields = { ...baseFields, ...overrides };
+      const recipient = recipientsMatchingCase(pool, spelc, overrides)[0] ?? fallbackRecipient;
+      const fields = { ...templateFieldsFor(recipient, spelc), ...overrides };
       return {
-        label,
+        label: `${label} — ${recipient.prenom} ${recipient.nom}`,
         subject: renderTemplate(String(subject), fields),
         html: wrapEmailHtml(withDemoLogo(renderTemplate(ensureSiteLink(String(body)), fields))),
       };
@@ -534,15 +553,16 @@ router.post("/templates/email/preview", requireRole("admin_spelc", "admin_genera
 
 /**
  * Aperçu du SMS de relance : un cas par condition {{#if ...}} distincte du
- * modèle (voir buildIfTestCases, même principe que l'aperçu du mail), et
- * pour chaque cas, parmi tous les adhérents actuellement ciblés (non-votants,
- * avec mobile), celui dont le message rendu — une fois les deux champs
- * booléens forcés pour activer précisément CETTE condition — consomme le
- * plus de crédits : le pire cas de facturation pour cette branche (pas
- * forcément le message le plus long en caractères : un message plus court
- * mais encodé en UCS-2, voir smsSegmentCount, peut coûter plus cher qu'un
- * message plus long resté en GSM-7). Un modèle sans aucun {{#if}} ne
- * produit qu'un seul cas (comportement inchangé).
+ * modèle (voir buildIfTestCases, même principe que l'aperçu du mail). Pour
+ * chaque cas, on cherche d'abord les adhérents réellement dans cette
+ * situation (recipientsMatchingCase) — à défaut (aucun adhérent réel ne
+ * correspond), on retombe sur tous les adhérents ciblés avec les champs
+ * forcés, comme avant. Dans les deux cas, celui dont le message rendu
+ * consomme le plus de crédits est retenu : le pire cas de facturation pour
+ * cette branche (pas forcément le message le plus long en caractères : un
+ * message plus court mais encodé en UCS-2, voir smsSegmentCount, peut
+ * coûter plus cher qu'un message plus long resté en GSM-7). Un modèle sans
+ * aucun {{#if}} ne produit qu'un seul cas (comportement inchangé).
  */
 router.post("/templates/sms/preview", requireRole("admin_spelc", "admin_general"), (req, res) => {
   const spelc = (req.body?.spelc as string) || req.user!.spelc || "";
@@ -555,18 +575,27 @@ router.post("/templates/sms/preview", requireRole("admin_spelc", "admin_general"
   }
   const testCases = buildIfTestCases(String(body));
   const cases = testCases.map(({ label, overrides }) => {
+    const genuineMatches = recipientsMatchingCase(recipients, spelc, overrides);
+    const pool = genuineMatches.length > 0 ? genuineMatches : recipients;
     let worst = "";
     let worstCredits = 0;
-    for (const r of recipients) {
+    let worstRecipient: Recipient | null = null;
+    for (const r of pool) {
       const fields = { ...templateFieldsFor(r, spelc), ...overrides };
       const rendered = renderTemplate(String(body), fields);
       const credits = smsSegmentCount(rendered);
       if (credits > worstCredits || (credits === worstCredits && rendered.length > worst.length)) {
         worst = rendered;
         worstCredits = credits;
+        worstRecipient = r;
       }
     }
-    return { label, content: worst, length: worst.length, credits: worstCredits };
+    return {
+      label: worstRecipient ? `${label} — ${worstRecipient.prenom} ${worstRecipient.nom}` : label,
+      content: worst,
+      length: worst.length,
+      credits: worstCredits,
+    };
   });
   res.json({ cases });
 });
