@@ -53,6 +53,22 @@ export interface BrevoSendSummary {
    * `null` si aucun échec.
    */
   errorMessage: string | null;
+  /**
+   * Somme des crédits RÉELLEMENT facturés par Brevo (champ `usedCredits` de
+   * sa réponse), cumulée sur tous les envois réussis de cette boucle — `null`
+   * si aucun envoi n'a réussi, ou si Brevo n'a pas renvoyé ce champ.
+   * N'existe que pour les SMS (Brevo ne renvoie pas ce champ pour un mail,
+   * dont le coût n'est de toute façon pas compté en "crédits SMS"). Autorité
+   * sur le nombre de crédits consommés : à préférer à toute estimation
+   * locale (voir lib/smsSegments.ts) chaque fois qu'un envoi réel a eu lieu,
+   * l'estimation ne restant utile que pour un aperçu SANS envoi, où aucune
+   * réponse Brevo n'existe — voir le correctif suite à un écart constaté
+   * (4 crédits réels / SMS facturés par Brevo pour un envoi vers un numéro
+   * français avec expéditeur alphanumérique, contre 1-2 estimés par
+   * smsSegmentCount, qui suppose à tort un coût de 1 crédit par segment
+   * indépendant du pays de destination et du type d'expéditeur).
+   */
+  creditsUsed: number | null;
 }
 
 const BREVO_BASE = "https://api.brevo.com/v3";
@@ -147,7 +163,7 @@ export async function sendBrevoEmails(payload: SendEmailPayload): Promise<BrevoS
       console.error("Échec envoi mail Brevo (exception):", err);
     }
   }
-  return { sent, errors, messageId, errorMessage };
+  return { sent, errors, messageId, errorMessage, creditsUsed: null };
 }
 
 interface SendSmsPayload {
@@ -165,6 +181,7 @@ export async function sendBrevoSms(payload: SendSmsPayload): Promise<BrevoSendSu
   let errors = 0;
   let messageId: string | null = null;
   let errorMessage: string | null = null;
+  let creditsUsed: number | null = null;
   for (const recipient of payload.recipients) {
     try {
       const response = await fetchWithRetry(`${BREVO_BASE}/transactionalSMS/sms`, {
@@ -184,9 +201,18 @@ export async function sendBrevoSms(payload: SendSmsPayload): Promise<BrevoSendSu
       if (response.ok) {
         sent++;
         // Réponse Brevo : { reference, messageId, smsCount, usedCredits, remainingCredit }.
-        // `reference` est la clé stable pour retrouver l'évènement plus tard.
-        const data = (await response.json().catch(() => null)) as { reference?: string; messageId?: number | string } | null;
+        // `reference` est la clé stable pour retrouver l'évènement plus tard. `usedCredits`
+        // est le nombre RÉEL de crédits facturés par Brevo pour CET envoi (dépend du pays
+        // de destination et du type d'expéditeur, pas seulement du nombre de segments
+        // GSM-7/UCS-2 — voir le commentaire de BrevoSendSummary.creditsUsed) : cumulé ici
+        // plutôt qu'estimé, pour que l'appelant l'utilise à la place de smsSegmentCount().
+        const data = (await response.json().catch(() => null)) as
+          | { reference?: string; messageId?: number | string; usedCredits?: number }
+          | null;
         messageId = data?.reference ?? (data?.messageId != null ? String(data.messageId) : null);
+        if (typeof data?.usedCredits === "number") {
+          creditsUsed = (creditsUsed ?? 0) + data.usedCredits;
+        }
       } else {
         errors++;
         errorMessage = await describeBrevoError(response);
@@ -198,7 +224,7 @@ export async function sendBrevoSms(payload: SendSmsPayload): Promise<BrevoSendSu
       console.error("Échec envoi SMS Brevo (exception):", err);
     }
   }
-  return { sent, errors, messageId, errorMessage };
+  return { sent, errors, messageId, errorMessage, creditsUsed };
 }
 
 export interface BrevoEmailEvent {

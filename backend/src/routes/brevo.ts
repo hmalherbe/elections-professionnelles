@@ -533,7 +533,7 @@ router.post("/templates/sms/test", requireRole("admin_spelc", "admin_general"), 
     sendOk: result.sent > 0,
     messageId: result.messageId,
     errorMessage: result.errorMessage,
-    credits: smsSegmentCount(content),
+    credits: result.creditsUsed ?? smsSegmentCount(content),
   });
   res.json({ sent: result.sent, errors: result.errors, errorMessage: result.errorMessage });
 });
@@ -905,7 +905,7 @@ router.post("/campaigns/sms", requireRole("admin_spelc"), async (req, res) => {
       sendOk: result.sent > 0,
       messageId: result.messageId,
       errorMessage: result.errorMessage,
-      credits: smsSegmentCount(content),
+      credits: result.creditsUsed ?? smsSegmentCount(content),
     });
     await sleep(SEND_THROTTLE_MS);
   }

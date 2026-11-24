@@ -1071,7 +1071,13 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
             Longueur : {smsPreview[smsPreviewIndex].length} / {smsPreview[smsPreviewIndex].maxCharsPerSegment} caractères
             (encodage {smsPreview[smsPreviewIndex].encoding})
             <br />
-            Crédits SMS Brevo utilisés : {smsPreview[smsPreviewIndex].credits}
+            Crédits SMS Brevo estimés : {smsPreview[smsPreviewIndex].credits}
+          </p>
+          <p className="mt-1 text-xs text-slate-400">
+            Estimation d'après le nombre de segments (GSM-7/UCS-2) — Brevo peut facturer davantage selon le pays de
+            destination ou le type d'expéditeur (alphanumérique vs numérique), des règles qu'il ne documente pas
+            publiquement. Après un envoi réel ou un « SMS de test », le nombre de crédits effectivement facturé par
+            Brevo est utilisé à la place de cette estimation (plafond SMS du Spelc, historique des relances).
           </p>
           {smsPreview[smsPreviewIndex].encoding === "UCS-2" && (
             <p className="mt-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">
