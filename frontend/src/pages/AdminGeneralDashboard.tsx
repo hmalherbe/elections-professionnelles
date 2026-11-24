@@ -996,12 +996,38 @@ function SimulationRelancesPanel() {
     }
   }
 
+  const simulatedDays = SCRUTIN_DAYS.filter((d) => results[d]);
+
+  // Un Spelc apparaît dès qu'il a au moins une relance (mail ou SMS) un des
+  // jours déjà simulés — pas forcément tous, un Spelc peut rester sans
+  // destinataire ciblé certains jours.
+  const spelcsInResults = Array.from(
+    new Set(simulatedDays.flatMap((day) => results[day].perSpelc.map((s) => s.spelc)))
+  ).sort((a, b) => a.localeCompare(b, "fr"));
+
+  function cellFor(day: string, spelc: string): SimulateSpelcResult | undefined {
+    return results[day]?.perSpelc.find((s) => s.spelc === spelc);
+  }
+
+  function totalForSpelc(spelc: string): { mail: number; sms: number } {
+    return simulatedDays.reduce(
+      (acc, day) => {
+        const c = cellFor(day, spelc);
+        return { mail: acc.mail + (c?.mailCount ?? 0), sms: acc.sms + (c?.smsCount ?? 0) };
+      },
+      { mail: 0, sms: 0 }
+    );
+  }
+
+  const grandTotalMail = simulatedDays.reduce((s, day) => s + results[day].totalMail, 0);
+  const grandTotalSms = simulatedDays.reduce((s, day) => s + results[day].totalSms, 0);
+
   return (
     <div className="mb-4">
       <p className="mb-2 text-xs text-slate-500">
         Comptage des relances mail/SMS qui seraient envoyées maintenant, sans rien envoyer réellement — à utiliser
-        après avoir importé le fichier de test de ce jour (onglet Imports). Un jour en rouge signale qu'au moins un
-        Spelc dépasserait son plafond de crédits SMS si cette campagne était vraiment lancée.
+        après avoir importé le fichier de test de ce jour (onglet Imports). Une cellule en rouge signale un Spelc qui
+        dépasserait son plafond de crédits SMS ce jour-là si cette campagne était vraiment lancée.
       </p>
       <div className="flex flex-wrap gap-2">
         {SCRUTIN_DAYS.map((day) => {
@@ -1015,33 +1041,72 @@ function SimulationRelancesPanel() {
               className={`rounded-md border px-3 py-1.5 text-sm font-medium disabled:opacity-50 ${
                 exceeded
                   ? "border-red-300 bg-red-50 text-red-700 hover:bg-red-100"
-                  : "border-slate-300 text-slate-700 hover:bg-slate-50"
+                  : result
+                    ? "border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                    : "border-slate-300 text-slate-700 hover:bg-slate-50"
               }`}
             >
-              {busyDay === day ? "…" : formatJour(day)}
-              {result && (
-                <span className={`ml-1.5 font-normal ${exceeded ? "text-red-600" : "text-slate-500"}`}>
-                  ({result.totalMail} mail / {result.totalSms} SMS)
-                </span>
-              )}
+              {busyDay === day ? "…" : `Simuler ${formatJour(day)}`}
             </button>
           );
         })}
       </div>
       {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
-      {Object.values(results).some((r) => r.smsQuotaExceeded) && (
-        <div className="mt-3 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
-          <p className="font-medium">Plafond de crédits SMS dépassé pour :</p>
-          <ul className="mt-1 list-inside list-disc">
-            {Object.entries(results).flatMap(([day, r]) =>
-              r.exceeded.map((s) => (
-                <li key={day + s.spelc}>
-                  {formatJour(day)} — {s.spelc} : {s.smsUsed} + {s.smsCreditsEstimated} crédit(s) estimé(s) &gt;{" "}
-                  {s.smsQuota} disponible(s)
-                </li>
-              ))
-            )}
-          </ul>
+
+      {simulatedDays.length > 0 && (
+        <div className="mt-3 overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-500">
+                <th className="py-2 pr-4">Spelc</th>
+                {simulatedDays.map((day) => (
+                  <th key={day} className="px-3 py-2 text-right">
+                    {formatJour(day)}
+                  </th>
+                ))}
+                <th className="px-3 py-2 text-right font-semibold">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {spelcsInResults.map((spelc) => {
+                const total = totalForSpelc(spelc);
+                return (
+                  <tr key={spelc} className="border-b border-slate-100">
+                    <td className="py-1.5 pr-4 text-slate-700">{spelc}</td>
+                    {simulatedDays.map((day) => {
+                      const c = cellFor(day, spelc);
+                      return (
+                        <td
+                          key={day}
+                          className={`px-3 py-1.5 text-right tabular-nums ${
+                            c?.smsQuotaExceeded ? "font-medium text-red-600" : "text-slate-500"
+                          }`}
+                        >
+                          {c ? `${c.mailCount} mail / ${c.smsCount} SMS` : "—"}
+                        </td>
+                      );
+                    })}
+                    <td className="px-3 py-1.5 text-right font-medium tabular-nums text-slate-700">
+                      {total.mail} mail / {total.sms} SMS
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+            <tfoot>
+              <tr className="border-t border-slate-200 bg-slate-50 font-medium text-slate-700">
+                <td className="py-1.5 pr-4">Total</td>
+                {simulatedDays.map((day) => (
+                  <td key={day} className="px-3 py-1.5 text-right tabular-nums">
+                    {results[day].totalMail} mail / {results[day].totalSms} SMS
+                  </td>
+                ))}
+                <td className="px-3 py-1.5 text-right tabular-nums">
+                  {grandTotalMail} mail / {grandTotalSms} SMS
+                </td>
+              </tr>
+            </tfoot>
+          </table>
         </div>
       )}
     </div>
