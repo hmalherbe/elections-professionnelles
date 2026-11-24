@@ -6,6 +6,7 @@ import { Ccm2022MapPanel } from "../components/Ccm2022MapPanel";
 import { CourbeCard } from "../components/CourbeCard";
 import { DocumentsPanel } from "../components/DocumentsPanel";
 import { FileUploadCard } from "../components/FileUploadCard";
+import { ParticipationMapPanel } from "../components/ParticipationMapPanel";
 import { PivotTree } from "../components/PivotTree";
 import { ScrutinsTab } from "../components/ScrutinsTab";
 import { findMailCredits, findSmsCredits, type BrevoPlanEntry } from "./AdminSpelcDashboard";
@@ -288,6 +289,7 @@ function VueNationale() {
         <CamembertCard title="Participation CCMMEP (national)" votants={camembert.votants} nonVotants={camembert.nonVotants} />
         <CourbeCard title="Courbe de participation cumulée — CCMMEP" points={courbe} />
       </div>
+      <ParticipationMapPanel tree={tree} />
       <PivotTree tree={tree} />
     </div>
   );
