@@ -119,6 +119,18 @@ export function clearRelanceTrackingByScope(scope: string): number {
   return db.prepare("DELETE FROM relance_tracking WHERE scope = ?").run(scope).changes;
 }
 
+/**
+ * Efface tout le suivi détaillé des relances, TOUS Spelc confondus (bouton
+ * "Réinitialiser les relances" de l'admin général, zone de danger) —
+ * contrairement à clearRelanceTrackingByScope, réservé à un seul Spelc.
+ * Remet à zéro, par la même occasion, la protection anti-double-envoi
+ * (hasAlreadySent) et le plafond de crédits SMS par Spelc (SUM(credits) sur
+ * une table vide), sans toucher aux émargements/adhérents eux-mêmes.
+ */
+export function clearAllRelanceTracking(): number {
+  return db.prepare("DELETE FROM relance_tracking").run().changes;
+}
+
 export function listAllRelanceTracking(limit = 500): (RelanceTrackingRow & { statusLabel: StatusLabel })[] {
   const rows = db.prepare("SELECT * FROM relance_tracking ORDER BY created_at DESC LIMIT ?").all(limit) as RelanceTrackingRow[];
   return rows.map(withStatus);

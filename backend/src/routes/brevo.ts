@@ -16,6 +16,7 @@ import {
   hasAlreadySent,
   listRelanceTrackingByScope,
   clearRelanceTrackingByScope,
+  clearAllRelanceTracking,
   refreshPendingRelanceTracking,
   getMailSeriesByScope,
   getSmsSeriesByScope,
@@ -983,6 +984,19 @@ router.delete("/relance-tracking", requireRole("admin_spelc", "admin_general"), 
   const spelc = req.query.spelc as string;
   if (!spelc || !assertSpelcAccess(req, res, spelc)) return;
   const deleted = clearRelanceTrackingByScope(spelc);
+  res.json({ deleted });
+});
+
+/**
+ * Efface tout le suivi détaillé des relances mail/SMS, TOUS Spelc confondus
+ * (onglet Paramètres, zone de danger) — pour repartir d'un historique
+ * propre (ex. avant un nouveau test grandeur nature sur la sandbox), sans
+ * toucher aux émargements/adhérents/imports (voir /admin/reset-imported-data
+ * pour ceux-ci). Remet aussi à zéro la protection anti-double-envoi du jour
+ * et le plafond de crédits SMS par Spelc.
+ */
+router.delete("/relance-tracking/all", requireRole("admin_general"), (_req, res) => {
+  const deleted = clearAllRelanceTracking();
   res.json({ deleted });
 });
 

@@ -168,8 +168,60 @@ function ParametresPanel() {
       </Card>
 
       <ModeleRelanceGlobalPanel />
+      <ReinitialiserRelancesPanel />
       <ReinitialiserPanel />
     </div>
+  );
+}
+
+/**
+ * Remet à zéro le suivi des relances mail/SMS (tous les Spelc confondus) —
+ * utile avant un nouveau test grandeur nature (ex. sur la sandbox), sans
+ * supprimer les émargements/adhérents/imports eux-mêmes (voir
+ * ReinitialiserPanel pour ceux-ci). Remet aussi à zéro la protection
+ * anti-double-envoi du jour et le plafond de crédits SMS par Spelc.
+ */
+function ReinitialiserRelancesPanel() {
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+
+  async function reset() {
+    if (
+      !window.confirm(
+        "Effacer tout l'historique des relances mail/SMS, pour TOUS les Spelc ? Cette action est irréversible (les émargements/adhérents ne sont pas touchés)."
+      )
+    )
+      return;
+    setBusy(true);
+    setMessage(null);
+    try {
+      const res = await api.delete<{ deleted: number }>("/brevo/relance-tracking/all");
+      setMessage(`${res.deleted} ligne(s) de suivi supprimée(s).`);
+    } catch (err) {
+      setMessage((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card title="Zone de danger — Réinitialiser les relances mail/SMS">
+      <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+        Efface tout l'historique de suivi des relances mail/SMS (tous les Spelc), dont la protection anti-double-envoi
+        du jour et le plafond de crédits SMS consommés par Spelc. Les émargements, adhérents et imports ne sont pas
+        touchés. Action irréversible.
+      </div>
+      <div className="mt-3">
+        <button
+          disabled={busy}
+          onClick={reset}
+          className="rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-40"
+        >
+          {busy ? "Réinitialisation en cours…" : "Réinitialiser les relances (tous les Spelc)"}
+        </button>
+      </div>
+      {message && <p className="mt-2 text-sm text-slate-600">{message}</p>}
+    </Card>
   );
 }
 
