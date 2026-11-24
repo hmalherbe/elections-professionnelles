@@ -23,6 +23,7 @@ import { normalizeFrenchMobile } from "../lib/phone.js";
 import { isValidSmsSender, suggestSmsSender } from "../lib/smsSender.js";
 import { isRelanceOnly } from "../lib/appMode.js";
 import { smsQuotaStatus } from "../services/smsQuota.js";
+import { smsSegmentCount } from "../lib/smsSegments.js";
 
 /** Préfixe le tag Brevo d'une campagne SMS par le nom du Spelc, pour que les
  * envois de chaque Spelc soient identifiables à la fois dans le tableau de
@@ -500,19 +501,13 @@ router.post("/templates/email/preview", requireRole("admin_spelc", "admin_genera
   });
 });
 
-/** Un crédit Brevo par tranche de 160 caractères (encodage GSM-7 standard,
- * cas d'un SMS sans caractère accentué) — Brevo peut compter différemment
- * selon l'encodage réel détecté, mais cette estimation reste la référence
- * la plus simple et la plus courante pour un SMS classique. */
-function smsCreditsForLength(length: number): number {
-  return Math.max(1, Math.ceil(length / 160));
-}
-
 /**
  * Aperçu du SMS de relance : parmi tous les adhérents actuellement ciblés
- * (non-votants, avec mobile), celui dont le message rendu est le plus long
- * une fois les champs dynamiques substitués — le pire cas en nombre de
- * crédits Brevo, pas un adhérent quelconque.
+ * (non-votants, avec mobile), celui dont le message rendu consomme le plus
+ * de crédits une fois les champs dynamiques substitués — le pire cas de
+ * facturation (pas forcément le message le plus long en caractères : un
+ * message plus court mais encodé en UCS-2, voir smsSegmentCount, peut
+ * coûter plus cher qu'un message plus long resté en GSM-7).
  */
 router.post("/templates/sms/preview", requireRole("admin_spelc", "admin_general"), (req, res) => {
   const spelc = (req.body?.spelc as string) || req.user!.spelc || "";
@@ -523,12 +518,17 @@ router.post("/templates/sms/preview", requireRole("admin_spelc", "admin_general"
     res.status(400).json({ error: "Aucun adhérent non-votant avec mobile disponible pour prévisualiser le modèle." });
     return;
   }
-  let longest = "";
+  let worst = "";
+  let worstCredits = 0;
   for (const r of recipients) {
     const rendered = renderTemplate(String(body), templateFieldsFor(r, spelc));
-    if (rendered.length > longest.length) longest = rendered;
+    const credits = smsSegmentCount(rendered);
+    if (credits > worstCredits || (credits === worstCredits && rendered.length > worst.length)) {
+      worst = rendered;
+      worstCredits = credits;
+    }
   }
-  res.json({ content: longest, length: longest.length, credits: smsCreditsForLength(longest.length) });
+  res.json({ content: worst, length: worst.length, credits: worstCredits });
 });
 
 /**
