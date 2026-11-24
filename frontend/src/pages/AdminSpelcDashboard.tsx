@@ -1438,9 +1438,18 @@ interface RelanceRecipient {
   etablissement: string | null;
   mail: string | null;
   mobile: string | null;
+  ccmmepNonVotant: boolean;
+  localNonVotant: boolean;
+  degreLocal: "1D" | "2D" | null;
 }
 
 type RelanceSortKey = "nom" | "etablissement";
+type ScrutinFilter = "ccmmep" | "1D" | "2D";
+const SCRUTIN_FILTER_LABELS: Record<ScrutinFilter, string> = {
+  ccmmep: "CCMMEP",
+  "1D": "1er degré",
+  "2D": "2ème degré",
+};
 
 /**
  * Détail nommé, triable et filtrable des adhérents restant à relancer (même
@@ -1451,9 +1460,26 @@ type RelanceSortKey = "nom" | "etablissement";
 function AdherentsARelancerCard({ spelc }: { spelc: string }) {
   const [recipients, setRecipients] = useState<RelanceRecipient[]>([]);
   const [search, setSearch] = useState("");
-  const [etablissementFilter, setEtablissementFilter] = useState("");
+  const [scrutinFilters, setScrutinFilters] = useState<Set<ScrutinFilter>>(new Set(["ccmmep", "1D", "2D"]));
   const [sortKey, setSortKey] = useState<RelanceSortKey>("nom");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+
+  function toggleScrutinFilter(f: ScrutinFilter) {
+    setScrutinFilters((prev) => {
+      const next = new Set(prev);
+      if (next.has(f)) next.delete(f);
+      else next.add(f);
+      return next;
+    });
+  }
+
+  function matchesScrutinFilters(r: RelanceRecipient): boolean {
+    return (
+      (scrutinFilters.has("ccmmep") && r.ccmmepNonVotant) ||
+      (scrutinFilters.has("1D") && r.localNonVotant && r.degreLocal === "1D") ||
+      (scrutinFilters.has("2D") && r.localNonVotant && r.degreLocal === "2D")
+    );
+  }
 
   useEffect(() => {
     api
@@ -1470,13 +1496,9 @@ function AdherentsARelancerCard({ spelc }: { spelc: string }) {
     }
   }
 
-  const etablissementOptions = [...new Set(recipients.map((r) => r.etablissement ?? "Non renseigné"))].sort((a, b) =>
-    a.localeCompare(b, "fr")
-  );
-
   const searchLower = search.trim().toLowerCase();
   const filtered = recipients
-    .filter((r) => !etablissementFilter || (r.etablissement ?? "Non renseigné") === etablissementFilter)
+    .filter(matchesScrutinFilters)
     .filter((r) => !searchLower || `${r.nom} ${r.prenom}`.toLowerCase().includes(searchLower))
     .sort((a, b) => {
       const dir = sortDir === "asc" ? 1 : -1;
@@ -1505,18 +1527,20 @@ function AdherentsARelancerCard({ spelc }: { spelc: string }) {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        <select
-          className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-          value={etablissementFilter}
-          onChange={(e) => setEtablissementFilter(e.target.value)}
-        >
-          <option value="">Tous les établissements</option>
-          {etablissementOptions.map((etab) => (
-            <option key={etab} value={etab}>
-              {etab}
-            </option>
+        <div className="inline-flex rounded-md border border-slate-200 bg-slate-50 p-1">
+          {(["ccmmep", "1D", "2D"] as ScrutinFilter[]).map((f) => (
+            <button
+              key={f}
+              type="button"
+              onClick={() => toggleScrutinFilter(f)}
+              className={`rounded px-3 py-1 text-sm font-medium ${
+                scrutinFilters.has(f) ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"
+              }`}
+            >
+              {SCRUTIN_FILTER_LABELS[f]}
+            </button>
           ))}
-        </select>
+        </div>
       </div>
       <div className="max-h-96 overflow-auto">
         <table className="w-full text-sm">

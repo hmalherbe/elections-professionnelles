@@ -230,6 +230,13 @@ interface Recipient {
   etablissement: string | null;
   votantLocal: number | null;
   scrutinLocal: string | null;
+  /** Degré (1D/2D) de l'émargement local ayant permis le rapprochement —
+   * null si non retrouvé au scrutin local, ou si le degré n'a pas pu être
+   * déterminé (en pratique n'arrive jamais pour un scrutin local, dont le
+   * degré est toujours imposé par le fichier importé — voir
+   * services/imports.ts#runImport, forcedDegre). Sert à filtrer la carte
+   * "Adhérents à relancer" par 1er/2nd degré (voir /campaigns/recipients). */
+  degreLocal: string | null;
   votantNational: number | null;
   /** Un adhérent sans aucune ligne d'émargement correspondante (nom/prénom non
    * retrouvé dans l'import du scrutin) n'est pas forcément un non-votant —
@@ -245,6 +252,7 @@ interface EmargementIdentityRow {
   votant: number;
   scrutin_type: string | null;
   affectation: string | null;
+  degre: string;
 }
 
 /** Émargements de ce seul Spelc (local ou national) pour les imports donnés
@@ -259,18 +267,19 @@ function loadEmargementIdentities(spelc: string, importIds: number[]): Emargemen
   const placeholders = importIds.map(() => "?").join(",");
   return db
     .prepare(
-      `SELECT nom_norm, prenom_norm, votant, scrutin_type, affectation FROM emargements WHERE spelc = ? AND import_id IN (${placeholders})`
+      `SELECT nom_norm, prenom_norm, votant, scrutin_type, affectation, degre FROM emargements WHERE spelc = ? AND import_id IN (${placeholders})`
     )
     .all(spelc, ...importIds) as EmargementIdentityRow[];
 }
 
 /** Index "nom_norm|prenom_norm" -> vote agrégé (votant si AU MOINS une ligne
- * votante, dernier scrutin_type/affectation non nul rencontré) — équivalent
- * du MAX(el.votant)/MAX(el.scrutin_type) GROUP BY de l'ancienne requête SQL. */
+ * votante, dernier scrutin_type/affectation/degre non nul (ou non
+ * INDETERMINE pour degre) rencontré) — équivalent du
+ * MAX(el.votant)/MAX(el.scrutin_type) GROUP BY de l'ancienne requête SQL. */
 function indexEmargements(
   rows: EmargementIdentityRow[]
-): Map<string, { votant: number; scrutinType: string | null; affectation: string | null }> {
-  const map = new Map<string, { votant: number; scrutinType: string | null; affectation: string | null }>();
+): Map<string, { votant: number; scrutinType: string | null; affectation: string | null; degre: string | null }> {
+  const map = new Map<string, { votant: number; scrutinType: string | null; affectation: string | null; degre: string | null }>();
   for (const r of rows) {
     const key = `${r.nom_norm}|${r.prenom_norm}`;
     const existing = map.get(key);
@@ -278,8 +287,14 @@ function indexEmargements(
       if (r.votant) existing.votant = 1;
       if (r.scrutin_type) existing.scrutinType = r.scrutin_type;
       if (r.affectation) existing.affectation = r.affectation;
+      if (r.degre && r.degre !== "INDETERMINE") existing.degre = r.degre;
     } else {
-      map.set(key, { votant: r.votant ? 1 : 0, scrutinType: r.scrutin_type ?? null, affectation: r.affectation ?? null });
+      map.set(key, {
+        votant: r.votant ? 1 : 0,
+        scrutinType: r.scrutin_type ?? null,
+        affectation: r.affectation ?? null,
+        degre: r.degre && r.degre !== "INDETERMINE" ? r.degre : null,
+      });
     }
   }
   return map;
@@ -337,7 +352,7 @@ function matchedAdherents(spelc: string): Recipient[] {
 
   function lookup(
     a: { nom_norm: string; prenom_norm: string },
-    index: Map<string, { votant: number; scrutinType: string | null; affectation: string | null }>
+    index: Map<string, { votant: number; scrutinType: string | null; affectation: string | null; degre: string | null }>
   ) {
     const exact = index.get(`${a.nom_norm}|${a.prenom_norm}`);
     if (exact) return exact;
@@ -359,6 +374,7 @@ function matchedAdherents(spelc: string): Recipient[] {
       etablissement: local?.affectation ?? national?.affectation ?? null,
       votantLocal: local ? local.votant : null,
       scrutinLocal: local ? local.scrutinType : null,
+      degreLocal: local?.degre ?? null,
       votantNational: national ? national.votant : null,
       localMatched: local ? 1 : 0,
       nationalMatched: national ? 1 : 0,
@@ -689,6 +705,9 @@ router.get("/campaigns/recipients", requireRole("admin_spelc"), (req, res) => {
       etablissement: r.etablissement,
       mail: r.mail,
       mobile: r.mobile,
+      ccmmepNonVotant: Boolean(r.nationalMatched) && !r.votantNational,
+      localNonVotant: Boolean(r.localMatched) && !r.votantLocal,
+      degreLocal: r.degreLocal,
     }));
   res.json({ recipients });
 });
