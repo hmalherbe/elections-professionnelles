@@ -2,7 +2,7 @@ import { Router } from "express";
 import { db } from "../db/index.js";
 import dayjs from "dayjs";
 import { requireAuth, requireRole, canAccessSpelc } from "../middleware/auth.js";
-import { renderTemplate, type TemplateFields } from "../lib/template.js";
+import { renderTemplate, buildIfTestCases, type TemplateFields } from "../lib/template.js";
 import { wrapEmailHtml, ensureSiteLink } from "../lib/emailLayout.js";
 import { sendBrevoEmails, sendBrevoSms, fetchAccountInfo, getBrevoApiKey, sleep } from "../services/brevo.js";
 import { currentImportIds } from "../services/stats.js";
@@ -502,6 +502,12 @@ router.post("/templates/sms/test", requireRole("admin_spelc", "admin_general"), 
  * forcément encore enregistré), rendu avec les champs dynamiques du premier
  * adhérent non-votant du Spelc — même pipeline de rendu que l'envoi réel
  * (renderTemplate + wrapEmailHtml + ensureSiteLink), mais sans aucun envoi.
+ * Un cas par condition {{#if ...}} distincte du modèle (voir
+ * buildIfTestCases) : chaque cas substitue aux champs réels de l'adhérent
+ * la combinaison de valeurs booléennes qui active CETTE condition
+ * précisément, pour permettre de vérifier visuellement chaque branche du
+ * modèle sans deviner un adhérent réel qui s'y trouve. Un modèle sans
+ * aucun {{#if}} ne produit qu'un seul cas (comportement inchangé).
  */
 router.post("/templates/email/preview", requireRole("admin_spelc", "admin_general"), (req, res) => {
   const spelc = (req.body?.spelc as string) || req.user!.spelc || "";
@@ -512,10 +518,17 @@ router.post("/templates/email/preview", requireRole("admin_spelc", "admin_genera
     res.status(400).json({ error: "Aucun adhérent non-votant disponible pour prévisualiser le modèle." });
     return;
   }
-  const fields = templateFieldsFor(recipient, spelc);
+  const baseFields = templateFieldsFor(recipient, spelc);
+  const testCases = buildIfTestCases(`${String(subject)}\n${String(body)}`);
   res.json({
-    subject: renderTemplate(String(subject), fields),
-    html: wrapEmailHtml(withDemoLogo(renderTemplate(ensureSiteLink(String(body)), fields))),
+    cases: testCases.map(({ label, overrides }) => {
+      const fields = { ...baseFields, ...overrides };
+      return {
+        label,
+        subject: renderTemplate(String(subject), fields),
+        html: wrapEmailHtml(withDemoLogo(renderTemplate(ensureSiteLink(String(body)), fields))),
+      };
+    }),
   });
 });
 

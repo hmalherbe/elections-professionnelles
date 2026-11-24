@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { renderTemplate, type TemplateFields } from "../template.js";
+import { renderTemplate, buildIfTestCases, type TemplateFields } from "../template.js";
 
 function fields(overrides: Partial<TemplateFields>): TemplateFields {
   return {
@@ -68,5 +68,36 @@ describe("renderTemplate — expressions booléennes (and/or/not)", () => {
   it("gère else", () => {
     expect(renderTemplate("{{#if votant}}a{{else}}b{{/if}}", fields({ votant: true }))).toBe("a");
     expect(renderTemplate("{{#if votant}}a{{else}}b{{/if}}", fields({ votant: false }))).toBe("b");
+  });
+});
+
+describe("buildIfTestCases", () => {
+  it("un seul cas, sans override, pour un modèle sans #if", () => {
+    const cases = buildIfTestCases("Bonjour {{prenom}}, votez avant le 10/12.");
+    expect(cases).toEqual([{ label: "Aperçu", overrides: {} }]);
+  });
+
+  it("un cas par condition distincte, chacun rendant sa propre branche", () => {
+    const cases = buildIfTestCases(TEMPLATE);
+    expect(cases).toHaveLength(3);
+
+    for (const { overrides } of cases) {
+      const out = renderTemplate(TEMPLATE, fields(overrides as Partial<TemplateFields>));
+      // Toujours exactement un des trois blocs qui s'affiche (jamais zéro, jamais deux à la fois).
+      const blocksShown = ["scrutins CCMMEP et", "au scrutin CCMMEP.", "au scrutin CCMI."].filter((s) => out.includes(s));
+      expect(blocksShown).toHaveLength(1);
+    }
+  });
+
+  it("dédoublonne les conditions identiques répétées", () => {
+    const cases = buildIfTestCases("{{#if votant}}a{{/if}} {{#if votant}}b{{/if}}");
+    expect(cases).toHaveLength(1);
+  });
+
+  it("choisit la combinaison avec le moins de valeurs vraies qui satisfait l'expression", () => {
+    // "a or b" : la combinaison minimale qui le satisfait n'active qu'un seul des deux (jamais a=true ET b=true).
+    const cases = buildIfTestCases("{{#if a or b}}x{{/if}}");
+    expect(cases).toHaveLength(1);
+    expect(Object.values(cases[0].overrides).filter(Boolean)).toHaveLength(1);
   });
 });

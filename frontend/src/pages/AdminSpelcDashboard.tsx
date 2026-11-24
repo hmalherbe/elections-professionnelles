@@ -570,7 +570,8 @@ function Modal({
 export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; relanceOnly?: boolean }) {
   const [emailTemplate, setEmailTemplate] = useState({ subject: "", body: "" });
   const [smsTemplate, setSmsTemplate] = useState({ body: "" });
-  const [emailPreview, setEmailPreview] = useState<{ subject: string; html: string } | null>(null);
+  const [emailPreview, setEmailPreview] = useState<{ label: string; subject: string; html: string }[] | null>(null);
+  const [emailPreviewIndex, setEmailPreviewIndex] = useState(0);
   const [emailPreviewBusy, setEmailPreviewBusy] = useState(false);
   const [emailPreviewError, setEmailPreviewError] = useState<string | null>(null);
   const [smsPreview, setSmsPreview] = useState<{ content: string; length: number; credits: number } | null>(null);
@@ -756,11 +757,12 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
     setEmailPreviewBusy(true);
     setEmailPreviewError(null);
     try {
-      const res = await api.post<{ subject: string; html: string }>("/brevo/templates/email/preview", {
-        spelc,
-        ...emailTemplate,
-      });
-      setEmailPreview(res);
+      const res = await api.post<{ cases: { label: string; subject: string; html: string }[] }>(
+        "/brevo/templates/email/preview",
+        { spelc, ...emailTemplate }
+      );
+      setEmailPreviewIndex(0);
+      setEmailPreview(res.cases);
     } catch (err) {
       setEmailPreviewError((err as Error).message);
     } finally {
@@ -982,8 +984,34 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
 
       {emailPreview && (
         <Modal title="Aperçu du mail" onClose={() => setEmailPreview(null)} wide>
-          <p className="mb-2 text-sm font-medium text-slate-700">Objet : {emailPreview.subject}</p>
-          <div className="rounded-md border border-slate-200" dangerouslySetInnerHTML={{ __html: emailPreview.html }} />
+          {emailPreview.length > 1 && (
+            <div className="mb-3 flex items-center justify-between gap-2 rounded-md bg-slate-50 px-2 py-1.5">
+              <button
+                type="button"
+                className="rounded px-2 py-1 text-slate-500 hover:bg-slate-200 disabled:opacity-30"
+                disabled={emailPreviewIndex === 0}
+                onClick={() => setEmailPreviewIndex((i) => Math.max(0, i - 1))}
+                aria-label="Cas précédent"
+              >
+                ←
+              </button>
+              <p className="text-center text-xs font-medium text-slate-600">{emailPreview[emailPreviewIndex].label}</p>
+              <button
+                type="button"
+                className="rounded px-2 py-1 text-slate-500 hover:bg-slate-200 disabled:opacity-30"
+                disabled={emailPreviewIndex === emailPreview.length - 1}
+                onClick={() => setEmailPreviewIndex((i) => Math.min(emailPreview.length - 1, i + 1))}
+                aria-label="Cas suivant"
+              >
+                →
+              </button>
+            </div>
+          )}
+          <p className="mb-2 text-sm font-medium text-slate-700">Objet : {emailPreview[emailPreviewIndex].subject}</p>
+          <div
+            className="rounded-md border border-slate-200"
+            dangerouslySetInnerHTML={{ __html: emailPreview[emailPreviewIndex].html }}
+          />
         </Modal>
       )}
       {emailPreviewError && (
