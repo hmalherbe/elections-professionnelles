@@ -17,6 +17,7 @@ import {
   buildParticipationTreeWorkbook,
   buildScrutinsByEtablissementWorkbook,
 } from "../lib/scrutinsExport.js";
+import { buildGenericTableWorkbook } from "../lib/genericExport.js";
 
 const router = Router();
 router.use(requireAuth);
@@ -189,6 +190,33 @@ router.get("/etablissements/export", async (req, res) => {
 
   res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
   res.setHeader("Content-Disposition", `attachment; filename="participation-par-etablissement.xlsx"`);
+  await wb.xlsx.write(res);
+  res.end();
+});
+
+/**
+ * Export Excel générique pour un tableau déjà calculé côté frontend (ex.
+ * résultats CCM 2022, référentiel statique sans existence côté backend) —
+ * le frontend envoie directement la grille à écrire, sans logique métier ici.
+ */
+router.post("/table-export", async (req, res) => {
+  const { filename, sheetName, headers, rows } = req.body ?? {};
+  if (
+    typeof filename !== "string" ||
+    typeof sheetName !== "string" ||
+    !Array.isArray(headers) ||
+    !headers.every((h) => typeof h === "string") ||
+    !Array.isArray(rows) ||
+    !rows.every((r) => Array.isArray(r))
+  ) {
+    res.status(400).json({ error: "filename, sheetName, headers (string[]) et rows (array[][]) requis." });
+    return;
+  }
+
+  const wb = buildGenericTableWorkbook(sheetName, headers, rows);
+
+  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  res.setHeader("Content-Disposition", `attachment; filename="${filename.replace(/[^a-zA-Z0-9._-]/g, "_")}"`);
   await wb.xlsx.write(res);
   res.end();
 });

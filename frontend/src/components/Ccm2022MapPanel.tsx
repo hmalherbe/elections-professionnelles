@@ -3,6 +3,7 @@ import { CCM_2022_ACADEMIE_MAP, type CcmOsEntry } from "../data/ccm2022AcademieM
 import { CCM_2022_DEPARTEMENTS, CCM_2022_SPELCS } from "../data/ccm2022Breakdowns";
 import { CCM_2022_DEPARTEMENT_GEO } from "../data/ccm2022DepartementGeo";
 import { CCM_2022_SPELC_GEO } from "../data/ccm2022SpelcGeo";
+import { api } from "../lib/api";
 import { OS_COLORS, OS_LABELS, TABLE_OS, formatVotes, leaderInfo, siegesFor, votesFor } from "../lib/ccm2022";
 import { Card } from "./Card";
 
@@ -34,6 +35,7 @@ export function Ccm2022MapPanel() {
   const [scrutin, setScrutin] = useState<Scrutin>("1D");
   const [vue, setVue] = useState<Vue>("academie");
   const [metric, setMetric] = useState<Metric>("votes");
+  const [exporting, setExporting] = useState(false);
   const [selected, setSelected] = useState<{ label: string; entries: CcmOsEntry[]; orphan?: boolean } | null>(null);
 
   const data = CCM_2022_ACADEMIE_MAP;
@@ -106,6 +108,29 @@ export function Ccm2022MapPanel() {
     for (const os of TABLE_OS) totals[os] = tableRows.reduce((sum, r) => sum + valueFor(r.entries, os), 0);
     return totals;
   }, [tableRows, valueFor]);
+
+  async function handleExport() {
+    setExporting(true);
+    try {
+      const headers = [VUE_LABELS[vue], ...TABLE_OS.map((os) => OS_LABELS[os] ?? os), "Total"];
+      const rows = tableRows.map(({ name, entries }) => {
+        const values = TABLE_OS.map((os) => valueFor(entries, os));
+        return [name, ...values, values.reduce((s, v) => s + v, 0)];
+      });
+      rows.push(["Total", ...TABLE_OS.map((os) => tableTotals[os]), TABLE_OS.reduce((s, os) => s + tableTotals[os], 0)]);
+
+      const scrutinLabel = scrutin === "1D" ? "1er-degre" : "2nd-degre";
+      const filename = `resultats-ccm-2022-${scrutinLabel}-${metric}-${vue}.xlsx`;
+      await api.download("/stats/table-export", filename, {
+        filename,
+        sheetName: `Résultats ${scrutin === "1D" ? "1er degré" : "2nd degré"}`,
+        headers,
+        rows,
+      });
+    } finally {
+      setExporting(false);
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -332,18 +357,31 @@ export function Ccm2022MapPanel() {
             Nombre de {metric === "votes" ? "voix" : "sièges"} obtenu{metric === "votes" ? "es" : "s"} par chaque
             organisation syndicale, {vue === "spelc" ? "Spelc par Spelc" : vue === "departement" ? "département par département" : "académie par académie"} (métropole et outre-mer) — vue sélectionnée ci-dessus.
           </p>
-          <div className="inline-flex shrink-0 rounded-md border border-slate-200 bg-slate-50 p-1">
-            {(["votes", "sieges"] as Metric[]).map((m) => (
-              <button
-                key={m}
-                onClick={() => setMetric(m)}
-                className={`rounded px-3 py-1 text-sm font-medium ${
-                  metric === m ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"
-                }`}
-              >
-                {m === "votes" ? "Voix" : "Sièges"}
-              </button>
-            ))}
+          <div className="flex shrink-0 items-center gap-2">
+            <div className="inline-flex rounded-md border border-slate-200 bg-slate-50 p-1">
+              {(["votes", "sieges"] as Metric[]).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => setMetric(m)}
+                  className={`rounded px-3 py-1 text-sm font-medium ${
+                    metric === m ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"
+                  }`}
+                >
+                  {m === "votes" ? "Voix" : "Sièges"}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={handleExport}
+              disabled={exporting}
+              className={`rounded-md border px-3 py-1.5 text-sm font-medium ${
+                exporting
+                  ? "cursor-not-allowed border-slate-300 text-slate-400"
+                  : "border-blue-300 text-blue-700 hover:bg-blue-50"
+              }`}
+            >
+              {exporting ? "Export…" : "Export Excel"}
+            </button>
           </div>
         </div>
         <div className="overflow-x-auto">

@@ -42,12 +42,17 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return (await response.json()) as T;
 }
 
-async function downloadFile(path: string, filename: string): Promise<void> {
+async function downloadFile(path: string, filename: string, body?: unknown): Promise<void> {
   const token = getToken();
   const headers: Record<string, string> = {};
   if (token) headers.Authorization = `Bearer ${token}`;
+  if (body !== undefined) headers["Content-Type"] = "application/json";
 
-  const response = await fetch(`/api${path}`, { headers });
+  const response = await fetch(`/api${path}`, {
+    headers,
+    method: body !== undefined ? "POST" : "GET",
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
   if (!response.ok) {
     let message = response.statusText;
     try {
