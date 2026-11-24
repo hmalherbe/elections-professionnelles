@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { CamembertCard } from "../components/CamembertCard";
 import { CATEGORICAL } from "../lib/colors";
@@ -531,9 +531,35 @@ function sanitizeSmsSenderInput(value: string): string {
   return value.replace(/[^A-Za-z0-9]/g, "").slice(0, 11);
 }
 
+/** Popup générique (fond semi-transparent, fermeture au clic dehors ou sur ✕) — aperçu mail/SMS ci-dessous. */
+function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4" onClick={onClose}>
+      <div
+        className="max-h-[85vh] w-full max-w-lg overflow-auto rounded-lg bg-white p-6 shadow-lg"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-base font-semibold text-slate-900">{title}</h2>
+          <button type="button" className="text-slate-400 hover:text-slate-600" onClick={onClose}>
+            ✕
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; relanceOnly?: boolean }) {
   const [emailTemplate, setEmailTemplate] = useState({ subject: "", body: "" });
   const [smsTemplate, setSmsTemplate] = useState({ body: "" });
+  const [emailPreview, setEmailPreview] = useState<{ subject: string; html: string } | null>(null);
+  const [emailPreviewBusy, setEmailPreviewBusy] = useState(false);
+  const [emailPreviewError, setEmailPreviewError] = useState<string | null>(null);
+  const [smsPreview, setSmsPreview] = useState<{ content: string; length: number; credits: number } | null>(null);
+  const [smsPreviewBusy, setSmsPreviewBusy] = useState(false);
+  const [smsPreviewError, setSmsPreviewError] = useState<string | null>(null);
   const [mailRows, setMailRows] = useState<RelanceMail[]>([]);
   const [smsRows, setSmsRows] = useState<RelanceSms[]>([]);
   const [message, setMessage] = useState<string | null>(null);
@@ -551,7 +577,6 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
   const [testMailMsg, setTestMailMsg] = useState<string | null>(null);
   const [testSmsMsg, setTestSmsMsg] = useState<string | null>(null);
   const [emailTemplateMsg, setEmailTemplateMsg] = useState<string | null>(null);
-  const [smsTemplateMsg, setSmsTemplateMsg] = useState<string | null>(null);
   const [testMailBusy, setTestMailBusy] = useState(false);
   const [testSmsBusy, setTestSmsBusy] = useState(false);
   const [trackingRows, setTrackingRows] = useState<RelanceTrackingRow[]>([]);
@@ -709,6 +734,38 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
     }
   }
 
+  async function previewEmail() {
+    setEmailPreviewBusy(true);
+    setEmailPreviewError(null);
+    try {
+      const res = await api.post<{ subject: string; html: string }>("/brevo/templates/email/preview", {
+        spelc,
+        ...emailTemplate,
+      });
+      setEmailPreview(res);
+    } catch (err) {
+      setEmailPreviewError((err as Error).message);
+    } finally {
+      setEmailPreviewBusy(false);
+    }
+  }
+
+  async function previewSms() {
+    setSmsPreviewBusy(true);
+    setSmsPreviewError(null);
+    try {
+      const res = await api.post<{ content: string; length: number; credits: number }>("/brevo/templates/sms/preview", {
+        spelc,
+        body: smsTemplate.body,
+      });
+      setSmsPreview(res);
+    } catch (err) {
+      setSmsPreviewError((err as Error).message);
+    } finally {
+      setSmsPreviewBusy(false);
+    }
+  }
+
   return (
     <div className="space-y-4">
       <Card title="Adhérents restants à relancer">
@@ -859,6 +916,14 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
             >
               Enregistrer comme modèle
             </button>
+            <button
+              type="button"
+              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 disabled:opacity-60"
+              disabled={emailPreviewBusy}
+              onClick={previewEmail}
+            >
+              {emailPreviewBusy ? "Aperçu…" : "Aperçu"}
+            </button>
             {emailTemplateMsg && <span className="self-center text-sm text-slate-600">{emailTemplateMsg}</span>}
           </div>
           <input
@@ -881,36 +946,50 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
           <div className="mb-2 flex gap-2">
             <button
               type="button"
-              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
-              onClick={() => api.get<{ body: string }>(`/brevo/templates/sms${qs({ spelc })}`).then(setSmsTemplate)}
+              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 disabled:opacity-60"
+              disabled={smsPreviewBusy}
+              onClick={previewSms}
             >
-              Charger le modèle
+              {smsPreviewBusy ? "Aperçu…" : "Aperçu"}
             </button>
-            <button
-              type="button"
-              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
-              onClick={async () => {
-                setSmsTemplateMsg(null);
-                try {
-                  await api.put("/brevo/templates/sms", { spelc, body: smsTemplate.body });
-                  setSmsTemplateMsg("Modèle enregistré.");
-                } catch (err) {
-                  setSmsTemplateMsg((err as Error).message);
-                }
-              }}
-            >
-              Enregistrer comme modèle
-            </button>
-            {smsTemplateMsg && <span className="self-center text-sm text-slate-600">{smsTemplateMsg}</span>}
           </div>
           <textarea
-            className="h-40 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+            className="h-40 w-full cursor-not-allowed rounded-md border border-slate-300 bg-slate-50 px-2 py-1.5 text-sm text-slate-600"
             placeholder="{{prenom}}, pensez à voter au {{scrutin}} avant le 10/12."
             value={smsTemplate.body}
-            onChange={(e) => setSmsTemplate({ body: e.target.value })}
+            readOnly
           />
         </Card>
       </div>
+
+      {emailPreview && (
+        <Modal title="Aperçu du mail" onClose={() => setEmailPreview(null)}>
+          <p className="mb-2 text-sm font-medium text-slate-700">Objet : {emailPreview.subject}</p>
+          <div className="rounded-md border border-slate-200" dangerouslySetInnerHTML={{ __html: emailPreview.html }} />
+        </Modal>
+      )}
+      {emailPreviewError && (
+        <Modal title="Aperçu du mail" onClose={() => setEmailPreviewError(null)}>
+          <p className="text-sm text-red-600">{emailPreviewError}</p>
+        </Modal>
+      )}
+      {smsPreview && (
+        <Modal title="Aperçu du SMS (message le plus long)" onClose={() => setSmsPreview(null)}>
+          <p className="whitespace-pre-line rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-800">
+            {smsPreview.content}
+          </p>
+          <p className="mt-3 text-sm text-slate-600">
+            Longueur : {smsPreview.length} / 160 caractères
+            <br />
+            Crédits SMS Brevo utilisés : {smsPreview.credits}
+          </p>
+        </Modal>
+      )}
+      {smsPreviewError && (
+        <Modal title="Aperçu du SMS" onClose={() => setSmsPreviewError(null)}>
+          <p className="text-sm text-red-600">{smsPreviewError}</p>
+        </Modal>
+      )}
 
       <Card
         title="Envoyer une campagne de relance"

@@ -479,6 +479,59 @@ router.post("/templates/sms/test", requireRole("admin_spelc", "admin_general"), 
 });
 
 /**
+ * Aperçu du mail de relance (contenu actuellement saisi à l'écran, pas
+ * forcément encore enregistré), rendu avec les champs dynamiques du premier
+ * adhérent non-votant du Spelc — même pipeline de rendu que l'envoi réel
+ * (renderTemplate + wrapEmailHtml + ensureSiteLink), mais sans aucun envoi.
+ */
+router.post("/templates/email/preview", requireRole("admin_spelc", "admin_general"), (req, res) => {
+  const spelc = (req.body?.spelc as string) || req.user!.spelc || "";
+  if (!spelc || !assertSpelcAccess(req, res, spelc)) return;
+  const { subject = "", body = "" } = req.body ?? {};
+  const recipient = firstNonVotantAdherent(spelc);
+  if (!recipient) {
+    res.status(400).json({ error: "Aucun adhérent non-votant disponible pour prévisualiser le modèle." });
+    return;
+  }
+  const fields = templateFieldsFor(recipient, spelc);
+  res.json({
+    subject: renderTemplate(String(subject), fields),
+    html: wrapEmailHtml(withDemoLogo(renderTemplate(ensureSiteLink(String(body)), fields))),
+  });
+});
+
+/** Un crédit Brevo par tranche de 160 caractères (encodage GSM-7 standard,
+ * cas d'un SMS sans caractère accentué) — Brevo peut compter différemment
+ * selon l'encodage réel détecté, mais cette estimation reste la référence
+ * la plus simple et la plus courante pour un SMS classique. */
+function smsCreditsForLength(length: number): number {
+  return Math.max(1, Math.ceil(length / 160));
+}
+
+/**
+ * Aperçu du SMS de relance : parmi tous les adhérents actuellement ciblés
+ * (non-votants, avec mobile), celui dont le message rendu est le plus long
+ * une fois les champs dynamiques substitués — le pire cas en nombre de
+ * crédits Brevo, pas un adhérent quelconque.
+ */
+router.post("/templates/sms/preview", requireRole("admin_spelc", "admin_general"), (req, res) => {
+  const spelc = (req.body?.spelc as string) || req.user!.spelc || "";
+  if (!spelc || !assertSpelcAccess(req, res, spelc)) return;
+  const { body = "" } = req.body ?? {};
+  const recipients = matchedAdherents(spelc).filter((r) => r.mobile).filter(needsRelance);
+  if (recipients.length === 0) {
+    res.status(400).json({ error: "Aucun adhérent non-votant avec mobile disponible pour prévisualiser le modèle." });
+    return;
+  }
+  let longest = "";
+  for (const r of recipients) {
+    const rendered = renderTemplate(String(body), templateFieldsFor(r, spelc));
+    if (rendered.length > longest.length) longest = rendered;
+  }
+  res.json({ content: longest, length: longest.length, credits: smsCreditsForLength(longest.length) });
+});
+
+/**
  * Nombre de destinataires que toucherait réellement une campagne — calculé
  * avec exactement la même logique de ciblage que les envois réels ci-dessous,
  * pour que l'admin Spelc puisse comparer ce nombre à ses crédits Brevo
