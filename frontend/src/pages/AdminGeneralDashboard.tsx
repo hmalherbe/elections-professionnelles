@@ -338,6 +338,44 @@ function ImportsPanel() {
           return `${res.rowCount} lignes importées, ${res.votants} votants.`;
         }}
       />
+      <FileUploadCard
+        title="Import académique (fichier zip)"
+        subtitle={
+          'Fichier zip contenant un fichier Excel d\'émargement par académie et par degré, nommé "<Académie>__<Degré>.xlsx" ' +
+          "(ex. \"Côte d'Azur__1D.xlsx\"), avec les colonnes nomUsage, nomFamille, prenom, nomCol, nomEtab, codePostal, " +
+          "dateEmargement, referenceBulletin."
+        }
+        accept="application/zip,.zip"
+        extraFields={
+          <div>
+            <label className="mr-2 text-xs font-medium text-slate-500">Journée du scrutin représentée :</label>
+            <input
+              type="date"
+              className="rounded-md border border-slate-300 px-2 py-1 text-sm"
+              value={snapshotDate}
+              onChange={(e) => setSnapshotDate(e.target.value)}
+            />
+          </div>
+        }
+        onUpload={async (file) => {
+          const fd = new FormData();
+          fd.append("file", file);
+          fd.append("snapshotDate", snapshotDate);
+          const res = await api.upload<{
+            filesImported: number;
+            filesFailed: number;
+            totalRowCount: number;
+            totalVotants: number;
+            errors: { filename: string; error: string }[];
+          }>("/imports/academique-zip", fd);
+          refresh();
+          let message = `${res.filesImported} fichier(s) importé(s), ${res.totalRowCount} lignes, ${res.totalVotants} votants.`;
+          if (res.filesFailed > 0) {
+            message += ` ${res.filesFailed} fichier(s) en échec : ${res.errors.map((e) => `${e.filename} (${e.error})`).join(" ; ")}`;
+          }
+          return message;
+        }}
+      />
       <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
         Les fichiers JSON <strong>1er et 2nd degré des scrutins académiques</strong> se déposent normalement depuis le
         tableau de bord de l'admin académique concerné, onglet « Imports ». Le tableau ci-dessous permet de le faire
