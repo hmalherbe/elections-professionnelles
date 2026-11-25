@@ -3,6 +3,7 @@ import { CCM_2022_ACADEMIE_MAP } from "../data/ccm2022AcademieMap";
 import { CCM_2022_DEPARTEMENT_GEO } from "../data/ccm2022DepartementGeo";
 import { api } from "../lib/api";
 import { formatPercentOrDash } from "../lib/colors";
+import { mergePolygonPaths } from "../lib/mergePolygons";
 import type { AcademieNode, ParticipationRow } from "../lib/types";
 import { Card } from "./Card";
 
@@ -126,18 +127,41 @@ export function ParticipationMapPanel({ tree }: { tree: AcademieNode[] }) {
 
   const mapShapes: MapShape[] = useMemo(() => {
     if (vue === "spelc") {
-      return Object.entries(CCM_2022_DEPARTEMENT_GEO.departements).map(([code, d]) => {
+      // Regroupe les départements par (Spelc, académie) d'après le
+      // référentiel courant, puis fusionne leurs contours en un seul (plus
+      // de traits internes — voir lib/mergePolygons.ts) ; un Spelc à cheval
+      // sur plusieurs académies réelles produit une forme par académie,
+      // pour ne jamais mélanger deux résultats distincts.
+      const groups = new Map<string, { spelc: string; academie: string; codes: string[] }>();
+      const orphanCodes: string[] = [];
+      for (const code of Object.keys(CCM_2022_DEPARTEMENT_GEO.departements)) {
         const live = departementSpelc.get(code);
+        if (!live) {
+          orphanCodes.push(code);
+          continue;
+        }
+        const key = `${live.spelc}|${live.academie}`;
+        const g = groups.get(key) ?? { spelc: live.spelc, academie: live.academie, codes: [] };
+        g.codes.push(code);
+        groups.set(key, g);
+      }
+
+      const grouped = Array.from(groups.entries()).map(([key, g]) => {
+        const shapes = g.codes.map((c) => CCM_2022_DEPARTEMENT_GEO.departements[c]);
         return {
-          key: code,
-          label: live ? live.spelc : `${d.academie} — non couvert`,
-          path: d.path,
-          cx: d.cx,
-          cy: d.cy,
-          row: live ? rowForSpelc(live.academie, live.spelc) : null,
-          orphan: !live,
+          key,
+          label: g.spelc,
+          path: mergePolygonPaths(shapes.map((s) => s.path)),
+          cx: shapes.reduce((sum, s) => sum + s.cx, 0) / shapes.length,
+          cy: shapes.reduce((sum, s) => sum + s.cy, 0) / shapes.length,
+          row: rowForSpelc(g.academie, g.spelc),
         };
       });
+      const orphans = orphanCodes.map((code) => {
+        const d = CCM_2022_DEPARTEMENT_GEO.departements[code];
+        return { key: code, label: `${d.academie} — non couvert`, path: d.path, cx: d.cx, cy: d.cy, row: null, orphan: true };
+      });
+      return [...grouped, ...orphans];
     }
     return Object.entries(CCM_2022_ACADEMIE_MAP.academies).map(([name, info]) => ({
       key: name,
@@ -205,9 +229,8 @@ export function ParticipationMapPanel({ tree }: { tree: AcademieNode[] }) {
         </div>
         {vue === "spelc" && (
           <p className="mt-3 text-xs text-slate-400">
-            Chaque département est coloré selon le Spelc qui le couvre, d'après le référentiel courant de
-            l'application (plusieurs départements d'un même Spelc partagent donc la même couleur). Les départements
-            grisés ne sont rattachés à aucun Spelc dans ce référentiel.
+            Chaque zone affiche les contours réunis des départements d'un Spelc, d'après le référentiel courant de
+            l'application. Les départements grisés ne sont rattachés à aucun Spelc dans ce référentiel.
           </p>
         )}
       </div>
@@ -219,9 +242,7 @@ export function ParticipationMapPanel({ tree }: { tree: AcademieNode[] }) {
               Métropole — {VUE_LABELS[vue]} — {metricDef.label}
             </h4>
             <span className="text-xs text-slate-400">
-              {vue === "academie"
-                ? `${mapShapes.length} académies`
-                : `${new Set(mapShapes.map((s) => s.label)).size} Spelc, ${mapShapes.length} départements`}
+              {mapShapes.length} {vue === "academie" ? "académies" : "zones"}
             </span>
           </div>
           <svg
@@ -237,8 +258,9 @@ export function ParticipationMapPanel({ tree }: { tree: AcademieNode[] }) {
                   key={s.key}
                   d={s.path}
                   fill={fillFor(s.row, s.orphan)}
+                  fillRule="evenodd"
                   stroke={isSelected ? "#0f172a" : "#ffffff"}
-                  strokeWidth={isSelected ? 1.6 : vue === "spelc" ? 0.6 : 1.1}
+                  strokeWidth={isSelected ? 1.6 : 1.1}
                   className="cursor-pointer transition-[filter] hover:brightness-105"
                   onMouseEnter={() => setSelected({ label: s.label, row: s.row, orphan: s.orphan })}
                   onFocus={() => setSelected({ label: s.label, row: s.row, orphan: s.orphan })}

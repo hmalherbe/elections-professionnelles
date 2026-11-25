@@ -4,6 +4,7 @@ import { CCM_2022_DEPARTEMENTS } from "../data/ccm2022Breakdowns";
 import { CCM_2022_DEPARTEMENT_GEO } from "../data/ccm2022DepartementGeo";
 import { api } from "../lib/api";
 import { OS_COLORS, OS_LABELS, TABLE_OS, formatVotes, leaderInfo, siegesFor, votesFor } from "../lib/ccm2022";
+import { mergePolygonPaths } from "../lib/mergePolygons";
 import { Card } from "./Card";
 
 type Scrutin = "1D" | "2D";
@@ -73,18 +74,39 @@ export function Ccm2022MapPanel() {
       }));
     }
     if (vue === "spelc") {
-      return Object.entries(CCM_2022_DEPARTEMENT_GEO.departements).map(([code, d]) => {
+      // Regroupe les départements par (Spelc, académie) d'après le
+      // référentiel courant, puis fusionne leurs contours en un seul (plus
+      // de traits internes — voir lib/mergePolygons.ts).
+      const groups = new Map<string, { spelc: string; academie: string; codes: string[] }>();
+      const orphanCodes: string[] = [];
+      for (const code of Object.keys(CCM_2022_DEPARTEMENT_GEO.departements)) {
         const live = departementSpelc.get(code);
+        if (!live) {
+          orphanCodes.push(code);
+          continue;
+        }
+        const key = `${live.spelc}|${live.academie}`;
+        const g = groups.get(key) ?? { spelc: live.spelc, academie: live.academie, codes: [] };
+        g.codes.push(code);
+        groups.set(key, g);
+      }
+
+      const grouped = Array.from(groups.entries()).map(([key, g]) => {
+        const shapes = g.codes.map((c) => CCM_2022_DEPARTEMENT_GEO.departements[c]);
         return {
-          key: code,
-          label: live ? live.spelc : `${d.academie} — non couvert`,
-          path: d.path,
-          cx: d.cx,
-          cy: d.cy,
-          entries: live ? entriesForAcademie(live.academie) : [],
-          orphan: !live,
+          key,
+          label: g.spelc,
+          path: mergePolygonPaths(shapes.map((s) => s.path)),
+          cx: shapes.reduce((sum, s) => sum + s.cx, 0) / shapes.length,
+          cy: shapes.reduce((sum, s) => sum + s.cy, 0) / shapes.length,
+          entries: entriesForAcademie(g.academie),
         };
       });
+      const orphans = orphanCodes.map((code) => {
+        const d = CCM_2022_DEPARTEMENT_GEO.departements[code];
+        return { key: code, label: `${d.academie} — non couvert`, path: d.path, cx: d.cx, cy: d.cy, entries: [], orphan: true };
+      });
+      return [...grouped, ...orphans];
     }
     return Object.entries(data.academies).map(([name, info]) => ({
       key: name,
@@ -205,7 +227,7 @@ export function Ccm2022MapPanel() {
           <p className="mt-3 text-xs text-slate-400">
             {vue === "departement"
               ? "Les sièges ne sont attribués que par académie dans ce scrutin : chaque département affiche les contours réels de son département, coloré par les résultats de son académie de rattachement (plusieurs départements d'une même académie affichent donc les mêmes résultats)."
-              : "Chaque département est coloré selon le Spelc qui le couvre, d'après le référentiel courant de l'application (plusieurs départements d'un même Spelc partagent donc la même couleur), par les résultats de l'académie de rattachement. Les départements grisés ne sont rattachés à aucun Spelc dans ce référentiel."}
+              : "Chaque zone affiche les contours réunis des départements d'un Spelc, d'après le référentiel courant de l'application, colorés par les résultats de l'académie de rattachement. Les départements grisés ne sont rattachés à aucun Spelc dans ce référentiel."}
           </p>
         )}
       </div>
@@ -217,11 +239,7 @@ export function Ccm2022MapPanel() {
               Métropole — {VUE_LABELS[vue]} — {scrutin === "1D" ? "1er degré" : "2nd degré"}
             </h4>
             <span className="text-xs text-slate-400">
-              {vue === "academie"
-                ? `${mapShapes.length} académies`
-                : vue === "departement"
-                  ? `${mapShapes.length} départements`
-                  : `${new Set(mapShapes.map((s) => s.label)).size} Spelc, ${mapShapes.length} départements`}
+              {mapShapes.length} {vue === "academie" ? "académies" : vue === "departement" ? "départements" : "zones"}
             </span>
           </div>
           <svg
@@ -265,8 +283,9 @@ export function Ccm2022MapPanel() {
                           ? `url(#tie-${idSafe})`
                           : OS_COLORS[leaders[0].os]
                   }
+                  fillRule="evenodd"
                   stroke={isSelected ? "#0f172a" : "#ffffff"}
-                  strokeWidth={isSelected ? 1.6 : vue === "departement" || vue === "spelc" ? 0.6 : 1.1}
+                  strokeWidth={isSelected ? 1.6 : vue === "departement" ? 0.6 : 1.1}
                   className="cursor-pointer transition-[filter] hover:brightness-105"
                   onMouseEnter={() => setSelected({ label: s.label, entries: s.entries, orphan: s.orphan })}
                   onFocus={() => setSelected({ label: s.label, entries: s.entries, orphan: s.orphan })}
@@ -285,7 +304,7 @@ export function Ccm2022MapPanel() {
                 </path>
               );
             })}
-            {vue === "academie" &&
+            {vue !== "departement" &&
               mapShapes.map((s) => {
                 if (!s.entries.length) return null;
                 const { leaders } = leaderInfo(s.entries);
