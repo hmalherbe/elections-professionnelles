@@ -110,11 +110,7 @@ export function ParticipationMapPanel({ tree }: { tree: AcademieNode[] }) {
     if (vue === "spelc") {
       return CCM_2022_SPELC_GEO.spelcs.map((s) => ({
         key: s.key,
-        label: s.spelc
-          ? s.spelc === "Centre-Poitou-Charente"
-            ? `${s.spelc} (${s.academie})`
-            : s.spelc
-          : `${s.academie} — non couvert`,
+        label: s.spelc ?? `${s.academie} — non couvert`,
         path: s.path,
         cx: s.cx,
         cy: s.cy,
@@ -189,8 +185,8 @@ export function ParticipationMapPanel({ tree }: { tree: AcademieNode[] }) {
         {vue === "spelc" && (
           <p className="mt-3 text-xs text-slate-400">
             Chaque zone affiche les contours réunis des départements d'un Spelc (référentiel interne de
-            l'application). Le Spelc « Centre-Poitou-Charente » chevauche deux académies réelles (Poitiers et
-            Orléans-Tours) et apparaît donc en deux zones distinctes. Les départements grisés ne sont rattachés à
+            l'application). Le territoire « Centre-Poitou-Charente », scindé en deux Spelc (Poitiers et
+            Orléans-Tours), apparaît donc en deux zones distinctes. Les départements grisés ne sont rattachés à
             aucun Spelc dans ce référentiel.
           </p>
         )}

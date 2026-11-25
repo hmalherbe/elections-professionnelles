@@ -61,7 +61,7 @@ export function Ccm2022MapPanel() {
     if (vue === "spelc") {
       return CCM_2022_SPELC_GEO.spelcs.map((s) => ({
         key: s.key,
-        label: s.spelc ? (s.spelc === "Centre-Poitou-Charente" ? `${s.spelc} (${s.academie})` : s.spelc) : `${s.academie} — non couvert`,
+        label: s.spelc ?? `${s.academie} — non couvert`,
         path: s.path,
         cx: s.cx,
         cy: s.cy,
@@ -91,9 +91,10 @@ export function Ccm2022MapPanel() {
         entries: entriesForAcademie(d.academies[0]),
       }));
     }
-    // vue === "spelc" : le Spelc Centre-Poitou-Charente chevauche deux académies
-    // réelles (Poitiers et Orléans-Tours) et ne peut pas être réduit à une seule
-    // ligne sans mélanger deux élections distinctes.
+    // vue === "spelc" : un Spelc à cheval sur plusieurs académies réelles (plus
+    // aucun cas actuellement, depuis la scission de Centre-Poitou-Charente en
+    // deux Spelc) ne pourrait pas être réduit à une seule ligne sans mélanger
+    // deux élections distinctes — ce cas général reste géré.
     return CCM_2022_SPELCS.flatMap((s) =>
       s.academies.length > 1
         ? s.academies.map((a) => ({ name: `${s.name} (${a})`, entries: entriesForAcademie(a) }))
@@ -179,7 +180,7 @@ export function Ccm2022MapPanel() {
           <p className="mt-3 text-xs text-slate-400">
             {vue === "departement"
               ? "Les sièges ne sont attribués que par académie dans ce scrutin : chaque département affiche les contours réels de son département, coloré par les résultats de son académie de rattachement (plusieurs départements d'une même académie affichent donc les mêmes résultats)."
-              : "Chaque zone affiche les contours réunis des départements d'un Spelc (référentiel interne de l'application), colorés par les résultats de l'académie de rattachement. Le Spelc « Centre-Poitou-Charente » chevauche deux académies réelles (Poitiers et Orléans-Tours) et apparaît donc en deux zones distinctes. Les départements grisés (Grenoble, Corse) ne sont rattachés à aucun Spelc dans ce référentiel."}
+              : "Chaque zone affiche les contours réunis des départements d'un Spelc (référentiel interne de l'application), colorés par les résultats de l'académie de rattachement. Le territoire « Centre-Poitou-Charente », scindé en deux Spelc (Poitiers et Orléans-Tours), apparaît donc en deux zones distinctes. Les départements grisés (Grenoble, Corse) ne sont rattachés à aucun Spelc dans ce référentiel."}
           </p>
         )}
       </div>

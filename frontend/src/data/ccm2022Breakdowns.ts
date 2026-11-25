@@ -8,8 +8,10 @@
 // départements d'une même académie affichent les mêmes chiffres, ce n'est pas
 // une décomposition plus fine, seulement un autre regroupement). Un Spelc dont
 // tous les départements appartiennent à la même académie affiche cette académie
-// directement ; le Spelc "Centre-Poitou-Charente" chevauche réellement deux
-// académies (Poitiers et Orléans-Tours) et affiche donc les deux séparément.
+// directement. Le territoire "Centre-Poitou-Charente" chevauchait réellement deux
+// académies (Poitiers et Orléans-Tours) sous un seul Spelc ; depuis sa scission en
+// deux Spelc distincts (un par académie, voir ref_departements/ref_spelc), chacun
+// n'a plus qu'une seule académie et n'a donc plus besoin de ce cas à part.
 
 export interface CcmDepartement {
   code: string | null;
@@ -784,9 +786,14 @@ export const CCM_2022_SPELCS: CcmSpelc[] = [
     ]
   },
   {
-    "name": "Centre-Poitou-Charente",
+    "name": "Centre-Poitou-Charente - Orléans-Tours",
     "academies": [
-      "Orléans-Tours",
+      "Orléans-Tours"
+    ]
+  },
+  {
+    "name": "Centre-Poitou-Charente - Poitiers",
+    "academies": [
       "Poitiers"
     ]
   },
