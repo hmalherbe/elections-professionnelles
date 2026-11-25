@@ -1229,9 +1229,13 @@ router.post(
         const quota = quotaBySpelc.get(spelc)!.quota;
         const baseUsed = quotaBySpelc.get(spelc)!.used;
         const simulatedSoFar = simulatedCredits.get(spelc)!;
-        const remainingCredits = quota === null ? Infinity : Math.max(0, quota - baseUsed - simulatedSoFar);
-        const maxSendable = quota === null ? smsCandidates.length : Math.floor(remainingCredits / CREDITS_PER_SMS);
-        const smsSent = Math.min(smsCandidates.length, maxSendable);
+        // Tout ou rien, comme l'envoi réel (voir /campaigns/sms) : si le
+        // quota ne suffit pas à envoyer la totalité des SMS ciblés ce
+        // jour-là, aucun n'est envoyé plutôt qu'un envoi partiel jusqu'à
+        // épuisement du quota.
+        const neededCreditsThisDay = smsCandidates.length * CREDITS_PER_SMS;
+        const wouldExceedQuota = quota !== null && baseUsed + simulatedSoFar + neededCreditsThisDay > quota;
+        const smsSent = wouldExceedQuota ? 0 : smsCandidates.length;
         const smsBlocked = smsCandidates.length - smsSent;
         const creditsThisDay = smsSent * CREDITS_PER_SMS;
         const creditsCumulative = baseUsed + simulatedSoFar + creditsThisDay;
