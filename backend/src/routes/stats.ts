@@ -1,4 +1,5 @@
 import { Router, type Request, type Response } from "express";
+import { db } from "../db/index.js";
 import { requireAuth, canAccessAcademie, canAccessSpelc } from "../middleware/auth.js";
 import { spelcAcademies } from "../services/reference.js";
 import {
@@ -219,6 +220,20 @@ router.post("/table-export", async (req, res) => {
   res.setHeader("Content-Disposition", `attachment; filename="${filename.replace(/[^a-zA-Z0-9._-]/g, "_")}"`);
   await wb.xlsx.write(res);
   res.end();
+});
+
+/**
+ * Rattachement département -> Spelc/académie du référentiel courant (voir
+ * ref_departements) — consommé par les cartes géographiques "vue Spelc"
+ * (ParticipationMapPanel, Ccm2022MapPanel) pour colorer/étiqueter chaque
+ * département à partir du référentiel RÉEL plutôt que d'un instantané figé
+ * dans les données de géométrie (data/ccm2022SpelcGeo.ts), qui se
+ * désynchronisait silencieusement à chaque modification du référentiel
+ * (ex. scission de Centre-Poitou-Charente, rattachement de la Corse).
+ */
+router.get("/departements-spelc", (_req, res) => {
+  const rows = db.prepare("SELECT departement, spelc, academie FROM ref_departements ORDER BY departement").all();
+  res.json({ departements: rows });
 });
 
 export default router;

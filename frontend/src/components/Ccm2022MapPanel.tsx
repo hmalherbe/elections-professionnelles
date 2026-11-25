@@ -1,8 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CCM_2022_ACADEMIE_MAP, type CcmOsEntry } from "../data/ccm2022AcademieMap";
-import { CCM_2022_DEPARTEMENTS, CCM_2022_SPELCS } from "../data/ccm2022Breakdowns";
+import { CCM_2022_DEPARTEMENTS } from "../data/ccm2022Breakdowns";
 import { CCM_2022_DEPARTEMENT_GEO } from "../data/ccm2022DepartementGeo";
-import { CCM_2022_SPELC_GEO } from "../data/ccm2022SpelcGeo";
 import { api } from "../lib/api";
 import { OS_COLORS, OS_LABELS, TABLE_OS, formatVotes, leaderInfo, siegesFor, votesFor } from "../lib/ccm2022";
 import { Card } from "./Card";
@@ -31,12 +30,27 @@ interface MapShape {
   orphan?: boolean;
 }
 
+interface DepartementSpelc {
+  departement: string;
+  spelc: string;
+  academie: string;
+}
+
 export function Ccm2022MapPanel() {
   const [scrutin, setScrutin] = useState<Scrutin>("1D");
   const [vue, setVue] = useState<Vue>("academie");
   const [metric, setMetric] = useState<Metric>("votes");
   const [exporting, setExporting] = useState(false);
   const [selected, setSelected] = useState<{ label: string; entries: CcmOsEntry[]; orphan?: boolean } | null>(null);
+  // Rattachement département -> Spelc/académie lu depuis le référentiel
+  // courant (pas depuis un instantané figé — voir /stats/departements-spelc).
+  const [departementSpelc, setDepartementSpelc] = useState<Map<string, DepartementSpelc>>(new Map());
+
+  useEffect(() => {
+    api
+      .get<{ departements: DepartementSpelc[] }>("/stats/departements-spelc")
+      .then((r) => setDepartementSpelc(new Map(r.departements.map((d) => [d.departement, d]))));
+  }, []);
 
   const data = CCM_2022_ACADEMIE_MAP;
   const overseas = data.overseas[scrutin];
@@ -45,7 +59,7 @@ export function Ccm2022MapPanel() {
     return data.academies[academie]?.[scrutin] ?? overseas[academie] ?? [];
   }
 
-  const geo = vue === "departement" ? CCM_2022_DEPARTEMENT_GEO : vue === "spelc" ? CCM_2022_SPELC_GEO : data;
+  const geo = vue === "departement" || vue === "spelc" ? CCM_2022_DEPARTEMENT_GEO : data;
 
   const mapShapes: MapShape[] = useMemo(() => {
     if (vue === "departement") {
@@ -59,15 +73,18 @@ export function Ccm2022MapPanel() {
       }));
     }
     if (vue === "spelc") {
-      return CCM_2022_SPELC_GEO.spelcs.map((s) => ({
-        key: s.key,
-        label: s.spelc ?? `${s.academie} — non couvert`,
-        path: s.path,
-        cx: s.cx,
-        cy: s.cy,
-        entries: entriesForAcademie(s.academie),
-        orphan: s.spelc === null,
-      }));
+      return Object.entries(CCM_2022_DEPARTEMENT_GEO.departements).map(([code, d]) => {
+        const live = departementSpelc.get(code);
+        return {
+          key: code,
+          label: live ? live.spelc : `${d.academie} — non couvert`,
+          path: d.path,
+          cx: d.cx,
+          cy: d.cy,
+          entries: live ? entriesForAcademie(live.academie) : [],
+          orphan: !live,
+        };
+      });
     }
     return Object.entries(data.academies).map(([name, info]) => ({
       key: name,
@@ -77,7 +94,7 @@ export function Ccm2022MapPanel() {
       cy: info.cy,
       entries: info[scrutin],
     }));
-  }, [vue, data, overseas, scrutin]);
+  }, [vue, data, overseas, scrutin, departementSpelc]);
 
   const tableRows = useMemo(() => {
     if (vue === "academie") {
@@ -91,16 +108,24 @@ export function Ccm2022MapPanel() {
         entries: entriesForAcademie(d.academies[0]),
       }));
     }
-    // vue === "spelc" : un Spelc à cheval sur plusieurs académies réelles (plus
-    // aucun cas actuellement, depuis la scission de Centre-Poitou-Charente en
-    // deux Spelc) ne pourrait pas être réduit à une seule ligne sans mélanger
-    // deux élections distinctes — ce cas général reste géré.
-    return CCM_2022_SPELCS.flatMap((s) =>
-      s.academies.length > 1
-        ? s.academies.map((a) => ({ name: `${s.name} (${a})`, entries: entriesForAcademie(a) }))
-        : [{ name: s.name, entries: entriesForAcademie(s.academies[0]) }]
-    ).sort((a, b) => a.name.localeCompare(b.name, "fr"));
-  }, [data, overseas, scrutin, vue]);
+    // vue === "spelc" : regroupe les départements par Spelc d'après le
+    // référentiel courant — un Spelc à cheval sur plusieurs académies réelles
+    // affiche une ligne par académie, pour ne jamais mélanger deux élections
+    // distinctes sous un seul total.
+    const academiesBySpelc = new Map<string, Set<string>>();
+    for (const d of departementSpelc.values()) {
+      const set = academiesBySpelc.get(d.spelc) ?? new Set<string>();
+      set.add(d.academie);
+      academiesBySpelc.set(d.spelc, set);
+    }
+    return Array.from(academiesBySpelc.entries())
+      .flatMap(([spelc, academies]) =>
+        academies.size > 1
+          ? Array.from(academies).map((a) => ({ name: `${spelc} (${a})`, entries: entriesForAcademie(a) }))
+          : [{ name: spelc, entries: entriesForAcademie(Array.from(academies)[0]) }]
+      )
+      .sort((a, b) => a.name.localeCompare(b.name, "fr"));
+  }, [data, overseas, scrutin, vue, departementSpelc]);
 
   const valueFor = metric === "votes" ? votesFor : siegesFor;
 
@@ -180,7 +205,7 @@ export function Ccm2022MapPanel() {
           <p className="mt-3 text-xs text-slate-400">
             {vue === "departement"
               ? "Les sièges ne sont attribués que par académie dans ce scrutin : chaque département affiche les contours réels de son département, coloré par les résultats de son académie de rattachement (plusieurs départements d'une même académie affichent donc les mêmes résultats)."
-              : "Chaque zone affiche les contours réunis des départements d'un Spelc (référentiel interne de l'application), colorés par les résultats de l'académie de rattachement. Le territoire « Centre-Poitou-Charente », scindé en deux Spelc (Poitiers et Orléans-Tours), apparaît donc en deux zones distinctes. Les départements grisés ne sont rattachés à aucun Spelc dans ce référentiel."}
+              : "Chaque département est coloré selon le Spelc qui le couvre, d'après le référentiel courant de l'application (plusieurs départements d'un même Spelc partagent donc la même couleur), par les résultats de l'académie de rattachement. Les départements grisés ne sont rattachés à aucun Spelc dans ce référentiel."}
           </p>
         )}
       </div>
@@ -192,7 +217,11 @@ export function Ccm2022MapPanel() {
               Métropole — {VUE_LABELS[vue]} — {scrutin === "1D" ? "1er degré" : "2nd degré"}
             </h4>
             <span className="text-xs text-slate-400">
-              {mapShapes.length} {vue === "academie" ? "académies" : vue === "departement" ? "départements" : "zones"}
+              {vue === "academie"
+                ? `${mapShapes.length} académies`
+                : vue === "departement"
+                  ? `${mapShapes.length} départements`
+                  : `${new Set(mapShapes.map((s) => s.label)).size} Spelc, ${mapShapes.length} départements`}
             </span>
           </div>
           <svg
@@ -237,7 +266,7 @@ export function Ccm2022MapPanel() {
                           : OS_COLORS[leaders[0].os]
                   }
                   stroke={isSelected ? "#0f172a" : "#ffffff"}
-                  strokeWidth={isSelected ? 1.6 : vue === "departement" ? 0.6 : 1.1}
+                  strokeWidth={isSelected ? 1.6 : vue === "departement" || vue === "spelc" ? 0.6 : 1.1}
                   className="cursor-pointer transition-[filter] hover:brightness-105"
                   onMouseEnter={() => setSelected({ label: s.label, entries: s.entries, orphan: s.orphan })}
                   onFocus={() => setSelected({ label: s.label, entries: s.entries, orphan: s.orphan })}
@@ -256,7 +285,7 @@ export function Ccm2022MapPanel() {
                 </path>
               );
             })}
-            {vue !== "departement" &&
+            {vue === "academie" &&
               mapShapes.map((s) => {
                 if (!s.entries.length) return null;
                 const { leaders } = leaderInfo(s.entries);

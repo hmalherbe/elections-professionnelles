@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CCM_2022_ACADEMIE_MAP } from "../data/ccm2022AcademieMap";
-import { CCM_2022_SPELC_GEO } from "../data/ccm2022SpelcGeo";
+import { CCM_2022_DEPARTEMENT_GEO } from "../data/ccm2022DepartementGeo";
+import { api } from "../lib/api";
 import { formatPercentOrDash } from "../lib/colors";
 import type { AcademieNode, ParticipationRow } from "../lib/types";
 import { Card } from "./Card";
@@ -87,13 +88,30 @@ interface MapShape {
   orphan?: boolean;
 }
 
+interface DepartementSpelc {
+  departement: string;
+  spelc: string;
+  academie: string;
+}
+
 export function ParticipationMapPanel({ tree }: { tree: AcademieNode[] }) {
   const [metric, setMetric] = useState<MetricKey>("taux");
   const [vue, setVue] = useState<Vue>("academie");
   const [selected, setSelected] = useState<{ label: string; row: ParticipationRow | null; orphan?: boolean } | null>(null);
+  // Rattachement département -> Spelc/académie lu depuis le référentiel
+  // courant (pas depuis ccm2022SpelcGeo.ts, un instantané figé qui se
+  // désynchronise silencieusement à chaque modification du référentiel —
+  // voir /stats/departements-spelc).
+  const [departementSpelc, setDepartementSpelc] = useState<Map<string, DepartementSpelc>>(new Map());
+
+  useEffect(() => {
+    api
+      .get<{ departements: DepartementSpelc[] }>("/stats/departements-spelc")
+      .then((r) => setDepartementSpelc(new Map(r.departements.map((d) => [d.departement, d]))));
+  }, []);
 
   const metricDef = METRICS.find((m) => m.key === metric)!;
-  const geo = vue === "spelc" ? CCM_2022_SPELC_GEO : CCM_2022_ACADEMIE_MAP;
+  const geo = vue === "spelc" ? CCM_2022_DEPARTEMENT_GEO : CCM_2022_ACADEMIE_MAP;
 
   function academieNode(academie: string): AcademieNode | null {
     return tree.find((n) => n.label === academie) ?? null;
@@ -108,15 +126,18 @@ export function ParticipationMapPanel({ tree }: { tree: AcademieNode[] }) {
 
   const mapShapes: MapShape[] = useMemo(() => {
     if (vue === "spelc") {
-      return CCM_2022_SPELC_GEO.spelcs.map((s) => ({
-        key: s.key,
-        label: s.spelc ?? `${s.academie} — non couvert`,
-        path: s.path,
-        cx: s.cx,
-        cy: s.cy,
-        row: rowForSpelc(s.academie, s.spelc),
-        orphan: s.spelc === null,
-      }));
+      return Object.entries(CCM_2022_DEPARTEMENT_GEO.departements).map(([code, d]) => {
+        const live = departementSpelc.get(code);
+        return {
+          key: code,
+          label: live ? live.spelc : `${d.academie} — non couvert`,
+          path: d.path,
+          cx: d.cx,
+          cy: d.cy,
+          row: live ? rowForSpelc(live.academie, live.spelc) : null,
+          orphan: !live,
+        };
+      });
     }
     return Object.entries(CCM_2022_ACADEMIE_MAP.academies).map(([name, info]) => ({
       key: name,
@@ -126,7 +147,7 @@ export function ParticipationMapPanel({ tree }: { tree: AcademieNode[] }) {
       cy: info.cy,
       row: rowForAcademie(name),
     }));
-  }, [vue, tree]);
+  }, [vue, tree, departementSpelc]);
 
   // Académies ultramarines : pas de contour dans le fond de carte (voir
   // Ccm2022MapPanel), listées à part sous forme de cartes de données brutes.
@@ -184,10 +205,9 @@ export function ParticipationMapPanel({ tree }: { tree: AcademieNode[] }) {
         </div>
         {vue === "spelc" && (
           <p className="mt-3 text-xs text-slate-400">
-            Chaque zone affiche les contours réunis des départements d'un Spelc (référentiel interne de
-            l'application). Le territoire « Centre-Poitou-Charente », scindé en deux Spelc (Poitiers et
-            Orléans-Tours), apparaît donc en deux zones distinctes. Les départements grisés ne sont rattachés à
-            aucun Spelc dans ce référentiel.
+            Chaque département est coloré selon le Spelc qui le couvre, d'après le référentiel courant de
+            l'application (plusieurs départements d'un même Spelc partagent donc la même couleur). Les départements
+            grisés ne sont rattachés à aucun Spelc dans ce référentiel.
           </p>
         )}
       </div>
@@ -199,7 +219,9 @@ export function ParticipationMapPanel({ tree }: { tree: AcademieNode[] }) {
               Métropole — {VUE_LABELS[vue]} — {metricDef.label}
             </h4>
             <span className="text-xs text-slate-400">
-              {mapShapes.length} {vue === "academie" ? "académies" : "zones"}
+              {vue === "academie"
+                ? `${mapShapes.length} académies`
+                : `${new Set(mapShapes.map((s) => s.label)).size} Spelc, ${mapShapes.length} départements`}
             </span>
           </div>
           <svg
@@ -216,7 +238,7 @@ export function ParticipationMapPanel({ tree }: { tree: AcademieNode[] }) {
                   d={s.path}
                   fill={fillFor(s.row, s.orphan)}
                   stroke={isSelected ? "#0f172a" : "#ffffff"}
-                  strokeWidth={isSelected ? 1.6 : 1.1}
+                  strokeWidth={isSelected ? 1.6 : vue === "spelc" ? 0.6 : 1.1}
                   className="cursor-pointer transition-[filter] hover:brightness-105"
                   onMouseEnter={() => setSelected({ label: s.label, row: s.row, orphan: s.orphan })}
                   onFocus={() => setSelected({ label: s.label, row: s.row, orphan: s.orphan })}
