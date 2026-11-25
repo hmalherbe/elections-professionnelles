@@ -15,6 +15,8 @@ import {
   refreshPendingRelanceTracking,
   getMailSeries,
 } from "../services/relanceTracking.js";
+import { buildUnsubscribeUrl } from "../lib/unsubscribeToken.js";
+import { isOptedOut, listOptOuts, removeOptOut } from "../services/optout.js";
 
 const MAX_TEST_RECIPIENTS = 20;
 const DEFAULT_TEST_RECIPIENTS = 3;
@@ -94,6 +96,7 @@ function matchedAdherents(): Recipient[] {
 
 function templateFieldsFor(r: Recipient): TemplateFields {
   const settings = getOrgSettings();
+  const contact = r.mail ? r.mail.trim().toLowerCase() : null;
   return {
     nom: r.nom,
     prenom: r.prenom,
@@ -101,6 +104,7 @@ function templateFieldsFor(r: Recipient): TemplateFields {
     scrutin2_non_votant: Boolean(r.scrutin2Matched) && !r.scrutin2Votant,
     logo: buildLogoHtml(settings.logoPath),
     reseaux_sociaux: buildSocialLinksHtml(settings.socialLinks),
+    lien_desinscription: contact ? buildUnsubscribeUrl(contact) : "",
   };
 }
 
@@ -170,6 +174,8 @@ router.get("/campaigns/preview", (req, res) => {
   const testMode = req.query.testMode === "true";
   const testLimit = clampTestLimit(req.query.testLimit);
   let recipients = (testMode ? matchedAdherents() : matchedAdherents().filter((r) => r.mail)).filter(needsRelance);
+  // Jamais de mail à une adresse désinscrite (voir routes/unsubscribe.ts).
+  recipients = recipients.filter((r) => !r.mail || !isOptedOut(r.mail.trim().toLowerCase()));
   if (testMode) recipients = recipients.slice(0, testLimit);
   res.json({ recipients: recipients.length });
 });
@@ -195,6 +201,8 @@ router.post("/campaigns/email", async (req, res) => {
   }
 
   let recipients = (testMode ? matchedAdherents() : matchedAdherents().filter((r) => r.mail)).filter(needsRelance);
+  // Jamais de mail à une adresse désinscrite (voir routes/unsubscribe.ts).
+  recipients = recipients.filter((r) => !r.mail || !isOptedOut(r.mail.trim().toLowerCase()));
   if (testMode) recipients = recipients.slice(0, clampTestLimit(testLimit));
 
   const campagneTag = (tag ?? "relance") + (testMode ? "-test" : "");
@@ -254,6 +262,22 @@ router.post("/relance-tracking/refresh", async (_req, res) => {
 router.delete("/relance-tracking", (_req, res) => {
   const deleted = clearRelanceTracking();
   res.json({ deleted });
+});
+
+/** Liste des adresses désinscrites (lien {{lien_desinscription}}), pour l'onglet Relances adhérents. */
+router.get("/optout", (_req, res) => {
+  res.json({ optouts: listOptOuts() });
+});
+
+/** Réinscription d'une adresse désinscrite par erreur. */
+router.delete("/optout", (req, res) => {
+  const contact = (req.query.contact as string) || "";
+  if (!contact) {
+    res.status(400).json({ error: "Paramètre contact requis." });
+    return;
+  }
+  const ok = removeOptOut(contact);
+  res.json({ ok });
 });
 
 export default router;

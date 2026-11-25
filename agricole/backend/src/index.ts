@@ -18,6 +18,7 @@ import importsRoutes from "./routes/imports.js";
 import adherentsRoutes from "./routes/adherents.js";
 import statsRoutes from "./routes/stats.js";
 import brevoRoutes from "./routes/brevo.js";
+import unsubscribeRoutes from "./routes/unsubscribe.js";
 import { UPLOADS_DIR } from "./lib/uploads.js";
 
 migrate();
@@ -35,6 +36,10 @@ app.use("/api/assets", express.static(path.resolve(__dirname, "../assets")));
 
 // Logo uploadé par l'administrateur, stocké dans le volume persistant.
 app.use("/api/uploads/logos", express.static(UPLOADS_DIR));
+
+// Public (pas d'authentification), monté avant les routes protégées : lien
+// de désinscription cliqué depuis un mail (voir routes/unsubscribe.ts).
+app.use("/api/u", unsubscribeRoutes);
 
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);

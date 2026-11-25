@@ -109,6 +109,15 @@ export function migrate(): void {
     );
     CREATE INDEX IF NOT EXISTS idx_fuzzy_matches_identity ON adherent_fuzzy_matches(adherent_nom_norm, adherent_prenom_norm);
 
+    -- Liste de désinscription des relances mail, alimentée par le lien
+    -- {{lien_desinscription}} des modèles de mail (voir lib/unsubscribeToken.ts
+    -- et routes/unsubscribe.ts) — un seul canal (mail) ici, contrairement à
+    -- l'application éducation nationale qui gère aussi le SMS.
+    CREATE TABLE IF NOT EXISTS relance_optout (
+      contact TEXT PRIMARY KEY,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
     -- Modèle de mail de relance : un seul, partagé par tous les comptes
     -- administrateurs (pas de notion de Spelc local à ce niveau).
     CREATE TABLE IF NOT EXISTS email_template (

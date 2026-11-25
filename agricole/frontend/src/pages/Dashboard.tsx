@@ -701,7 +701,7 @@ function RelancesPanel() {
       <Card
         title="Modèle de mail de relance"
         subtitle={
-          "Champs : {{nom}} {{prenom}} · {{scrutin1_non_votant}} {{scrutin2_non_votant}} · {{logo}} {{reseaux_sociaux}} · " +
+          "Champs : {{nom}} {{prenom}} · {{scrutin1_non_votant}} {{scrutin2_non_votant}} · {{logo}} {{reseaux_sociaux}} · {{lien_desinscription}} · " +
           "{{#if expr}}…{{else}}…{{/if}} avec expr combinant and/or/not(...), ex. \"scrutin1_non_votant and not(scrutin2_non_votant)\""
         }
       >
@@ -926,7 +926,69 @@ function RelancesPanel() {
           {trackingRows.length === 0 && <p className="py-4 text-sm text-slate-400">Aucune relance envoyée pour le moment.</p>}
         </div>
       </Card>
+      <DesinscriptionsPanel />
     </div>
+  );
+}
+
+interface OptOutRow {
+  contact: string;
+  createdAt: string;
+}
+
+/**
+ * Adresses mail désinscrites via le lien {{lien_desinscription}} des mails
+ * de relance (voir routes/unsubscribe.ts côté serveur) — plus jamais
+ * contactées tant qu'elles figurent ici. "Réinscrire" permet de corriger une
+ * désinscription faite par erreur.
+ */
+function DesinscriptionsPanel() {
+  const [rows, setRows] = useState<OptOutRow[]>([]);
+  const [message, setMessage] = useState<string | null>(null);
+
+  function refresh() {
+    api.get<{ optouts: OptOutRow[] }>("/brevo/optout").then((r) => setRows(r.optouts));
+  }
+  useEffect(refresh, []);
+
+  async function reinscrire(contact: string) {
+    await api.delete(`/brevo/optout${qs({ contact })}`);
+    setMessage(`${contact} réinscrit(e).`);
+    refresh();
+  }
+
+  return (
+    <Card title={`Désinscriptions (${rows.length})`} subtitle="Adresses ayant cliqué sur le lien de désinscription d'un mail de relance.">
+      {message && <p className="mb-2 text-sm text-slate-600">{message}</p>}
+      <div className="max-h-96 overflow-auto">
+        <table className="w-full text-sm">
+          <thead className="sticky top-0 bg-white">
+            <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-500">
+              <th className="py-2 pr-4">Contact</th>
+              <th className="px-4 py-2">Désinscrit le</th>
+              <th className="px-4 py-2"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.contact} className="border-b border-slate-100">
+                <td className="py-1.5 pr-4">{r.contact}</td>
+                <td className="px-4 py-1.5 text-slate-500">{new Date(r.createdAt.replace(" ", "T") + "Z").toLocaleString("fr-FR")}</td>
+                <td className="px-4 py-1.5 text-right">
+                  <button
+                    className="rounded-md border border-slate-300 px-2.5 py-1 text-xs text-slate-600 hover:bg-slate-100"
+                    onClick={() => reinscrire(r.contact)}
+                  >
+                    Réinscrire
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {rows.length === 0 && <p className="py-4 text-sm text-slate-400">Aucune désinscription pour le moment.</p>}
+      </div>
+    </Card>
   );
 }
 
