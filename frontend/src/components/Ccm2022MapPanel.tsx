@@ -180,7 +180,7 @@ export function Ccm2022MapPanel() {
           <p className="mt-3 text-xs text-slate-400">
             {vue === "departement"
               ? "Les sièges ne sont attribués que par académie dans ce scrutin : chaque département affiche les contours réels de son département, coloré par les résultats de son académie de rattachement (plusieurs départements d'une même académie affichent donc les mêmes résultats)."
-              : "Chaque zone affiche les contours réunis des départements d'un Spelc (référentiel interne de l'application), colorés par les résultats de l'académie de rattachement. Le territoire « Centre-Poitou-Charente », scindé en deux Spelc (Poitiers et Orléans-Tours), apparaît donc en deux zones distinctes. Les départements grisés (Grenoble, Corse) ne sont rattachés à aucun Spelc dans ce référentiel."}
+              : "Chaque zone affiche les contours réunis des départements d'un Spelc (référentiel interne de l'application), colorés par les résultats de l'académie de rattachement. Le territoire « Centre-Poitou-Charente », scindé en deux Spelc (Poitiers et Orléans-Tours), apparaît donc en deux zones distinctes. Les départements grisés ne sont rattachés à aucun Spelc dans ce référentiel."}
           </p>
         )}
       </div>
