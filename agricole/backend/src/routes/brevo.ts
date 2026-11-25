@@ -121,6 +121,19 @@ function firstNonVotantAdherent(): Recipient | null {
   return matchedAdherents().find(needsRelance) ?? null;
 }
 
+/** Destinataire de secours pour l'aperçu quand aucun adhérent non-votant
+ * n'est disponible (base vide, ou tout le monde a déjà voté) — l'aperçu
+ * reste utilisable pour vérifier la mise en forme du modèle. */
+const FICTIONAL_RECIPIENT: Recipient = {
+  nom: "Dupont",
+  prenom: "Jean",
+  mail: "jean.dupont@exemple.fr",
+  scrutin1Matched: 0,
+  scrutin1Votant: 0,
+  scrutin2Matched: 0,
+  scrutin2Votant: 0,
+};
+
 /** Adhérents réellement dans la situation décrite par `overrides` (mêmes
  * champs booléens que templateFieldsFor) — pour l'aperçu, montrer un rendu
  * authentique avec un nom différent par cas plutôt que toujours le même. */
@@ -138,24 +151,23 @@ function recipientsMatchingCase(recipients: Recipient[], overrides: Record<strin
  * modèle (voir buildIfTestCases) : pour chaque cas, on cherche un adhérent
  * réellement dans cette situation (recipientsMatchingCase) pour montrer un
  * rendu authentique ; à défaut, on retombe sur le premier adhérent
- * non-votant avec les champs booléens forcés. Un modèle sans aucun {{#if}}
- * ne produit qu'un seul cas.
+ * non-votant avec les champs booléens forcés, ou, si aucun n'existe
+ * (base vide, ou tout le monde a déjà voté), sur un nom fictif
+ * (FICTIONAL_RECIPIENT) pour que l'aperçu reste toujours disponible. Un
+ * modèle sans aucun {{#if}} ne produit qu'un seul cas.
  */
 router.post("/templates/email/preview", (req, res) => {
   const { subject = "", body = "" } = req.body ?? {};
-  const fallbackRecipient = firstNonVotantAdherent();
-  if (!fallbackRecipient) {
-    res.status(400).json({ error: "Aucun adhérent non-votant disponible pour prévisualiser le modèle." });
-    return;
-  }
+  const fallbackRecipient = firstNonVotantAdherent() ?? FICTIONAL_RECIPIENT;
   const pool = matchedAdherents();
   const testCases = buildIfTestCases(`${String(subject)}\n${String(body)}`);
   res.json({
     cases: testCases.map(({ label, overrides }) => {
       const recipient = recipientsMatchingCase(pool, overrides)[0] ?? fallbackRecipient;
+      const isFictional = recipient === FICTIONAL_RECIPIENT;
       const fields = { ...templateFieldsFor(recipient), ...overrides };
       return {
-        label: `${label} — ${recipient.prenom} ${recipient.nom}`,
+        label: `${label} — ${recipient.prenom} ${recipient.nom}${isFictional ? " (exemple)" : ""}`,
         subject: renderTemplate(String(subject), fields),
         html: wrapEmailHtml(renderTemplate(String(body), fields)),
       };
