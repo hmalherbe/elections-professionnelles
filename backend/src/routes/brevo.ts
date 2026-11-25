@@ -906,30 +906,46 @@ router.post("/campaigns/sms", requireRole("admin_spelc"), async (req, res) => {
 
   const campagneTag = campagneTagAuto("sms", spelc);
   const smsSender = resolveSmsSender(spelc);
+
+  // Contenu rendu une seule fois par destinataire (réutilisé pour le calcul
+  // du quota ci-dessous ET pour l'envoi), en excluant déjà ceux déjà
+  // relancés aujourd'hui (ne consomment aucun crédit, ne doivent donc pas
+  // compter dans l'estimation).
+  const targets = recipients
+    .filter((r) => !hasAlreadySent(spelc, "sms", campagneTag, normalizeFrenchMobile(r.mobile!)))
+    .map((r) => ({ r, contact: normalizeFrenchMobile(r.mobile!), content: renderTemplate(template.body, templateFieldsFor(r, spelc, "sms")) }));
+  const alreadySent = recipients.length - targets.length;
+
+  // Tout ou rien : si le quota ne suffit pas à envoyer la totalité de la
+  // campagne, on n'envoie RIEN plutôt que de s'arrêter en cours de route —
+  // demandé explicitement, à la différence de la simulation (qui envoie une
+  // partie puis bloque le reste). Estimation par le nombre réel de segments
+  // de chaque message (lib/smsSegments.ts), pas un forfait fixe : un message
+  // encodé en UCS-2 ou dépassant un segment coûte plus que les autres.
+  const quotaStatus = smsQuotaStatus(spelc);
+  const estimatedCredits = targets.reduce((sum, t) => sum + smsSegmentCount(t.content), 0);
+  if (quotaStatus.quota !== null && quotaStatus.used + estimatedCredits > quotaStatus.quota) {
+    const remaining = Math.max(quotaStatus.quota - quotaStatus.used, 0);
+    res.status(400).json({
+      error:
+        `Quota de crédits SMS insuffisant : ${estimatedCredits} crédit(s) nécessaire(s) pour ${targets.length} SMS, ` +
+        `mais seulement ${remaining} crédit(s) restant(s) (${quotaStatus.used}/${quotaStatus.quota} déjà consommés). ` +
+        "Aucun SMS n'a été envoyé.",
+    });
+    return;
+  }
+
   let sent = 0;
   let errors = 0;
-  let alreadySent = 0;
-  // Plus de plafond manuel par envoi (voir AdminSpelcDashboard.tsx) : on
-  // vérifie le plafond de crédits SMS du Spelc (services/smsQuota.ts) avant
-  // CHAQUE envoi plutôt qu'une seule fois au début, pour ne jamais le
-  // dépasser au fil d'une campagne qui toucherait plus de destinataires que
-  // de crédits restants. Ce plafond compte désormais les crédits réels
-  // (voir smsQuota.ts/smsSegmentCount), pas simplement le nombre de SMS.
+  // Garde-fou supplémentaire pendant l'envoi (concurrence avec une autre
+  // campagne sur ce même Spelc, ou crédits réels différents de l'estimation
+  // ci-dessus) : la vérification en amont couvre le cas normal, celle-ci
+  // reste là en dernier recours.
   let quotaReached = false;
-  for (const r of recipients) {
+  for (const { r, contact, content } of targets) {
     if (smsQuotaStatus(spelc).reached) {
       quotaReached = true;
       break;
-    }
-    const content = renderTemplate(template.body, templateFieldsFor(r, spelc, "sms"));
-    const contact = normalizeFrenchMobile(r.mobile!);
-    // Protège contre un double envoi de la même relance (double-clic,
-    // requête relancée après un délai, deux onglets ouverts en même
-    // temps) : si ce destinataire a déjà reçu cette campagne (même tag,
-    // donc même jour) avec succès, on ne renvoie pas — voir hasAlreadySent.
-    if (hasAlreadySent(spelc, "sms", campagneTag, contact)) {
-      alreadySent++;
-      continue;
     }
     const result = await sendBrevoSms({
       apiKey,
