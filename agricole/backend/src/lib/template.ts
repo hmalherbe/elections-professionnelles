@@ -61,6 +61,59 @@ function evaluateExpression(expr: string, fields: Record<string, unknown>): bool
   return parseOr();
 }
 
+const IF_EXPR_REGEX = /{{#if\s+([^{}]+?)\s*}}/g;
+
+/** Identifiants réellement testés dans une expression (`and`/`or`/`not` et
+ * parenthèses exclus) — mêmes tokens que ceux lus par evaluateExpression. */
+function expressionIdentifiers(expr: string): string[] {
+  return tokenize(expr).filter((t) => t !== "and" && t !== "or" && t !== "not" && t !== "(" && t !== ")");
+}
+
+export interface TemplateTestCase {
+  /** Description du cas, affichée au-dessus de l'aperçu (ex. "Cas 2/3 : scrutin1_non_votant and not(scrutin2_non_votant)"). */
+  label: string;
+  /** Valeurs booléennes à substituer aux champs habituels pour que ce cas précis s'affiche. */
+  overrides: Record<string, boolean>;
+}
+
+/**
+ * Construit un jeu de cas de test couvrant chaque condition {{#if ...}}
+ * distincte trouvée dans le texte (objet + corps réunis) : un cas par
+ * expression, avec la combinaison de valeurs booléennes — parmi tous les
+ * identifiants utilisés dans le texte — qui comporte le moins de valeurs
+ * vraies possible tout en rendant CETTE expression vraie (pour isoler au
+ * mieux la branche testée des autres conditions du même modèle). Un modèle
+ * sans aucun {{#if}} produit un seul cas sans aucun override.
+ */
+export function buildIfTestCases(text: string): TemplateTestCase[] {
+  const expressions: string[] = [];
+  const seen = new Set<string>();
+  for (const match of text.matchAll(IF_EXPR_REGEX)) {
+    const expr = match[1].trim().replace(/\s+/g, " ");
+    if (!seen.has(expr)) {
+      seen.add(expr);
+      expressions.push(expr);
+    }
+  }
+  if (expressions.length === 0) return [{ label: "Aperçu", overrides: {} }];
+
+  const identifiers = Array.from(new Set(expressions.flatMap(expressionIdentifiers)));
+  const combos: Record<string, boolean>[] = [];
+  for (let mask = 0; mask < 1 << identifiers.length; mask++) {
+    const combo: Record<string, boolean> = {};
+    identifiers.forEach((id, i) => {
+      combo[id] = Boolean(mask & (1 << i));
+    });
+    combos.push(combo);
+  }
+  combos.sort((a, b) => Object.values(a).filter(Boolean).length - Object.values(b).filter(Boolean).length);
+
+  return expressions.map((expr, i) => ({
+    label: `Cas ${i + 1}/${expressions.length} : ${expr}`,
+    overrides: combos.find((combo) => evaluateExpression(expr, combo)) ?? {},
+  }));
+}
+
 /**
  * Moteur de template minimal : substitution {{champ}} et conditions
  * {{#if expression}}...{{else}}...{{/if}}, l'expression pouvant combiner

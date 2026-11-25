@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { CamembertCard } from "../components/CamembertCard";
 import { Card } from "../components/Card";
@@ -532,6 +532,25 @@ function UnmatchedAdherentsPanel() {
   );
 }
 
+function Modal({ title, onClose, children, wide = false }: { title: string; onClose: () => void; children: ReactNode; wide?: boolean }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4" onClick={onClose}>
+      <div
+        className={`max-h-[85vh] w-full overflow-auto rounded-lg bg-white p-6 shadow-lg ${wide ? "max-w-2xl" : "max-w-lg"}`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-base font-semibold text-slate-900">{title}</h2>
+          <button type="button" className="text-slate-400 hover:text-slate-600" onClick={onClose}>
+            ✕
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 function RelancesPanel() {
   const [brevoConfigured, setBrevoConfigured] = useState(false);
   const [maskedKey, setMaskedKey] = useState<string | null>(null);
@@ -547,6 +566,10 @@ function RelancesPanel() {
 
   const [template, setTemplate] = useState({ subject: "", body: "" });
   const [templateMsg, setTemplateMsg] = useState<string | null>(null);
+  const [emailPreview, setEmailPreview] = useState<{ label: string; subject: string; html: string }[] | null>(null);
+  const [emailPreviewIndex, setEmailPreviewIndex] = useState(0);
+  const [emailPreviewBusy, setEmailPreviewBusy] = useState(false);
+  const [emailPreviewError, setEmailPreviewError] = useState<string | null>(null);
   const [campagneTag, setCampagneTag] = useState("relance-1");
   const [testMode, setTestMode] = useState(false);
   const [testLimit, setTestLimit] = useState(3);
@@ -610,6 +633,20 @@ function RelancesPanel() {
   }, [testMode, testLimit]);
 
   const mailCredits = plan?.find((p) => p.type === "sendLimit" || p.creditsType === "sendLimit")?.credits ?? null;
+
+  async function previewEmail() {
+    setEmailPreviewBusy(true);
+    setEmailPreviewError(null);
+    try {
+      const res = await api.post<{ cases: { label: string; subject: string; html: string }[] }>("/brevo/templates/email/preview", template);
+      setEmailPreviewIndex(0);
+      setEmailPreview(res.cases);
+    } catch (err) {
+      setEmailPreviewError((err as Error).message);
+    } finally {
+      setEmailPreviewBusy(false);
+    }
+  }
 
   async function sendTest() {
     setTestBusy(true);
@@ -728,6 +765,14 @@ function RelancesPanel() {
           >
             Enregistrer comme modèle
           </button>
+          <button
+            type="button"
+            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 disabled:opacity-60"
+            disabled={emailPreviewBusy}
+            onClick={previewEmail}
+          >
+            {emailPreviewBusy ? "Aperçu…" : "Aperçu"}
+          </button>
           {templateMsg && <span className="self-center text-sm text-slate-600">{templateMsg}</span>}
         </div>
         <input
@@ -743,6 +788,41 @@ function RelancesPanel() {
           onChange={(e) => setTemplate({ ...template, body: e.target.value })}
         />
       </Card>
+
+      {emailPreview && (
+        <Modal title="Aperçu du mail" onClose={() => setEmailPreview(null)} wide>
+          {emailPreview.length > 1 && (
+            <div className="mb-3 flex items-center justify-between gap-2 rounded-md bg-slate-50 px-2 py-1.5">
+              <button
+                type="button"
+                className="rounded px-2 py-1 text-slate-500 hover:bg-slate-200 disabled:opacity-30"
+                disabled={emailPreviewIndex === 0}
+                onClick={() => setEmailPreviewIndex((i) => Math.max(0, i - 1))}
+                aria-label="Cas précédent"
+              >
+                ←
+              </button>
+              <p className="text-center text-xs font-medium text-slate-600">{emailPreview[emailPreviewIndex].label}</p>
+              <button
+                type="button"
+                className="rounded px-2 py-1 text-slate-500 hover:bg-slate-200 disabled:opacity-30"
+                disabled={emailPreviewIndex === emailPreview.length - 1}
+                onClick={() => setEmailPreviewIndex((i) => Math.min(emailPreview.length - 1, i + 1))}
+                aria-label="Cas suivant"
+              >
+                →
+              </button>
+            </div>
+          )}
+          <p className="mb-2 text-sm font-medium text-slate-700">Objet : {emailPreview[emailPreviewIndex].subject}</p>
+          <div className="rounded-md border border-slate-200" dangerouslySetInnerHTML={{ __html: emailPreview[emailPreviewIndex].html }} />
+        </Modal>
+      )}
+      {emailPreviewError && (
+        <Modal title="Aperçu du mail" onClose={() => setEmailPreviewError(null)}>
+          <p className="text-sm text-red-600">{emailPreviewError}</p>
+        </Modal>
+      )}
 
       <Card title="Envoyer une campagne de relance" subtitle="Ciblage : adhérents non-votants à au moins un des 2 scrutins.">
         <div className="flex flex-wrap items-end gap-3">

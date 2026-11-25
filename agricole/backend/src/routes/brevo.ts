@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "../db/index.js";
 import { requireAuth } from "../middleware/auth.js";
-import { renderTemplate, type TemplateFields } from "../lib/template.js";
+import { renderTemplate, buildIfTestCases, type TemplateFields } from "../lib/template.js";
 import { wrapEmailHtml } from "../lib/emailLayout.js";
 import { sendBrevoEmails, fetchAccountInfo, getBrevoApiKey } from "../services/brevo.js";
 import { currentImportId } from "../services/stats.js";
@@ -120,6 +120,48 @@ function needsRelance(r: Recipient): boolean {
 function firstNonVotantAdherent(): Recipient | null {
   return matchedAdherents().find(needsRelance) ?? null;
 }
+
+/** Adhérents réellement dans la situation décrite par `overrides` (mêmes
+ * champs booléens que templateFieldsFor) — pour l'aperçu, montrer un rendu
+ * authentique avec un nom différent par cas plutôt que toujours le même. */
+function recipientsMatchingCase(recipients: Recipient[], overrides: Record<string, boolean>): Recipient[] {
+  return recipients.filter((r) => {
+    const fields = templateFieldsFor(r);
+    return Object.entries(overrides).every(([key, value]) => Boolean(fields[key]) === value);
+  });
+}
+
+/**
+ * Aperçu du mail de relance (contenu actuellement saisi à l'écran, pas
+ * forcément encore enregistré) — même pipeline de rendu que l'envoi réel,
+ * mais sans aucun envoi. Un cas par condition {{#if ...}} distincte du
+ * modèle (voir buildIfTestCases) : pour chaque cas, on cherche un adhérent
+ * réellement dans cette situation (recipientsMatchingCase) pour montrer un
+ * rendu authentique ; à défaut, on retombe sur le premier adhérent
+ * non-votant avec les champs booléens forcés. Un modèle sans aucun {{#if}}
+ * ne produit qu'un seul cas.
+ */
+router.post("/templates/email/preview", (req, res) => {
+  const { subject = "", body = "" } = req.body ?? {};
+  const fallbackRecipient = firstNonVotantAdherent();
+  if (!fallbackRecipient) {
+    res.status(400).json({ error: "Aucun adhérent non-votant disponible pour prévisualiser le modèle." });
+    return;
+  }
+  const pool = matchedAdherents();
+  const testCases = buildIfTestCases(`${String(subject)}\n${String(body)}`);
+  res.json({
+    cases: testCases.map(({ label, overrides }) => {
+      const recipient = recipientsMatchingCase(pool, overrides)[0] ?? fallbackRecipient;
+      const fields = { ...templateFieldsFor(recipient), ...overrides };
+      return {
+        label: `${label} — ${recipient.prenom} ${recipient.nom}`,
+        subject: renderTemplate(String(subject), fields),
+        html: wrapEmailHtml(renderTemplate(String(body), fields)),
+      };
+    }),
+  });
+});
 
 router.post("/templates/email/test", async (req, res) => {
   const { subject = "", body = "" } = req.body ?? {};
