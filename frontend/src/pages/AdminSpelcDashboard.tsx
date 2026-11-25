@@ -574,6 +574,7 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
   const [emailPreviewIndex, setEmailPreviewIndex] = useState(0);
   const [emailPreviewBusy, setEmailPreviewBusy] = useState(false);
   const [emailPreviewError, setEmailPreviewError] = useState<string | null>(null);
+  const [showLexique, setShowLexique] = useState(false);
   const [smsPreview, setSmsPreview] = useState<
     {
       label: string;
@@ -964,6 +965,13 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
             >
               {emailPreviewBusy ? "Aperçu…" : "Aperçu"}
             </button>
+            <button
+              type="button"
+              className="rounded-md border border-blue-300 px-3 py-1.5 text-sm text-blue-700 hover:bg-blue-50"
+              onClick={() => setShowLexique(true)}
+            >
+              Lexique des champs dynamiques
+            </button>
             {emailTemplateMsg && <span className="self-center text-sm text-slate-600">{emailTemplateMsg}</span>}
           </div>
           <input
@@ -1098,6 +1106,53 @@ export function BrevoPanel({ spelc, relanceOnly = false }: { spelc: string; rela
       {smsPreviewError && (
         <Modal title="Aperçu du SMS" onClose={() => setSmsPreviewError(null)}>
           <p className="text-sm text-red-600">{smsPreviewError}</p>
+        </Modal>
+      )}
+      {showLexique && (
+        <Modal title="Lexique des champs dynamiques" onClose={() => setShowLexique(false)} wide>
+          <dl className="space-y-3 text-sm">
+            {(relanceOnly
+              ? [
+                  { field: "{{nom}}", desc: "Nom de famille de l'adhérent." },
+                  { field: "{{prenom}}", desc: "Prénom de l'adhérent." },
+                ]
+              : [
+                  { field: "{{nom}}", desc: "Nom de famille de l'adhérent." },
+                  { field: "{{prenom}}", desc: "Prénom de l'adhérent." },
+                  { field: "{{scrutin_local}}", desc: "Type du scrutin local de l'électeur (CCMI, CCMA, CCMD, CCML1D, CCML2D…), tel qu'indiqué dans le fichier d'émargement de son académie." },
+                  {
+                    field: "{{CCMMEP_non_votant}}",
+                    desc: "Vrai si l'électeur est inscrit au scrutin national CCMMEP et n'y a pas encore voté. À utiliser dans une condition {{#if ...}} (voir plus bas) — n'affiche rien par lui-même.",
+                  },
+                  {
+                    field: "{{scrutin_local_non_votant}}",
+                    desc: "Vrai si l'électeur est inscrit au scrutin local de son académie et n'y a pas encore voté. Même usage que ci-dessus.",
+                  },
+                  { field: "{{logo_spelc}}", desc: "Insère le logo du Spelc (image fixe, 250×250), centré en haut du mail." },
+                  { field: "{{logo_rugby}}", desc: "Insère la bannière de campagne nationale (image fixe, pleine largeur)." },
+                  {
+                    field: "{{reseaux_sociaux}}",
+                    desc: "Insère les icônes des réseaux sociaux configurés pour ce Spelc (ceux cochés avec une adresse renseignée), en pied de mail.",
+                  },
+                  {
+                    field: "{{lien_desinscription}}",
+                    desc: "Insère le lien de désinscription : un clic désinscrit définitivement ce contact des relances, mail ET SMS (voir la carte Désinscriptions).",
+                  },
+                  {
+                    field: "{{#if expression}}…{{else}}…{{/if}}",
+                    desc: "Affiche un contenu différent selon une condition. L'expression peut combiner CCMMEP_non_votant et scrutin_local_non_votant avec and / or / not(...), ex. \"CCMMEP_non_votant and not(scrutin_local_non_votant)\". Le bloc {{else}} est facultatif.",
+                  },
+                ]
+            ).map((item) => (
+              <div key={item.field}>
+                <dt className="font-mono text-xs font-semibold text-slate-800">{item.field}</dt>
+                <dd className="mt-0.5 text-slate-600">{item.desc}</dd>
+              </div>
+            ))}
+          </dl>
+          {!relanceOnly && (
+            <p className="mt-3 text-xs text-slate-400">Le modèle de SMS utilise les mêmes champs (hors logos et réseaux sociaux, sans effet en SMS) ; il est en lecture seule.</p>
+          )}
         </Modal>
       )}
 
