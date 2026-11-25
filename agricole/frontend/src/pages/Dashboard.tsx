@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { CamembertCard } from "../components/CamembertCard";
 import { Card } from "../components/Card";
@@ -248,7 +248,287 @@ function AdherentsPanel() {
           {adherents.length === 0 && <p className="py-4 text-sm text-slate-400">Aucun adhérent importé pour le moment.</p>}
         </div>
       </Card>
+      <FuzzyMatchQueuePanel />
+      <UnmatchedAdherentsPanel />
     </div>
+  );
+}
+
+interface FuzzyMatch {
+  id: number;
+  adherentNom: string;
+  adherentPrenom: string;
+  candidateNom: string;
+  candidatePrenom: string;
+  status: "en_attente" | "valide" | "rejete";
+  createdAt: string;
+  reviewedAt: string | null;
+}
+
+/**
+ * File de validation des rapprochements approximatifs (nom/prénom proches
+ * mais pas identiques) proposés entre un adhérent et une identité des
+ * émargements — voir services/fuzzyMatching.ts côté serveur. Une suggestion
+ * n'est jamais appliquée toute seule : il faut la valider ou la rejeter
+ * explicitement ici.
+ */
+function FuzzyMatchQueuePanel() {
+  const [matches, setMatches] = useState<FuzzyMatch[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+
+  function refresh() {
+    api.get<{ matches: FuzzyMatch[] }>(`/adherents/fuzzy-matches${qs({ status: "en_attente" })}`).then((r) => setMatches(r.matches));
+  }
+  useEffect(refresh, []);
+
+  async function search() {
+    setBusy(true);
+    setMessage(null);
+    try {
+      const res = await api.post<{ created: number; unmatchedExamined: number }>("/adherents/fuzzy-matches/refresh");
+      setMessage(
+        res.created > 0
+          ? `${res.created} nouvelle(s) suggestion(s) trouvée(s) (sur ${res.unmatchedExamined} adhérent(s) non retrouvé(s) examiné(s)).`
+          : `Aucune nouvelle suggestion (sur ${res.unmatchedExamined} adhérent(s) non retrouvé(s) examiné(s)).`
+      );
+      refresh();
+    } catch (err) {
+      setMessage((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function review(id: number, status: "valide" | "rejete") {
+    await api.put(`/adherents/fuzzy-matches/${id}`, { status });
+    refresh();
+  }
+
+  return (
+    <Card
+      title={`Rapprochements approximatifs à valider (${matches.length})`}
+      subtitle="Adhérents non retrouvés par correspondance exacte, mais dont le nom et le prénom sont très proches d'une personne des émargements — à valider ou rejeter explicitement."
+    >
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <button
+          className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 disabled:opacity-60"
+          disabled={busy}
+          onClick={search}
+        >
+          {busy ? "Recherche en cours…" : "Rechercher des rapprochements"}
+        </button>
+        {message && <span className="text-sm text-slate-600">{message}</span>}
+      </div>
+      <div className="max-h-96 overflow-auto">
+        <table className="w-full text-sm">
+          <thead className="sticky top-0 bg-white">
+            <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-500">
+              <th className="py-2 pr-4">Adhérent</th>
+              <th className="px-4 py-2">Trouvé dans les émargements</th>
+              <th className="px-4 py-2"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {matches.map((m) => (
+              <tr key={m.id} className="border-b border-slate-100">
+                <td className="py-1.5 pr-4">
+                  {m.adherentPrenom} {m.adherentNom}
+                </td>
+                <td className="px-4 py-1.5 font-medium text-amber-700">
+                  {m.candidatePrenom} {m.candidateNom}
+                </td>
+                <td className="px-4 py-1.5 text-right">
+                  <button
+                    className="mr-2 rounded-md bg-emerald-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-emerald-700"
+                    onClick={() => review(m.id, "valide")}
+                  >
+                    Valider
+                  </button>
+                  <button
+                    className="rounded-md border border-slate-300 px-2.5 py-1 text-xs text-slate-600 hover:bg-slate-100"
+                    onClick={() => review(m.id, "rejete")}
+                  >
+                    Rejeter
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {matches.length === 0 && (
+          <p className="py-4 text-sm text-slate-400">Aucun rapprochement en attente. Cliquez sur « Rechercher des rapprochements » pour en chercher.</p>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+interface UnmatchedAdherent {
+  id: number;
+  nom: string;
+  prenom: string;
+  status: "aucun_candidat" | "ambigu" | "a_rafraichir" | "en_attente" | "valide" | "rejete";
+  candidats: string[];
+}
+
+const UNMATCHED_STATUS_LABELS: Record<UnmatchedAdherent["status"], string> = {
+  aucun_candidat: "Aucun candidat proche",
+  ambigu: "Ambigu (plusieurs candidats)",
+  a_rafraichir: "Candidat unique (cliquez sur « Rechercher des rapprochements »)",
+  en_attente: "En attente de validation",
+  valide: "Validé",
+  rejete: "Rejeté",
+};
+
+/**
+ * Détail nommé des adhérents derrière le compteur "adhérent(s) non
+ * retrouvé(s) examiné(s)" du panneau ci-dessus — la file de validation ne
+ * montre que ceux qui ont exactement un candidat proche ; ce panneau montre
+ * aussi pourquoi les autres n'y figurent pas (ambigu, ou aucun candidat).
+ * Chargé à la demande (liste potentiellement longue).
+ */
+function UnmatchedAdherentsPanel() {
+  const [adherents, setAdherents] = useState<UnmatchedAdherent[] | null>(null);
+  const [electeurs, setElecteurs] = useState<{ nom: string; prenom: string }[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<"tous" | UnmatchedAdherent["status"]>("tous");
+  const [selection, setSelection] = useState<Record<number, string>>({});
+  const [associating, setAssociating] = useState<number | null>(null);
+
+  async function load() {
+    setLoading(true);
+    setError(null);
+    try {
+      const [adherentsRes, electeursRes] = await Promise.all([
+        api.get<{ adherents: UnmatchedAdherent[] }>("/adherents/fuzzy-matches/unmatched"),
+        api.get<{ electeurs: { nom: string; prenom: string }[] }>("/adherents/electeurs"),
+      ]);
+      setAdherents(adherentsRes.adherents);
+      setElecteurs(electeursRes.electeurs);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const electeurByLabel = useMemo(() => {
+    const map = new Map<string, { nom: string; prenom: string }>();
+    for (const e of electeurs) map.set(`${e.prenom} ${e.nom}`, e);
+    return map;
+  }, [electeurs]);
+
+  async function associer(adherentId: number) {
+    const electeur = electeurByLabel.get(selection[adherentId] ?? "");
+    if (!electeur) return;
+    setAssociating(adherentId);
+    try {
+      await api.post("/adherents/fuzzy-matches/manual", {
+        adherentId,
+        candidateNom: electeur.nom,
+        candidatePrenom: electeur.prenom,
+      });
+      await load();
+      setSelection((prev) => ({ ...prev, [adherentId]: "" }));
+    } finally {
+      setAssociating(null);
+    }
+  }
+
+  const filtered = adherents?.filter((a) => filter === "tous" || a.status === filter) ?? [];
+
+  return (
+    <Card
+      title="Détail des adhérents non retrouvés"
+      subtitle="Qui sont les adhérents sans correspondance exacte dans les émargements, et pourquoi (le cas échéant) aucune suggestion ne leur a été proposée."
+    >
+      {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
+      {adherents === null ? (
+        <button
+          className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 disabled:opacity-60"
+          disabled={loading}
+          onClick={load}
+        >
+          {loading ? "Chargement…" : "Afficher le détail"}
+        </button>
+      ) : (
+        <>
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <span className="text-sm text-slate-600">
+              {filtered.length} / {adherents.length} adhérent(s)
+            </span>
+            <select
+              className="rounded-md border border-slate-300 px-2 py-1 text-sm"
+              value={filter}
+              onChange={(e) => setFilter(e.target.value as "tous" | UnmatchedAdherent["status"])}
+            >
+              <option value="tous">Tous les statuts</option>
+              <option value="aucun_candidat">Aucun candidat proche</option>
+              <option value="ambigu">Ambigu</option>
+              <option value="a_rafraichir">Candidat unique (à rafraîchir)</option>
+              <option value="en_attente">En attente de validation</option>
+              <option value="valide">Validé</option>
+              <option value="rejete">Rejeté</option>
+            </select>
+            <button
+              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 disabled:opacity-60"
+              disabled={loading}
+              onClick={load}
+            >
+              {loading ? "Chargement…" : "Rafraîchir"}
+            </button>
+          </div>
+          <div className="max-h-96 overflow-auto">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-white">
+                <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-500">
+                  <th className="py-2 pr-4">Adhérent</th>
+                  <th className="px-4 py-2">Statut</th>
+                  <th className="px-4 py-2">Candidat(s) proche(s)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((a) => (
+                  <tr key={a.id} className="border-b border-slate-100">
+                    <td className="py-1.5 pr-4">
+                      {a.prenom} {a.nom}
+                    </td>
+                    <td className="px-4 py-1.5">{UNMATCHED_STATUS_LABELS[a.status]}</td>
+                    <td className="px-4 py-1.5">
+                      <div className="text-slate-500">{a.candidats.join(", ") || "—"}</div>
+                      <div className="mt-1 flex items-center gap-1.5">
+                        <input
+                          list="electeurs-datalist"
+                          className="w-48 rounded-md border border-slate-300 px-2 py-1 text-xs"
+                          placeholder="Rapprocher manuellement…"
+                          value={selection[a.id] ?? ""}
+                          onChange={(e) => setSelection((prev) => ({ ...prev, [a.id]: e.target.value }))}
+                        />
+                        <button
+                          className="rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-100 disabled:opacity-40"
+                          disabled={associating === a.id || !electeurByLabel.has(selection[a.id] ?? "")}
+                          onClick={() => associer(a.id)}
+                        >
+                          {associating === a.id ? "…" : "Associer"}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {filtered.length === 0 && <p className="py-4 text-sm text-slate-400">Aucun adhérent pour ce filtre.</p>}
+          </div>
+          <datalist id="electeurs-datalist">
+            {electeurs.map((e) => (
+              <option key={`${e.nom}|${e.prenom}`} value={`${e.prenom} ${e.nom}`} />
+            ))}
+          </datalist>
+        </>
+      )}
+    </Card>
   );
 }
 

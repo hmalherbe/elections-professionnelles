@@ -86,6 +86,29 @@ export function migrate(): void {
     );
     CREATE INDEX IF NOT EXISTS idx_adherents_name ON adherents(nom_norm, prenom_norm);
 
+    -- Suggestions de rapprochement approximatif (nom/prénom proches mais pas
+    -- identiques) entre un adhérent et une identité rencontrée dans les
+    -- émargements — voir services/fuzzyMatching.ts. Une seule par couple
+    -- adhérent/candidat (pas de notion de Spelc ni de nom de naissance ici,
+    -- contrairement à l'application éducation nationale).
+    CREATE TABLE IF NOT EXISTS adherent_fuzzy_matches (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      adherent_nom TEXT NOT NULL,
+      adherent_prenom TEXT NOT NULL,
+      adherent_nom_norm TEXT NOT NULL,
+      adherent_prenom_norm TEXT NOT NULL,
+      candidate_nom TEXT NOT NULL,
+      candidate_prenom TEXT NOT NULL,
+      candidate_nom_norm TEXT NOT NULL,
+      candidate_prenom_norm TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'en_attente' CHECK (status IN ('en_attente','valide','rejete')),
+      reviewed_by INTEGER REFERENCES users(id),
+      reviewed_at TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(adherent_nom_norm, adherent_prenom_norm, candidate_nom_norm, candidate_prenom_norm)
+    );
+    CREATE INDEX IF NOT EXISTS idx_fuzzy_matches_identity ON adherent_fuzzy_matches(adherent_nom_norm, adherent_prenom_norm);
+
     -- Modèle de mail de relance : un seul, partagé par tous les comptes
     -- administrateurs (pas de notion de Spelc local à ce niveau).
     CREATE TABLE IF NOT EXISTS email_template (
