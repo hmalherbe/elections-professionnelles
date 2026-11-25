@@ -1111,6 +1111,20 @@ router.post(
 
     const results: SimulateZipDayResult[] = [];
 
+    // Contrairement à l'import national (toujours remplacé par runImport),
+    // un import académique n'est jamais supprimé automatiquement — en usage
+    // normal, c'est voulu (historique des imports, onglet admin académique).
+    // Mais un scénario multi-jours crée ici, dans une seule requête, un
+    // nouvel import académique par (académie, degré) à CHAQUE jour traité :
+    // sans nettoyage, la table emargements grossit de jour en jour (celle de
+    // la veille devenue inutile dès que celle du jour reste), ralentissant
+    // chaque jour suivant jusqu'à saturer la mémoire/le disque sur un
+    // scénario de plusieurs jours. On ne supprime donc QUE l'import
+    // académique précédent créé par CETTE requête (jamais un import réel
+    // préexistant, uploadé normalement par un admin académique).
+    const lastAcademiqueImportId = new Map<string, number>();
+    const deleteImport = db.prepare("DELETE FROM imports WHERE id = ?");
+
     for (const jour of days) {
       const nationalEntry = nationalByDay.get(jour);
       if (nationalEntry) {
@@ -1129,7 +1143,7 @@ router.post(
       }
       for (const { academie, degre, raw, filename } of academiqueByDay.get(jour) ?? []) {
         try {
-          runImport(raw, {
+          const { importId } = runImport(raw, {
             scope: "academique",
             academie,
             degre,
@@ -1137,6 +1151,10 @@ router.post(
             importedBy: req.user!.id,
             snapshotDate: jour,
           });
+          const key = `${academie}|${degre}`;
+          const previousId = lastAcademiqueImportId.get(key);
+          if (previousId !== undefined) deleteImport.run(previousId);
+          lastAcademiqueImportId.set(key, importId);
         } catch (err) {
           errors.push({ filename, error: (err as Error).message });
         }
