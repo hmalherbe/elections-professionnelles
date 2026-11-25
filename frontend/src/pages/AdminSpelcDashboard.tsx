@@ -1463,6 +1463,7 @@ function AdherentsARelancerCard({ spelc }: { spelc: string }) {
   const [scrutinFilters, setScrutinFilters] = useState<Set<ScrutinFilter>>(new Set(["ccmmep", "1D", "2D"]));
   const [sortKey, setSortKey] = useState<RelanceSortKey>("nom");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [exporting, setExporting] = useState(false);
 
   function toggleScrutinFilter(f: ScrutinFilter) {
     setScrutinFilters((prev) => {
@@ -1506,6 +1507,21 @@ function AdherentsARelancerCard({ spelc }: { spelc: string }) {
       return (a.etablissement ?? "").localeCompare(b.etablissement ?? "", "fr") * dir;
     });
 
+  async function handleExport() {
+    setExporting(true);
+    try {
+      const filename = `adherents-a-relancer-${spelc.replace(/[^a-zA-Z0-9]+/g, "-")}.xlsx`;
+      await api.download("/stats/table-export", filename, {
+        filename,
+        sheetName: "Adhérents à relancer",
+        headers: ["Nom", "Prénom", "Établissement", "Email", "Mobile"],
+        rows: filtered.map((r) => [r.nom, r.prenom, r.etablissement ?? "", r.mail ?? "", r.mobile ?? ""]),
+      });
+    } finally {
+      setExporting(false);
+    }
+  }
+
   function SortableHeader({ k, label, className }: { k: RelanceSortKey; label: string; className?: string }) {
     return (
       <th className={`cursor-pointer select-none py-2 hover:text-slate-700 ${className ?? "px-4"}`} onClick={() => toggleSort(k)}>
@@ -1541,6 +1557,14 @@ function AdherentsARelancerCard({ spelc }: { spelc: string }) {
             </button>
           ))}
         </div>
+        <button
+          type="button"
+          disabled={exporting || filtered.length === 0}
+          onClick={handleExport}
+          className="ml-auto rounded-md border border-blue-300 px-3 py-1.5 text-sm font-medium text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {exporting ? "Export…" : "Export Excel"}
+        </button>
       </div>
       <div className="max-h-96 overflow-auto">
         <table className="w-full text-sm">
