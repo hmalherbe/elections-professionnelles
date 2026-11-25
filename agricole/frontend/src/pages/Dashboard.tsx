@@ -568,6 +568,7 @@ function RelancesPanel() {
   const [emailPreviewIndex, setEmailPreviewIndex] = useState(0);
   const [emailPreviewBusy, setEmailPreviewBusy] = useState(false);
   const [emailPreviewError, setEmailPreviewError] = useState<string | null>(null);
+  const [showLexique, setShowLexique] = useState(false);
   const [campagneTag, setCampagneTag] = useState("relance-1");
   const [testMode, setTestMode] = useState(false);
   const [testLimit, setTestLimit] = useState(3);
@@ -761,6 +762,13 @@ function RelancesPanel() {
           >
             {emailPreviewBusy ? "Aperçu…" : "Aperçu"}
           </button>
+          <button
+            type="button"
+            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
+            onClick={() => setShowLexique(true)}
+          >
+            Lexique des champs dynamiques
+          </button>
           {templateMsg && <span className="self-center text-sm text-slate-600">{templateMsg}</span>}
         </div>
         <input
@@ -809,6 +817,43 @@ function RelancesPanel() {
       {emailPreviewError && (
         <Modal title="Aperçu du mail" onClose={() => setEmailPreviewError(null)}>
           <p className="text-sm text-red-600">{emailPreviewError}</p>
+        </Modal>
+      )}
+      {showLexique && (
+        <Modal title="Lexique des champs dynamiques" onClose={() => setShowLexique(false)} wide>
+          <dl className="space-y-3 text-sm">
+            {[
+              { field: "{{nom}}", desc: "Nom de famille de l'adhérent." },
+              { field: "{{prenom}}", desc: "Prénom de l'adhérent." },
+              {
+                field: "{{scrutin1_non_votant}}",
+                desc: `Vrai si l'adhérent n'a pas encore voté au scrutin « ${SCRUTINS[0].label} ». À utiliser dans une condition {{#if ...}} (voir plus bas) — n'affiche rien par lui-même.`,
+              },
+              {
+                field: "{{scrutin2_non_votant}}",
+                desc: `Vrai si l'adhérent n'a pas encore voté au scrutin « ${SCRUTINS[1].label} ». Même usage que ci-dessus.`,
+              },
+              { field: "{{logo_spelc}}", desc: "Insère le logo du Spelc fédéral (image fixe, 200×200), centré en haut du mail." },
+              { field: "{{logo_rugby}}", desc: "Insère la bannière de campagne (image fixe, pleine largeur)." },
+              {
+                field: "{{reseaux_sociaux}}",
+                desc: "Insère les icônes des réseaux sociaux configurés ci-dessus (ceux cochés avec une adresse renseignée), en pied de mail.",
+              },
+              {
+                field: "{{lien_desinscription}}",
+                desc: "Insère le lien de désinscription : un clic désinscrit définitivement l'adresse mail des relances (voir la carte Désinscriptions plus bas).",
+              },
+              {
+                field: "{{#if expression}}…{{else}}…{{/if}}",
+                desc: "Affiche un contenu différent selon une condition. L'expression peut combiner scrutin1_non_votant et scrutin2_non_votant avec and / or / not(...), ex. \"scrutin1_non_votant and not(scrutin2_non_votant)\". Le bloc {{else}} est facultatif.",
+              },
+            ].map((item) => (
+              <div key={item.field}>
+                <dt className="font-mono text-xs font-semibold text-slate-800">{item.field}</dt>
+                <dd className="mt-0.5 text-slate-600">{item.desc}</dd>
+              </div>
+            ))}
+          </dl>
         </Modal>
       )}
 
