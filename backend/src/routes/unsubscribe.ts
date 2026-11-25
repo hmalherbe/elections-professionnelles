@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { verifyUnsubscribeToken } from "../lib/unsubscribeToken.js";
-import { recordOptOut } from "../services/optout.js";
+import { recordOptOutBothChannels } from "../services/optout.js";
 
 const router = Router();
 
@@ -39,12 +39,11 @@ router.get("/", (req, res) => {
     res.status(403).send(page("Lien invalide", "Ce lien de désinscription n'est pas valide."));
     return;
   }
-  recordOptOut(canal, contact);
-  const canalLabel = canal === "mail" ? "mails" : "SMS";
+  recordOptOutBothChannels(canal, contact);
   res.send(
     page(
       "Désinscription prise en compte",
-      `Vous ne recevrez plus de ${canalLabel} de relance pour le scrutin professionnel. Si c'est une erreur, contactez votre Spelc.`
+      "Vous ne recevrez plus aucune relance (mail et SMS) pour le scrutin professionnel. Si c'est une erreur, contactez votre Spelc."
     )
   );
 });
