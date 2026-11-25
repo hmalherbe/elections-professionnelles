@@ -56,8 +56,40 @@ export function buildSocialLinksHtml(links: SocialLinks): string {
   return `<div style="margin-top:24px;padding-top:12px;border-top:1px solid #e2e8f0;font-size:12px;color:#64748b;">Suivez-nous : ${items}</div>`;
 }
 
+/** Taille fixe du logo Spelc en entête de mail (voir buildLogoHtml). */
+const LOGO_SIZE_PX = 250;
+
+/**
+ * Logo en tête de mail, centré horizontalement, taille fixée à
+ * LOGO_SIZE_PX x LOGO_SIZE_PX. Certains clients (notamment Thunderbird)
+ * redimensionnent une image selon sa taille intrinsèque malgré des
+ * attributs width/height ou un style width/height classiques : on utilise
+ * donc la technique "bulletproof" standard en HTML mail — cellule de
+ * tableau à taille fixe (width/height en attributs, respectés beaucoup plus
+ * largement qu'une propriété CSS) + attributs ET style !important sur
+ * l'image elle-même + display:block (évite l'espace blanc sous l'image dû
+ * à son alignement inline par défaut).
+ */
 export function buildLogoHtml(logoRef: string | null): string {
   if (!logoRef) return "";
   const src = logoRef.startsWith("/") ? `${publicBaseUrl()}${logoRef}` : logoRef;
-  return `<div style="margin-bottom:16px;text-align:center;"><img src="${src}" alt="Logo" style="max-height:80px;max-width:280px;" /></div>`;
+  return (
+    `<table role="presentation" align="center" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto 16px auto;">` +
+    `<tr><td width="${LOGO_SIZE_PX}" height="${LOGO_SIZE_PX}" align="center" valign="middle" ` +
+    `style="width:${LOGO_SIZE_PX}px;height:${LOGO_SIZE_PX}px;">` +
+    `<img src="${src}" alt="Logo" width="${LOGO_SIZE_PX}" height="${LOGO_SIZE_PX}" ` +
+    `style="display:block;width:${LOGO_SIZE_PX}px !important;height:${LOGO_SIZE_PX}px !important;" />` +
+    `</td></tr></table>`
+  );
+}
+
+/**
+ * Bannière pleine largeur (ex. champ {{logo_rugby}}) : contrairement à
+ * buildLogoHtml (pensé pour un petit logo carré), l'image occupe toute la
+ * largeur de la colonne du mail, hauteur proportionnelle — adapté à un
+ * visuel de campagne large plutôt qu'à un logo.
+ */
+export function buildBannerHtml(assetPath: string, alt: string): string {
+  const src = `${publicBaseUrl()}${assetPath}`;
+  return `<div style="margin-bottom:16px;text-align:center;"><img src="${src}" alt="${alt}" style="width:100%;max-width:600px;height:auto;display:block;margin:0 auto;" /></div>`;
 }

@@ -66,9 +66,8 @@ router.get("/org-settings", (_req, res) => {
 });
 
 router.put("/org-settings", (req, res) => {
-  const { logoDataUri, socialLinks, testEmail } = req.body ?? {};
+  const { socialLinks, testEmail } = req.body ?? {};
   updateOrgSettings({
-    logoDataUri: typeof logoDataUri === "string" ? logoDataUri : undefined,
     socialLinks: socialLinks && typeof socialLinks === "object" ? socialLinks : undefined,
     testEmail: typeof testEmail === "string" ? testEmail : undefined,
   });

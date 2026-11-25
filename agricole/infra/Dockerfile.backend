@@ -17,7 +17,6 @@ RUN npm run build --workspace backend
 
 ENV NODE_ENV=production
 ENV DATABASE_PATH=/app/data/agricole.sqlite
-ENV UPLOADS_DIR=/app/data/uploads/logos
 ENV RELANCE_LOG_PATH=/app/data/relances.log
 VOLUME ["/app/data"]
 

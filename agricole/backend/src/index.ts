@@ -19,7 +19,6 @@ import adherentsRoutes from "./routes/adherents.js";
 import statsRoutes from "./routes/stats.js";
 import brevoRoutes from "./routes/brevo.js";
 import unsubscribeRoutes from "./routes/unsubscribe.js";
-import { UPLOADS_DIR } from "./lib/uploads.js";
 
 migrate();
 
@@ -33,9 +32,6 @@ app.get("/api/health", (_req, res) => res.json({ ok: true }));
 // à une URL publique absolue (voir lib/socialLinks.ts).
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 app.use("/api/assets", express.static(path.resolve(__dirname, "../assets")));
-
-// Logo uploadé par l'administrateur, stocké dans le volume persistant.
-app.use("/api/uploads/logos", express.static(UPLOADS_DIR));
 
 // Public (pas d'authentification), monté avant les routes protégées : lien
 // de désinscription cliqué depuis un mail (voir routes/unsubscribe.ts).

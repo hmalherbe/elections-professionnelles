@@ -6,7 +6,7 @@ import { wrapEmailHtml } from "../lib/emailLayout.js";
 import { sendBrevoEmails, fetchAccountInfo, getBrevoApiKey } from "../services/brevo.js";
 import { currentImportId } from "../services/stats.js";
 import { getOrgSettings } from "../services/orgSettings.js";
-import { buildLogoHtml, buildSocialLinksHtml } from "../lib/socialLinks.js";
+import { buildLogoHtml, buildBannerHtml, buildSocialLinksHtml } from "../lib/socialLinks.js";
 import { appendRelanceLog } from "../lib/relanceLog.js";
 import {
   insertRelanceTracking,
@@ -94,6 +94,13 @@ function matchedAdherents(): Recipient[] {
     .all(id1, id2) as Recipient[];
 }
 
+/** Logo du Spelc fédéral (champ {{logo_spelc}}), image fixe (backend/assets),
+ * plus de gestion par l'admin (voir Dashboard.tsx, carte "Logo" retirée). */
+const SPELC_LOGO_PATH = "/api/assets/logo/spelc.png";
+
+/** Bannière de campagne (champ {{logo_rugby}}), image fixe (backend/assets). */
+const RUGBY_BANNER_PATH = "/api/assets/logo/rugby.png";
+
 function templateFieldsFor(r: Recipient): TemplateFields {
   const settings = getOrgSettings();
   const contact = r.mail ? r.mail.trim().toLowerCase() : null;
@@ -102,7 +109,8 @@ function templateFieldsFor(r: Recipient): TemplateFields {
     prenom: r.prenom,
     scrutin1_non_votant: Boolean(r.scrutin1Matched) && !r.scrutin1Votant,
     scrutin2_non_votant: Boolean(r.scrutin2Matched) && !r.scrutin2Votant,
-    logo: buildLogoHtml(settings.logoPath),
+    logo_spelc: buildLogoHtml(SPELC_LOGO_PATH),
+    logo_rugby: buildBannerHtml(RUGBY_BANNER_PATH, "Transformez l'essai ! Votez 2 fois Spelc"),
     reseaux_sociaux: buildSocialLinksHtml(settings.socialLinks),
     lien_desinscription: contact ? buildUnsubscribeUrl(contact) : "",
   };

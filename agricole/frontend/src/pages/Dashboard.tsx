@@ -5,7 +5,6 @@ import { Card } from "../components/Card";
 import { CourbeCard } from "../components/CourbeCard";
 import { EtablissementsTab } from "../components/EtablissementsTab";
 import { FileUploadCard } from "../components/FileUploadCard";
-import { LogoUploadCard } from "../components/LogoUploadCard";
 import { SocialLinksEditor } from "../components/SocialLinksEditor";
 import { api, qs } from "../lib/api";
 import { CATEGORICAL } from "../lib/colors";
@@ -556,8 +555,7 @@ function RelancesPanel() {
   const [maskedKey, setMaskedKey] = useState<string | null>(null);
   const [apiKeyInput, setApiKeyInput] = useState("");
   const [brevoMsg, setBrevoMsg] = useState<string | null>(null);
-  const [orgSettings, setOrgSettings] = useState<{ logoPath: string | null; socialLinks: SocialLinks; testEmail: string | null }>({
-    logoPath: null,
+  const [orgSettings, setOrgSettings] = useState<{ socialLinks: SocialLinks; testEmail: string | null }>({
     socialLinks: {},
     testEmail: null,
   });
@@ -592,7 +590,7 @@ function RelancesPanel() {
   }
   function refreshOrgSettings() {
     api
-      .get<{ logoPath: string | null; socialLinks: SocialLinks; testEmail: string | null }>("/admin/org-settings")
+      .get<{ socialLinks: SocialLinks; testEmail: string | null }>("/admin/org-settings")
       .then((r) => {
         setOrgSettings(r);
         setTestEmailInput(r.testEmail ?? "");
@@ -694,23 +692,13 @@ function RelancesPanel() {
         </div>
       </Card>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <LogoUploadCard
-          title="Logo (entête des mails)"
-          currentLogo={orgSettings.logoPath}
-          onSave={async (dataUri) => {
-            await api.put("/admin/org-settings", { logoDataUri: dataUri });
-            refreshOrgSettings();
-          }}
-        />
-        <SocialLinksEditor
-          value={orgSettings.socialLinks}
-          onSave={async (links) => {
-            await api.put("/admin/org-settings", { socialLinks: links });
-            refreshOrgSettings();
-          }}
-        />
-      </div>
+      <SocialLinksEditor
+        value={orgSettings.socialLinks}
+        onSave={async (links) => {
+          await api.put("/admin/org-settings", { socialLinks: links });
+          refreshOrgSettings();
+        }}
+      />
 
       <Card title="Mail de test" subtitle="Utilisé pour les envois de test (modèle et campagnes), à la place des vrais adhérents.">
         <div className="flex flex-wrap items-end gap-2">
@@ -738,7 +726,7 @@ function RelancesPanel() {
       <Card
         title="Modèle de mail de relance"
         subtitle={
-          "Champs : {{nom}} {{prenom}} · {{scrutin1_non_votant}} {{scrutin2_non_votant}} · {{logo}} {{reseaux_sociaux}} · {{lien_desinscription}} · " +
+          "Champs : {{nom}} {{prenom}} · {{scrutin1_non_votant}} {{scrutin2_non_votant}} · {{logo_spelc}} {{logo_rugby}} {{reseaux_sociaux}} · {{lien_desinscription}} · " +
           "{{#if expr}}…{{else}}…{{/if}} avec expr combinant and/or/not(...), ex. \"scrutin1_non_votant and not(scrutin2_non_votant)\""
         }
       >
