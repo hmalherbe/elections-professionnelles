@@ -80,7 +80,11 @@ export function Ccm2022MapPanel() {
       const groups = new Map<string, { spelc: string; academie: string; codes: string[] }>();
       const orphanCodes: string[] = [];
       for (const code of Object.keys(CCM_2022_DEPARTEMENT_GEO.departements)) {
-        const live = departementSpelc.get(code);
+        // Le référentiel stocke la Corse sous le code "20" (dérivé du code
+        // postal, voir lib/departement.ts), alors que le fond de carte la
+        // scinde en "2A"/"2B" (découpage réel) : on retombe sur "20" pour
+        // ces deux codes si le référentiel n'a pas d'entrée dédiée.
+        const live = departementSpelc.get(code) ?? ((code === "2A" || code === "2B") ? departementSpelc.get("20") : undefined);
         if (!live) {
           orphanCodes.push(code);
           continue;
