@@ -45,7 +45,7 @@ app.get("/api/config", (_req, res) => res.json({ mode: APP_MODE }));
  * routes pour s'appliquer uniformément à toutes.
  */
 if (APP_MODE === "relance-only") {
-  const RELANCE_ONLY_ALLOWED = ["/api/health", "/api/config", "/api/auth/demo-login", "/api/auth/me", "/api/brevo", "/api/uploads/logos", "/api/assets", "/api/unsubscribe"];
+  const RELANCE_ONLY_ALLOWED = ["/api/health", "/api/config", "/api/auth/demo-login", "/api/auth/me", "/api/brevo", "/api/uploads/logos", "/api/assets", "/api/u"];
   app.use((req, res, next) => {
     const allowed = RELANCE_ONLY_ALLOWED.some((p) => req.path === p || req.path.startsWith(`${p}/`));
     if (!allowed) {
@@ -68,8 +68,9 @@ app.use("/api/assets", express.static(path.resolve(__dirname, "../assets")));
 app.use("/api/uploads/logos", express.static(UPLOADS_DIR));
 
 // Public (jamais authentifié) — monté avant les routeurs ci-dessous, qui
-// exigent tous une authentification.
-app.use("/api/unsubscribe", unsubscribeRoutes);
+// exigent tous une authentification. Chemin volontairement très court
+// (/api/u) : chaque caractère compte dans un lien inséré en SMS.
+app.use("/api/u", unsubscribeRoutes);
 
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);

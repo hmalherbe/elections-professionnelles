@@ -424,7 +424,7 @@ function templateFieldsFor(r: Recipient, spelc: string, canal: "mail" | "sms"): 
     // {{lien_desinscription}}. Vide si aucun contact de ce canal (ne devrait
     // pas arriver en envoi réel, seulement en aperçu sur un adhérent sans
     // mobile/mail renseigné).
-    lien_desinscription: contact ? buildUnsubscribeUrl(canal, contact) : "",
+    lien_desinscription: contact ? buildUnsubscribeUrl(contact) : "",
   };
 }
 

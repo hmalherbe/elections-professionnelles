@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { verifyUnsubscribeToken } from "../lib/unsubscribeToken.js";
+import { canalFromContact, verifyUnsubscribeToken } from "../lib/unsubscribeToken.js";
 import { recordOptOutBothChannels } from "../services/optout.js";
 
 const router = Router();
@@ -22,24 +22,17 @@ h1{font-size:1.25rem}</style></head>
  * JSON), puisque c'est un navigateur grand public qui l'affiche.
  */
 router.get("/", (req, res) => {
-  const canal = req.query.canal;
-  const contact = req.query.contact;
-  const token = req.query.token;
-  if (
-    (canal !== "mail" && canal !== "sms") ||
-    typeof contact !== "string" ||
-    !contact ||
-    typeof token !== "string" ||
-    !token
-  ) {
+  const contact = req.query.c;
+  const token = req.query.t;
+  if (typeof contact !== "string" || !contact || typeof token !== "string" || !token) {
     res.status(400).send(page("Lien invalide", "Ce lien de désinscription est incomplet ou mal formé."));
     return;
   }
-  if (!verifyUnsubscribeToken(canal, contact, token)) {
+  if (!verifyUnsubscribeToken(contact, token)) {
     res.status(403).send(page("Lien invalide", "Ce lien de désinscription n'est pas valide."));
     return;
   }
-  recordOptOutBothChannels(canal, contact);
+  recordOptOutBothChannels(canalFromContact(contact), contact);
   res.send(
     page(
       "Désinscription prise en compte",
