@@ -31,6 +31,8 @@ import { isValidSmsSender, suggestSmsSender } from "../lib/smsSender.js";
 import { isRelanceOnly } from "../lib/appMode.js";
 import { smsQuotaStatus } from "../services/smsQuota.js";
 import { smsSegmentCount, analyzeSmsEncoding } from "../lib/smsSegments.js";
+import { buildUnsubscribeUrl } from "../lib/unsubscribeToken.js";
+import { isOptedOut, listOptOuts, removeOptOut } from "../services/optout.js";
 
 /** Préfixe le tag Brevo d'une campagne SMS par le nom du Spelc, pour que les
  * envois de chaque Spelc soient identifiables à la fois dans le tableau de
@@ -400,10 +402,11 @@ function matchedAdherents(spelc: string): Recipient[] {
   });
 }
 
-function templateFieldsFor(r: Recipient, spelc: string): TemplateFields {
+function templateFieldsFor(r: Recipient, spelc: string, canal: "mail" | "sms"): TemplateFields {
   const scrutinLocal = r.scrutinLocal ?? "";
   const votantLocal = Boolean(r.votantLocal);
   const settings = getSpelcSettings(spelc);
+  const contact = canal === "mail" ? r.mail?.trim().toLowerCase() || null : r.mobile ? normalizeFrenchMobile(r.mobile) : null;
   return {
     nom: r.nom,
     prenom: r.prenom,
@@ -416,6 +419,12 @@ function templateFieldsFor(r: Recipient, spelc: string): TemplateFields {
     logo_spelc: buildLogoHtml(settings.logoDataUri),
     logo_rugby: buildBannerHtml(RUGBY_BANNER_PATH, "Transformez l'essai ! Votez 2 fois Spelc"),
     reseaux_sociaux: buildSocialLinksHtml(settings.socialLinks),
+    // Lien de désinscription propre à ce destinataire et à ce canal (voir
+    // lib/unsubscribeToken.ts) — à insérer dans le modèle (mail ou SMS) via
+    // {{lien_desinscription}}. Vide si aucun contact de ce canal (ne devrait
+    // pas arriver en envoi réel, seulement en aperçu sur un adhérent sans
+    // mobile/mail renseigné).
+    lien_desinscription: contact ? buildUnsubscribeUrl(canal, contact) : "",
   };
 }
 
@@ -474,7 +483,7 @@ router.post("/templates/email/test", requireRole("admin_spelc", "admin_general")
     res.status(400).json({ error: "Aucun adhérent non-votant disponible pour prévisualiser le modèle." });
     return;
   }
-  const fields = templateFieldsFor(recipient, spelc);
+  const fields = templateFieldsFor(recipient, spelc, "mail");
   const result = await sendBrevoEmails({
     apiKey,
     to: [{ email: testEmail, name: `${recipient.prenom} ${recipient.nom}` }],
@@ -533,7 +542,7 @@ router.post("/templates/sms/test", requireRole("admin_spelc", "admin_general"), 
     res.status(400).json({ error: "Aucun adhérent non-votant disponible pour prévisualiser le modèle." });
     return;
   }
-  const fields = templateFieldsFor(recipient, spelc);
+  const fields = templateFieldsFor(recipient, spelc, "sms");
   const campagneTag = smsCampagneTag(spelc, "test-modele");
   const content = renderTemplate(String(body), fields);
   const result = await sendBrevoSms({
@@ -584,7 +593,10 @@ router.post("/templates/sms/test", requireRole("admin_spelc", "admin_general"), 
  */
 function recipientsMatchingCase(recipients: Recipient[], spelc: string, overrides: Record<string, boolean>): Recipient[] {
   return recipients.filter((r) => {
-    const fields = templateFieldsFor(r, spelc);
+    // Canal arbitraire ("mail") : seuls les champs booléens (CCMMEP_non_votant,
+    // scrutin_local_non_votant) sont comparés aux overrides, lien_desinscription
+    // n'intervient jamais dans ce test.
+    const fields = templateFieldsFor(r, spelc, "mail");
     return Object.entries(overrides).every(([key, value]) => Boolean(fields[key]) === value);
   });
 }
@@ -616,7 +628,7 @@ router.post("/templates/email/preview", requireRole("admin_spelc", "admin_genera
   res.json({
     cases: testCases.map(({ label, overrides }) => {
       const recipient = recipientsMatchingCase(pool, spelc, overrides)[0] ?? fallbackRecipient;
-      const fields = { ...templateFieldsFor(recipient, spelc), ...overrides };
+      const fields = { ...templateFieldsFor(recipient, spelc, "mail"), ...overrides };
       return {
         label: `${label} — ${recipient.prenom} ${recipient.nom}`,
         subject: renderTemplate(String(subject), fields),
@@ -656,7 +668,7 @@ router.post("/templates/sms/preview", requireRole("admin_spelc", "admin_general"
     let worstCredits = 0;
     let worstRecipient: Recipient | null = null;
     for (const r of pool) {
-      const fields = { ...templateFieldsFor(r, spelc), ...overrides };
+      const fields = { ...templateFieldsFor(r, spelc, "sms"), ...overrides };
       const rendered = renderTemplate(String(body), fields);
       const credits = smsSegmentCount(rendered);
       if (credits > worstCredits || (credits === worstCredits && rendered.length > worst.length)) {
@@ -701,8 +713,14 @@ router.get("/campaigns/preview", requireRole("admin_spelc"), (req, res) => {
   const totalAdherents = (db.prepare("SELECT COUNT(*) AS c FROM adherents WHERE spelc = ?").get(spelc) as { c: number }).c;
   const restantARelancer = adherents.length === 0 ? totalAdherents : adherents.filter(needsRelance).length;
 
-  const mailRecipients = adherents.filter((r) => r.mail).filter(needsRelance);
-  const smsRecipients = adherents.filter((r) => r.mobile).filter(needsRelance);
+  const mailRecipients = adherents
+    .filter((r) => r.mail)
+    .filter(needsRelance)
+    .filter((r) => !isOptedOut("mail", r.mail!.trim().toLowerCase()));
+  const smsRecipients = adherents
+    .filter((r) => r.mobile)
+    .filter(needsRelance)
+    .filter((r) => !isOptedOut("sms", normalizeFrenchMobile(r.mobile!)));
 
   res.json({ mailRecipients: mailRecipients.length, smsRecipients: smsRecipients.length, restantARelancer });
 });
@@ -775,14 +793,16 @@ router.post("/campaigns/email", requireRole("admin_spelc"), async (req, res) => 
 
   let recipients = matchedAdherents(spelc).filter((r) => r.mail);
   if (onlyNonVotants) recipients = recipients.filter(needsRelance);
+  // Jamais de mail à une adresse désinscrite (voir routes/unsubscribe.ts).
+  recipients = recipients.filter((r) => !isOptedOut("mail", r.mail!.trim().toLowerCase()));
 
   const to = recipients.map((r) => ({
     email: r.mail!,
     name: `${r.prenom} ${r.nom}`,
     nom: r.nom,
     prenom: r.prenom,
-    subject: renderTemplate(template.subject, templateFieldsFor(r, spelc)),
-    html: wrapEmailHtml(withDemoLogo(renderTemplate(ensureSiteLink(template.body), templateFieldsFor(r, spelc)))),
+    subject: renderTemplate(template.subject, templateFieldsFor(r, spelc, "mail")),
+    html: wrapEmailHtml(withDemoLogo(renderTemplate(ensureSiteLink(template.body), templateFieldsFor(r, spelc, "mail")))),
   }));
 
   // Vérification des crédits mail Brevo AVANT l'envoi : jusqu'ici seul un
@@ -881,6 +901,8 @@ router.post("/campaigns/sms", requireRole("admin_spelc"), async (req, res) => {
 
   let recipients = matchedAdherents(spelc).filter((r) => r.mobile);
   if (onlyNonVotants) recipients = recipients.filter(needsRelance);
+  // Jamais de SMS à un mobile désinscrit (voir routes/unsubscribe.ts).
+  recipients = recipients.filter((r) => !isOptedOut("sms", normalizeFrenchMobile(r.mobile!)));
 
   const campagneTag = campagneTagAuto("sms", spelc);
   const smsSender = resolveSmsSender(spelc);
@@ -899,7 +921,7 @@ router.post("/campaigns/sms", requireRole("admin_spelc"), async (req, res) => {
       quotaReached = true;
       break;
     }
-    const content = renderTemplate(template.body, templateFieldsFor(r, spelc));
+    const content = renderTemplate(template.body, templateFieldsFor(r, spelc, "sms"));
     const contact = normalizeFrenchMobile(r.mobile!);
     // Protège contre un double envoi de la même relance (double-clic,
     // requête relancée après un délai, deux onglets ouverts en même
@@ -1171,11 +1193,21 @@ router.post(
         const smsPlanned = isSmsPlannedFor(spelc, jour);
 
         const mailTag = campagneTagAuto("mail", spelc);
-        const mailTargets = recipients.filter((r) => r.mail && !hasAlreadySent(spelc, "mail", mailTag, r.mail!));
+        const mailTargets = recipients.filter(
+          (r) =>
+            r.mail &&
+            !hasAlreadySent(spelc, "mail", mailTag, r.mail!) &&
+            !isOptedOut("mail", r.mail!.trim().toLowerCase())
+        );
 
         const smsTag = campagneTagAuto("sms", spelc);
         const smsCandidates = smsPlanned
-          ? recipients.filter((r) => r.mobile && !hasAlreadySent(spelc, "sms", smsTag, normalizeFrenchMobile(r.mobile!)))
+          ? recipients.filter(
+              (r) =>
+                r.mobile &&
+                !hasAlreadySent(spelc, "sms", smsTag, normalizeFrenchMobile(r.mobile!)) &&
+                !isOptedOut("sms", normalizeFrenchMobile(r.mobile!))
+            )
           : [];
 
         const quota = quotaBySpelc.get(spelc)!.quota;
@@ -1280,6 +1312,23 @@ router.delete("/relance-tracking", requireRole("admin_spelc", "admin_general"), 
 router.delete("/relance-tracking/all", requireRole("admin_general"), (_req, res) => {
   const deleted = clearAllRelanceTracking();
   res.json({ deleted });
+});
+
+/** Liste des désinscriptions (mail et SMS) — onglet Paramètres, admin général. */
+router.get("/optout", requireRole("admin_general"), (_req, res) => {
+  res.json({ optouts: listOptOuts() });
+});
+
+/** Réinscription manuelle (ex. désinscription faite par erreur). */
+router.delete("/optout", requireRole("admin_general"), (req, res) => {
+  const canal = req.query.canal;
+  const contact = req.query.contact;
+  if ((canal !== "mail" && canal !== "sms") || typeof contact !== "string" || !contact) {
+    res.status(400).json({ error: "canal (mail/sms) et contact requis." });
+    return;
+  }
+  const ok = removeOptOut(canal, contact);
+  res.json({ ok });
 });
 
 export default router;

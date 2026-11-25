@@ -168,9 +168,84 @@ function ParametresPanel() {
       </Card>
 
       <ModeleRelanceGlobalPanel />
+      <DesinscriptionsPanel />
       <ReinitialiserRelancesPanel />
       <ReinitialiserPanel />
     </div>
+  );
+}
+
+interface OptOutRow {
+  canal: "mail" | "sms";
+  contact: string;
+  createdAt: string;
+}
+
+/**
+ * Liste des adhérents désinscrits (lien de désinscription dans un mail/SMS
+ * de relance, voir routes/unsubscribe.ts) — jamais relancés tant qu'ils y
+ * figurent (filtré dans tous les envois réels et la simulation, voir
+ * routes/brevo.ts). "Réinscrire" permet de corriger une désinscription faite
+ * par erreur.
+ */
+function DesinscriptionsPanel() {
+  const [rows, setRows] = useState<OptOutRow[]>([]);
+  const [message, setMessage] = useState<string | null>(null);
+
+  function refresh() {
+    api.get<{ optouts: OptOutRow[] }>("/brevo/optout").then((r) => setRows(r.optouts));
+  }
+  useEffect(refresh, []);
+
+  async function reinscrire(row: OptOutRow) {
+    setMessage(null);
+    try {
+      await api.delete(`/brevo/optout${qs({ canal: row.canal, contact: row.contact })}`);
+      setMessage(`${row.contact} réinscrit(e).`);
+      refresh();
+    } catch (err) {
+      setMessage((err as Error).message);
+    }
+  }
+
+  return (
+    <Card
+      title="Désinscriptions des relances"
+      subtitle="Adhérents ayant cliqué sur le lien de désinscription d'un mail ou d'un SMS de relance — jamais relancés sur ce canal tant qu'ils figurent ici."
+    >
+      {rows.length === 0 ? (
+        <p className="text-sm text-slate-400">Aucune désinscription pour le moment.</p>
+      ) : (
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-500">
+              <th className="py-1.5 pr-4">Canal</th>
+              <th className="py-1.5 pr-4">Contact</th>
+              <th className="py-1.5 pr-4">Désinscrit le</th>
+              <th className="py-1.5"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={`${r.canal}|${r.contact}`} className="border-b border-slate-100">
+                <td className="py-1.5 pr-4 text-slate-700">{r.canal === "mail" ? "Mail" : "SMS"}</td>
+                <td className="py-1.5 pr-4 text-slate-700">{r.contact}</td>
+                <td className="py-1.5 pr-4 text-slate-500">{r.createdAt}</td>
+                <td className="py-1.5">
+                  <button
+                    onClick={() => reinscrire(r)}
+                    className="rounded-md border border-slate-300 px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                  >
+                    Réinscrire
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      {message && <p className="mt-2 text-sm text-slate-600">{message}</p>}
+    </Card>
   );
 }
 

@@ -244,6 +244,17 @@ export function migrate(): void {
     CREATE INDEX IF NOT EXISTS idx_relance_tracking_scope ON relance_tracking(scope, created_at);
     CREATE INDEX IF NOT EXISTS idx_relance_tracking_pending ON relance_tracking(owner_user_id, message_id);
 
+    -- Désinscription des relances (mail et SMS gérés séparément : une même
+    -- personne peut se désinscrire d'un seul canal) — voir lib/unsubscribeToken.ts
+    -- (lien signé, sans jeton à stocker à l'avance) et services/optout.ts.
+    -- contact = adresse mail en minuscules, ou mobile normalisé (lib/phone.ts).
+    CREATE TABLE IF NOT EXISTS relance_optout (
+      canal TEXT NOT NULL CHECK (canal IN ('mail','sms')),
+      contact TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (canal, contact)
+    );
+
     -- Documents libres (tout type de fichier) déposés par un admin académique
     -- ou un admin Spelc pour son propre périmètre, listés puis téléchargeables
     -- en un clic. Le fichier lui-même vit sur disque (volume persistant, voir

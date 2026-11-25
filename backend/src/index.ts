@@ -22,6 +22,7 @@ import statsRoutes from "./routes/stats.js";
 import brevoRoutes from "./routes/brevo.js";
 import documentsRoutes from "./routes/documents.js";
 import documentFoldersRoutes from "./routes/documentFolders.js";
+import unsubscribeRoutes from "./routes/unsubscribe.js";
 import { UPLOADS_DIR } from "./lib/uploads.js";
 import { APP_MODE } from "./lib/appMode.js";
 
@@ -44,7 +45,7 @@ app.get("/api/config", (_req, res) => res.json({ mode: APP_MODE }));
  * routes pour s'appliquer uniformément à toutes.
  */
 if (APP_MODE === "relance-only") {
-  const RELANCE_ONLY_ALLOWED = ["/api/health", "/api/config", "/api/auth/demo-login", "/api/auth/me", "/api/brevo", "/api/uploads/logos", "/api/assets"];
+  const RELANCE_ONLY_ALLOWED = ["/api/health", "/api/config", "/api/auth/demo-login", "/api/auth/me", "/api/brevo", "/api/uploads/logos", "/api/assets", "/api/unsubscribe"];
   app.use((req, res, next) => {
     const allowed = RELANCE_ONLY_ALLOWED.some((p) => req.path === p || req.path.startsWith(`${p}/`));
     if (!allowed) {
@@ -65,6 +66,10 @@ app.use("/api/assets", express.static(path.resolve(__dirname, "../assets")));
 // stockés dans le volume persistant (voir lib/uploads.ts) puisqu'il s'agit
 // de contenu généré à l'exécution, pas d'un fichier versionné.
 app.use("/api/uploads/logos", express.static(UPLOADS_DIR));
+
+// Public (jamais authentifié) — monté avant les routeurs ci-dessous, qui
+// exigent tous une authentification.
+app.use("/api/unsubscribe", unsubscribeRoutes);
 
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
