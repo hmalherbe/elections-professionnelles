@@ -85,6 +85,17 @@ export function ScrutinTab() {
 
       <div className="flex flex-wrap items-end gap-3">
         <div>
+          <label className="block text-xs font-medium text-slate-500">Scrutin</label>
+          <select
+            className="mt-1 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+            value={typeScrutin}
+            onChange={(e) => setTypeScrutin(e.target.value as TypeScrutinFilter)}
+          >
+            <option value="scrutin1">Le CCM ({SCRUTINS[0].label})</option>
+            <option value="scrutin2">La CCM ({SCRUTINS[1].label})</option>
+          </select>
+        </div>
+        <div>
           <label className="block text-xs font-medium text-slate-500">Établissement</label>
           <select
             className="mt-1 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
@@ -97,17 +108,6 @@ export function ScrutinTab() {
                 {et}
               </option>
             ))}
-          </select>
-        </div>
-        <div>
-          <label className="block text-xs font-medium text-slate-500">Scrutin</label>
-          <select
-            className="mt-1 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-            value={typeScrutin}
-            onChange={(e) => setTypeScrutin(e.target.value as TypeScrutinFilter)}
-          >
-            <option value="scrutin1">Le CCM ({SCRUTINS[0].label})</option>
-            <option value="scrutin2">La CCM ({SCRUTINS[1].label})</option>
           </select>
         </div>
         <div>
