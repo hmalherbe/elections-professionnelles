@@ -35,18 +35,15 @@ router.get("/etablissements", (req, res) => {
 });
 
 function parseScrutinDetailFilter(req: Request) {
-  let votant1: "votant" | "non_votant" | null = null;
-  if (req.query.votant1 === "votant" || req.query.votant1 === "non_votant") votant1 = req.query.votant1;
-
-  let votant2: "votant" | "non_votant" | null = null;
-  if (req.query.votant2 === "votant" || req.query.votant2 === "non_votant") votant2 = req.query.votant2;
+  let votant: "votant" | "non_votant" | null = null;
+  if (req.query.votant === "votant" || req.query.votant === "non_votant") votant = req.query.votant;
 
   let adherent: "oui" | "non" | null = null;
   if (req.query.adherent === "oui" || req.query.adherent === "non") adherent = req.query.adherent;
 
   const typeScrutin = isScrutinCode(req.query.typeScrutin) ? req.query.typeScrutin : null;
 
-  return { votant1, votant2, adherent, typeScrutin, etablissement: (req.query.etablissement as string) || null };
+  return { votant, adherent, typeScrutin, etablissement: (req.query.etablissement as string) || null };
 }
 
 router.get("/scrutin-detail", (req, res) => {

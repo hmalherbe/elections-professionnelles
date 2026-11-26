@@ -34,7 +34,7 @@ for (const [key, label] of [["scrutin1", "le CCM"], ["scrutin2", "la CCM"]] as c
   }
 }
 
-const nonVotants1 = scrutinDetail({ votant1: "non_votant" });
+const nonVotants1 = scrutinDetail({ typeScrutin: "scrutin1", votant: "non_votant" });
 const totalListeNonVotants1 = nonVotants1.etablissements.reduce((s, e) => s + e.rows.length, 0);
 console.log(
   `Filtre "non votant" (le CCM) : ${totalListeNonVotants1} électeur(s) listé(s) ` +
@@ -42,7 +42,17 @@ console.log(
     `la CCM ${(nonVotants1.global.scrutin2.taux * 100).toFixed(1)} % — si différents du global sans filtre, c'est un bug).`
 );
 
+const sansTypeScrutin = scrutinDetail({ votant: "non_votant" });
+console.log(
+  `Filtre "non votant" SANS type de scrutin choisi : ${sansTypeScrutin.totalRows} électeur(s) ` +
+    `(doit être égal au total sans filtre — ${sansFiltre.etablissements.reduce((s, e) => s + e.rows.length, 0)} — ` +
+    `puisque "votant" est ignoré sans "typeScrutin" : ${sansTypeScrutin.totalRows === sansFiltre.etablissements.reduce((s, e) => s + e.rows.length, 0) ? "OK" : "BUG"}).`
+);
+
 const adherents = scrutinDetail({ adherent: "oui" });
 console.log(`Filtre "adhérents" : ${adherents.totalRows} électeur(s) adhérent(s) listé(s).`);
+
+const typeScrutin2 = scrutinDetail({ typeScrutin: "scrutin2" });
+console.log(`Filtre "type de scrutin = la CCM" : ${typeScrutin2.totalRows} électeur(s) listé(s) (inscrits à la CCM uniquement).`);
 
 console.log("\nTerminé sans exception.");
