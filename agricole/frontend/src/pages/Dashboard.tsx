@@ -1129,9 +1129,14 @@ function ComptesPanel() {
     role: "admin_complet",
   });
   const [error, setError] = useState<string | null>(null);
+  const [listError, setListError] = useState<string | null>(null);
 
   function refresh() {
-    api.get<{ users: ManagedUser[] }>("/admin/users").then((r) => setUsers(r.users));
+    setListError(null);
+    api
+      .get<{ users: ManagedUser[] }>("/admin/users")
+      .then((r) => setUsers(r.users))
+      .catch((err) => setListError((err as Error).message));
   }
   useEffect(refresh, []);
 
@@ -1214,6 +1219,12 @@ function ComptesPanel() {
       </Card>
 
       <Card title="Comptes existants">
+        {listError && (
+          <p className="mb-2 text-sm text-red-600">
+            Impossible de charger la liste des comptes : {listError} — essayez de vous déconnecter puis de vous
+            reconnecter (votre session a peut-être été ouverte avant une mise à jour de l'application).
+          </p>
+        )}
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-500">
