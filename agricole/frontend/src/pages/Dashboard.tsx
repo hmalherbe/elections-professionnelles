@@ -62,7 +62,7 @@ export function Dashboard() {
 
       {tab === "Vue d'ensemble" && <VueEnsemble />}
       {tab === "Participation par établissement" && <ParticipationPanel />}
-      {tab === "Scrutin" && <ScrutinPanel />}
+      {tab === "Scrutin" && <ScrutinTab />}
       {tab === "Imports" && isFullAdmin && <ImportsPanel />}
       {tab === "Adhérents" && <AdherentsPanel />}
       {tab === "Relances adhérents" && <RelancesPanel />}
@@ -120,15 +120,6 @@ function ParticipationPanel() {
   );
 }
 
-function ScrutinPanel() {
-  const [scrutin, setScrutin] = useState<ScrutinDef>(SCRUTINS[0]);
-  return (
-    <div>
-      <ScrutinToggle value={scrutin} onChange={setScrutin} />
-      <ScrutinTab scrutin={scrutin.code} />
-    </div>
-  );
-}
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);

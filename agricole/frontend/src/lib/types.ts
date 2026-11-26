@@ -23,15 +23,20 @@ export interface EtablissementRow {
   taux: number;
 }
 
+export interface ScrutinEmargement {
+  votant: number;
+  dateEmargement: string | null;
+}
+
 export interface ScrutinDetailElecteur {
   nom: string;
   prenom: string;
-  votant: number;
-  dateEmargement: string | null;
+  scrutin1: ScrutinEmargement | null;
+  scrutin2: ScrutinEmargement | null;
   isAdherent: number;
 }
 
-export interface ScrutinDetailGlobal {
+export interface ScrutinStats {
   inscrits: number;
   votants: number;
   taux: number;
@@ -40,8 +45,15 @@ export interface ScrutinDetailGlobal {
   adherentsTaux: number;
 }
 
-export interface ScrutinDetailGroup extends ScrutinDetailGlobal {
+export interface ScrutinDetailGlobal {
+  scrutin1: ScrutinStats;
+  scrutin2: ScrutinStats;
+}
+
+export interface ScrutinDetailGroup {
   etablissement: string;
+  scrutin1: ScrutinStats;
+  scrutin2: ScrutinStats;
   rows: ScrutinDetailElecteur[];
 }
 

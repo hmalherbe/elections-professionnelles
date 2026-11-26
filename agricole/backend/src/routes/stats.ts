@@ -35,34 +35,24 @@ router.get("/etablissements", (req, res) => {
 });
 
 function parseScrutinDetailFilter(req: Request) {
-  const scrutin = req.query.scrutin;
-  if (!isScrutinCode(scrutin)) return null;
+  let votant1: "votant" | "non_votant" | null = null;
+  if (req.query.votant1 === "votant" || req.query.votant1 === "non_votant") votant1 = req.query.votant1;
 
-  let votant: "votant" | "non_votant" | null = null;
-  if (req.query.votant === "votant" || req.query.votant === "non_votant") votant = req.query.votant;
+  let votant2: "votant" | "non_votant" | null = null;
+  if (req.query.votant2 === "votant" || req.query.votant2 === "non_votant") votant2 = req.query.votant2;
 
   let adherent: "oui" | "non" | null = null;
   if (req.query.adherent === "oui" || req.query.adherent === "non") adherent = req.query.adherent;
 
-  return { scrutin, votant, adherent, etablissement: (req.query.etablissement as string) || null };
+  return { votant1, votant2, adherent, etablissement: (req.query.etablissement as string) || null };
 }
 
 router.get("/scrutin-detail", (req, res) => {
-  const filter = parseScrutinDetailFilter(req);
-  if (!filter) {
-    res.status(400).json({ error: "Paramètre scrutin invalide (scrutin1 ou scrutin2)." });
-    return;
-  }
-  res.json(scrutinDetail(filter));
+  res.json(scrutinDetail(parseScrutinDetailFilter(req)));
 });
 
 router.get("/scrutin-detail/export", async (req, res) => {
-  const filter = parseScrutinDetailFilter(req);
-  if (!filter) {
-    res.status(400).json({ error: "Paramètre scrutin invalide (scrutin1 ou scrutin2)." });
-    return;
-  }
-  const data = scrutinDetail(filter);
+  const data = scrutinDetail(parseScrutinDetailFilter(req));
   const wb = buildScrutinDetailWorkbook(data);
 
   res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");

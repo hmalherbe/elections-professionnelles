@@ -76,24 +76,34 @@ export function participationParEtablissement(scrutin: ScrutinCode): Etablisseme
 }
 
 export interface ScrutinDetailFilter {
-  scrutin: ScrutinCode;
-  /** Ne s'applique qu'à la liste d'électeurs par établissement (rows) : un
-   * taux de participation calculé sur des lignes déjà filtrées par leur
-   * propre statut de vote n'aurait aucun sens (toujours 0 % ou 100 %). */
-  votant?: "votant" | "non_votant" | null;
+  /** Chacun ne s'applique qu'à la liste d'électeurs par établissement
+   * (rows), jamais aux taux : un taux calculé sur des lignes déjà filtrées
+   * par leur propre statut de vote n'aurait aucun sens (toujours 0 % ou
+   * 100 %). Absent de la liste électorale d'un scrutin -> ne correspond ni
+   * à "votant" ni à "non_votant" de CE scrutin (voir matchesVotantFilters). */
+  votant1?: "votant" | "non_votant" | null;
+  votant2?: "votant" | "non_votant" | null;
   adherent?: "oui" | "non" | null;
   etablissement?: string | null;
+}
+
+/** Statut d'émargement d'un électeur pour l'un des 2 scrutins — absent
+ * (null) si cette personne n'est pas sur la liste électorale de CE scrutin
+ * (les 2 listes, importées séparément, ne sont pas garanties identiques). */
+export interface ScrutinEmargement {
+  votant: number;
+  dateEmargement: string | null;
 }
 
 export interface ScrutinDetailElecteur {
   nom: string;
   prenom: string;
-  votant: number;
-  dateEmargement: string | null;
+  scrutin1: ScrutinEmargement | null;
+  scrutin2: ScrutinEmargement | null;
   isAdherent: number;
 }
 
-export interface ScrutinDetailGlobal {
+export interface ScrutinStats {
   inscrits: number;
   votants: number;
   taux: number;
@@ -102,8 +112,15 @@ export interface ScrutinDetailGlobal {
   adherentsTaux: number;
 }
 
-export interface ScrutinDetailGroup extends ScrutinDetailGlobal {
+export interface ScrutinDetailGlobal {
+  scrutin1: ScrutinStats;
+  scrutin2: ScrutinStats;
+}
+
+export interface ScrutinDetailGroup {
   etablissement: string;
+  scrutin1: ScrutinStats;
+  scrutin2: ScrutinStats;
   rows: ScrutinDetailElecteur[];
 }
 
@@ -111,7 +128,7 @@ export interface ScrutinDetailResult {
   global: ScrutinDetailGlobal;
   /** Établissements disponibles sous le filtre adhérent courant (hors le
    * filtre établissement lui-même, pour pouvoir toujours en choisir un
-   * autre) — le filtre votant ne les restreint pas non plus : un
+   * autre) — les filtres votant ne les restreignent pas non plus : un
    * établissement n'ayant que des votants ou que des non-votants reste
    * toujours proposé. */
   etablissementOptions: string[];
@@ -119,12 +136,24 @@ export interface ScrutinDetailResult {
   totalRows: number;
 }
 
-function summarize(rows: { votant: number; isAdherent: number }[]): ScrutinDetailGlobal {
-  const inscrits = rows.length;
-  const votants = rows.reduce((s, r) => s + r.votant, 0);
-  const adherentRows = rows.filter((r) => r.isAdherent === 1);
-  const adherentsInscrits = adherentRows.length;
-  const adherentsVotants = adherentRows.reduce((s, r) => s + r.votant, 0);
+interface MergedElecteur {
+  nom: string;
+  prenom: string;
+  etablissement: string;
+  nomNorm: string;
+  prenomNorm: string;
+  isAdherent: number;
+  scrutin1: ScrutinEmargement | null;
+  scrutin2: ScrutinEmargement | null;
+}
+
+function summarizeScrutin(rows: MergedElecteur[], key: "scrutin1" | "scrutin2"): ScrutinStats {
+  const present = rows.filter((r): r is MergedElecteur & Record<typeof key, ScrutinEmargement> => r[key] != null);
+  const inscrits = present.length;
+  const votants = present.reduce((s, r) => s + r[key].votant, 0);
+  const adherentPresent = present.filter((r) => r.isAdherent === 1);
+  const adherentsInscrits = adherentPresent.length;
+  const adherentsVotants = adherentPresent.reduce((s, r) => s + r[key].votant, 0);
   return {
     inscrits,
     votants,
@@ -135,49 +164,87 @@ function summarize(rows: { votant: number; isAdherent: number }[]): ScrutinDetai
   };
 }
 
+/** Un électeur correspond-il aux filtres votant1/votant2 ? Absent de la
+ * liste électorale d'un scrutin (scrutinX === null) ne correspond à aucun
+ * des 2 choix ("votant" ni "non_votant") de CE scrutin : une relance ne
+ * cible que des personnes effectivement inscrites à ce scrutin-là. */
+function matchesVotantFilters(r: MergedElecteur, filter: ScrutinDetailFilter): boolean {
+  if (filter.votant1 === "votant" && r.scrutin1?.votant !== 1) return false;
+  if (filter.votant1 === "non_votant" && r.scrutin1?.votant !== 0) return false;
+  if (filter.votant2 === "votant" && r.scrutin2?.votant !== 1) return false;
+  if (filter.votant2 === "non_votant" && r.scrutin2?.votant !== 0) return false;
+  return true;
+}
+
 /**
- * Détail du scrutin groupé par établissement (onglet "Scrutin") : taux de
- * participation global et par établissement (électeurs ET, parmi eux, les
- * seuls adhérents — voir buildAdherentIdentitySet), avec la liste nommée des
- * électeurs de chaque établissement, repliable côté frontend. Un seul aller
- * SQL, le rapprochement adhérent et tous les filtres faits en mémoire —
- * même principe que scrutinsByEtablissement côté application éducation
- * nationale.
+ * Détail des 2 scrutins agricoles groupé par établissement (onglet
+ * "Scrutin"), fusionnés par identité (nom/prénom normalisés) puisque leurs
+ * listes électorales sont importées séparément : chaque électeur porte son
+ * statut d'émargement pour "le CCM" (scrutin1) ET "la CCM" (scrutin2) côte à
+ * côte, plus le statut adhérent (voir buildAdherentIdentitySet). Taux de
+ * participation (global et par établissement) calculés séparément pour
+ * chaque scrutin, sur les seules personnes présentes dans SA liste
+ * électorale respective.
  */
 export function scrutinDetail(filter: ScrutinDetailFilter): ScrutinDetailResult {
-  const importId = currentImportId(filter.scrutin);
-  if (importId == null) {
-    return { global: summarize([]), etablissementOptions: [], etablissements: [], totalRows: 0 };
+  function loadRows(scrutin: ScrutinCode) {
+    const importId = currentImportId(scrutin);
+    if (importId == null) return [];
+    return db
+      .prepare(
+        `SELECT nom, prenom, COALESCE(etablissement, 'Non renseigné') AS etablissement, votant,
+                date_emargement AS dateEmargement, nom_norm AS nomNorm, prenom_norm AS prenomNorm
+         FROM emargements WHERE import_id = ?`
+      )
+      .all(importId) as {
+      nom: string;
+      prenom: string;
+      etablissement: string;
+      votant: number;
+      dateEmargement: string | null;
+      nomNorm: string;
+      prenomNorm: string;
+    }[];
   }
 
-  const rawRows = db
-    .prepare(
-      `SELECT nom, prenom, COALESCE(etablissement, 'Non renseigné') AS etablissement, votant,
-              date_emargement AS dateEmargement, nom_norm AS nomNorm, prenom_norm AS prenomNorm
-       FROM emargements WHERE import_id = ?`
-    )
-    .all(importId) as {
-    nom: string;
-    prenom: string;
-    etablissement: string;
-    votant: number;
-    dateEmargement: string | null;
-    nomNorm: string;
-    prenomNorm: string;
-  }[];
+  const byIdentity = new Map<string, MergedElecteur>();
+  function merge(scrutinRows: ReturnType<typeof loadRows>, key: "scrutin1" | "scrutin2") {
+    for (const r of scrutinRows) {
+      const identityKey = `${r.nomNorm}|${r.prenomNorm}`;
+      const emargement: ScrutinEmargement = { votant: r.votant, dateEmargement: r.dateEmargement };
+      const existing = byIdentity.get(identityKey);
+      if (existing) {
+        existing[key] = emargement;
+      } else {
+        byIdentity.set(identityKey, {
+          nom: r.nom,
+          prenom: r.prenom,
+          etablissement: r.etablissement,
+          nomNorm: r.nomNorm,
+          prenomNorm: r.prenomNorm,
+          isAdherent: 0,
+          scrutin1: null,
+          scrutin2: null,
+          [key]: emargement,
+        });
+      }
+    }
+  }
+  merge(loadRows("scrutin1"), "scrutin1");
+  merge(loadRows("scrutin2"), "scrutin2");
 
   const adherentSet = buildAdherentIdentitySet();
-  const rows = rawRows.map((r) => ({
-    ...r,
-    isAdherent: electeurMatchesAdherent(adherentSet, r.nomNorm, r.prenomNorm) ? 1 : 0,
-  }));
+  for (const r of byIdentity.values()) {
+    r.isAdherent = electeurMatchesAdherent(adherentSet, r.nomNorm, r.prenomNorm) ? 1 : 0;
+  }
+  const merged = [...byIdentity.values()];
 
   // Filtre adhérent : s'applique aux taux (global et par établissement) ET
   // à la liste d'électeurs. Filtre établissement : pareil, mais exclu de son
   // propre sélecteur d'options (voir etablissementOptions ci-dessous).
   const adherentFiltered = filter.adherent
-    ? rows.filter((r) => (filter.adherent === "oui" ? r.isAdherent === 1 : r.isAdherent === 0))
-    : rows;
+    ? merged.filter((r) => (filter.adherent === "oui" ? r.isAdherent === 1 : r.isAdherent === 0))
+    : merged;
 
   const etablissementOptions = [...new Set(adherentFiltered.map((r) => r.etablissement))].sort((a, b) =>
     a.localeCompare(b, "fr")
@@ -185,24 +252,22 @@ export function scrutinDetail(filter: ScrutinDetailFilter): ScrutinDetailResult 
 
   const aggRows = filter.etablissement ? adherentFiltered.filter((r) => r.etablissement === filter.etablissement) : adherentFiltered;
 
-  const global = summarize(aggRows);
+  const global: ScrutinDetailGlobal = {
+    scrutin1: summarizeScrutin(aggRows, "scrutin1"),
+    scrutin2: summarizeScrutin(aggRows, "scrutin2"),
+  };
 
-  // Le filtre votant n'intervient qu'ici, pour la liste d'électeurs affichée
-  // (jamais pour les taux ci-dessus — voir ScrutinDetailFilter.votant).
-  const detailRows =
-    filter.votant === "votant"
-      ? aggRows.filter((r) => r.votant === 1)
-      : filter.votant === "non_votant"
-        ? aggRows.filter((r) => r.votant === 0)
-        : aggRows;
+  // Les filtres votant1/votant2 n'interviennent qu'ici, pour la liste
+  // d'électeurs affichée (jamais pour les taux ci-dessus).
+  const detailRows = aggRows.filter((r) => matchesVotantFilters(r, filter));
 
-  const byEtab = new Map<string, typeof aggRows>();
+  const byEtab = new Map<string, MergedElecteur[]>();
   for (const r of aggRows) {
     const list = byEtab.get(r.etablissement);
     if (list) list.push(r);
     else byEtab.set(r.etablissement, [r]);
   }
-  const detailByEtab = new Map<string, typeof detailRows>();
+  const detailByEtab = new Map<string, MergedElecteur[]>();
   for (const r of detailRows) {
     const list = detailByEtab.get(r.etablissement);
     if (list) list.push(r);
@@ -213,10 +278,11 @@ export function scrutinDetail(filter: ScrutinDetailFilter): ScrutinDetailResult 
     .sort((a, b) => a[0].localeCompare(b[0], "fr"))
     .map(([etablissement, etabRows]) => ({
       etablissement,
-      ...summarize(etabRows),
+      scrutin1: summarizeScrutin(etabRows, "scrutin1"),
+      scrutin2: summarizeScrutin(etabRows, "scrutin2"),
       rows: (detailByEtab.get(etablissement) ?? [])
         .sort((a, b) => a.nom.localeCompare(b.nom, "fr") || a.prenom.localeCompare(b.prenom, "fr"))
-        .map((r) => ({ nom: r.nom, prenom: r.prenom, votant: r.votant, dateEmargement: r.dateEmargement, isAdherent: r.isAdherent })),
+        .map((r) => ({ nom: r.nom, prenom: r.prenom, scrutin1: r.scrutin1, scrutin2: r.scrutin2, isAdherent: r.isAdherent })),
     }));
 
   return { global, etablissementOptions, etablissements, totalRows: detailRows.length };
