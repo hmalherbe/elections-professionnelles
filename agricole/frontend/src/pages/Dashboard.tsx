@@ -5,6 +5,7 @@ import { Card } from "../components/Card";
 import { CourbeCard } from "../components/CourbeCard";
 import { EtablissementsTab } from "../components/EtablissementsTab";
 import { FileUploadCard } from "../components/FileUploadCard";
+import { ScrutinTab } from "../components/ScrutinTab";
 import { SocialLinksEditor } from "../components/SocialLinksEditor";
 import { api, qs } from "../lib/api";
 import { useAuth } from "../lib/auth";
@@ -22,7 +23,15 @@ import type {
   UserRole,
 } from "../lib/types";
 
-const TABS = ["Vue d'ensemble", "Participation par établissement", "Imports", "Adhérents", "Relances adhérents", "Comptes administrateurs"] as const;
+const TABS = [
+  "Vue d'ensemble",
+  "Participation par établissement",
+  "Scrutin",
+  "Imports",
+  "Adhérents",
+  "Relances adhérents",
+  "Comptes administrateurs",
+] as const;
 type Tab = (typeof TABS)[number];
 
 /** Onglets réservés à l'administration complète (voir la carte "Types de
@@ -53,6 +62,7 @@ export function Dashboard() {
 
       {tab === "Vue d'ensemble" && <VueEnsemble />}
       {tab === "Participation par établissement" && <ParticipationPanel />}
+      {tab === "Scrutin" && <ScrutinPanel />}
       {tab === "Imports" && isFullAdmin && <ImportsPanel />}
       {tab === "Adhérents" && <AdherentsPanel />}
       {tab === "Relances adhérents" && <RelancesPanel />}
@@ -106,6 +116,16 @@ function ParticipationPanel() {
     <div>
       <ScrutinToggle value={scrutin} onChange={setScrutin} />
       <EtablissementsTab scrutin={scrutin.code} />
+    </div>
+  );
+}
+
+function ScrutinPanel() {
+  const [scrutin, setScrutin] = useState<ScrutinDef>(SCRUTINS[0]);
+  return (
+    <div>
+      <ScrutinToggle value={scrutin} onChange={setScrutin} />
+      <ScrutinTab scrutin={scrutin.code} />
     </div>
   );
 }
@@ -1159,7 +1179,7 @@ function ComptesPanel() {
           <div>
             <dt className="font-semibold text-slate-800">Administration complète</dt>
             <dd className="mt-1 text-slate-600">
-              Accès à tous les onglets, sans restriction : Vue d'ensemble, Participation par établissement,{" "}
+              Accès à tous les onglets, sans restriction : Vue d'ensemble, Participation par établissement, Scrutin,{" "}
               <strong>Imports</strong>, Adhérents, Relances adhérents et <strong>Comptes administrateurs</strong>{" "}
               (création, suppression et consultation des autres comptes).
             </dd>
@@ -1168,8 +1188,8 @@ function ComptesPanel() {
             <dt className="font-semibold text-slate-800">Administration restreinte</dt>
             <dd className="mt-1 text-slate-600">
               Accès à tous les onglets <strong>sauf</strong> Imports et Comptes administrateurs : Vue d'ensemble,
-              Participation par établissement, Adhérents et Relances adhérents. Ne peut pas importer de nouveaux
-              émargements, ni voir, créer ou supprimer des comptes administrateurs.
+              Participation par établissement, Scrutin, Adhérents et Relances adhérents. Ne peut pas importer de
+              nouveaux émargements, ni voir, créer ou supprimer des comptes administrateurs.
             </dd>
           </div>
         </dl>

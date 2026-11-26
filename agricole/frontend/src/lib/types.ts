@@ -23,6 +23,35 @@ export interface EtablissementRow {
   taux: number;
 }
 
+export interface ScrutinDetailElecteur {
+  nom: string;
+  prenom: string;
+  votant: number;
+  dateEmargement: string | null;
+  isAdherent: number;
+}
+
+export interface ScrutinDetailGlobal {
+  inscrits: number;
+  votants: number;
+  taux: number;
+  adherentsInscrits: number;
+  adherentsVotants: number;
+  adherentsTaux: number;
+}
+
+export interface ScrutinDetailGroup extends ScrutinDetailGlobal {
+  etablissement: string;
+  rows: ScrutinDetailElecteur[];
+}
+
+export interface ScrutinDetailResult {
+  global: ScrutinDetailGlobal;
+  etablissementOptions: string[];
+  etablissements: ScrutinDetailGroup[];
+  totalRows: number;
+}
+
 export interface ImportRecord {
   id: number;
   scrutin: "scrutin1" | "scrutin2";
