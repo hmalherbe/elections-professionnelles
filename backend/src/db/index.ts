@@ -327,6 +327,13 @@ export function migrate(): void {
     CREATE INDEX IF NOT EXISTS idx_fuzzy_matches_identity ON adherent_fuzzy_matches(spelc, adherent_nom_norm, adherent_prenom_norm);
     CREATE UNIQUE INDEX IF NOT EXISTS idx_fuzzy_matches_unique
       ON adherent_fuzzy_matches(spelc, adherent_nom_norm, adherent_prenom_norm, candidate_nom_norm, candidate_prenom_norm);
+    -- adherentExistsClause()/adherentContactSelectFragment() (fuzzyMatching.ts)
+    -- filtrent la branche "rapprochement validé" sur candidate_nom_norm/
+    -- candidate_prenom_norm (l'identité de l'ÉLECTEUR), pas sur
+    -- adherent_nom_norm/adherent_prenom_norm (l'identité de l'adhérent,
+    -- déjà couverte par idx_fuzzy_matches_identity ci-dessus) : sans cet
+    -- index dédié, cette branche ne profitait que du prefixe spelc.
+    CREATE INDEX IF NOT EXISTS idx_fuzzy_matches_candidate ON adherent_fuzzy_matches(spelc, candidate_nom_norm, candidate_prenom_norm);
   `);
   dropPsaTables();
 }

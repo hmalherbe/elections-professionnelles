@@ -188,8 +188,12 @@ export function adherentContactSelectFragment(e: string, alias: string): string 
  * lent (plusieurs minutes, tout le backend bloqué pendant ce temps — Node
  * est mono-thread). adherentExistsClause() reste adaptée (et plus simple)
  * pour une requête déjà filtrée sur un seul Spelc ou une seule académie
- * (scrutinsTab, scrutinsByEtablissement), où le volume de lignes reste
- * modeste.
+ * ET dont le résultat reste limité (scrutinsTab, qui pagine à 200 lignes) :
+ * pour un Spelc avec plusieurs centaines d'adhérents ET plusieurs milliers
+ * d'émargements à parcourir sans pagination (scrutinsByEtablissement), six
+ * sous-requêtes corrélées par ligne (adherentExistsClause + les deux appels
+ * d'adherentContactSelectFragment) redevient trop coûteux (45 secondes
+ * constatées) — voir buildAdherentContactMap ci-dessous pour ce cas.
  */
 export function buildAdherentIdentitySets(): Map<string, Set<string>> {
   const bySpelc = new Map<string, Set<string>>();
@@ -224,6 +228,70 @@ export function buildAdherentIdentitySets(): Map<string, Set<string>> {
   for (const r of fuzzyRows) add(r.spelc, r.nomNorm, r.prenomNorm);
 
   return bySpelc;
+}
+
+export interface AdherentContact {
+  mail: string | null;
+  mobile: string | null;
+}
+
+/**
+ * Équivalent de buildAdherentIdentitySets(), pour un seul Spelc et en
+ * conservant le mail/mobile de l'adhérent associé à chaque identité —
+ * remplace les six sous-requêtes corrélées par ligne (adherentExistsClause
+ * + adherentContactSelectFragment) par un calcul unique en mémoire pour
+ * scrutinsByEtablissement (voir ce commentaire plus haut). identityKeys()
+ * couvre les quatre combinaisons nom/nom de naissance de part et d'autre
+ * (symétrique, comme nomMatchClause), donc le même jeu de clés peut servir
+ * aussi bien à construire cette map (côté adhérent) qu'à l'interroger
+ * (côté électeur, voir adherentContactFor) : un électeur et un adhérent
+ * partagent une clé dès que l'une des quatre combinaisons coïncide.
+ */
+export function buildAdherentContactMap(spelc: string): Map<string, AdherentContact> {
+  const map = new Map<string, AdherentContact>();
+  const add = (nomNorm: string, nomNaissanceNorm: string | null, prenomNorm: string, contact: AdherentContact) => {
+    for (const key of identityKeys(nomNorm, nomNaissanceNorm, prenomNorm)) {
+      if (!map.has(key)) map.set(key, contact);
+    }
+  };
+
+  const adherentRows = db
+    .prepare("SELECT nom_norm, prenom_norm, nom_naissance_norm, mail, mobile FROM adherents WHERE spelc = ?")
+    .all(spelc) as {
+    nom_norm: string;
+    prenom_norm: string;
+    nom_naissance_norm: string | null;
+    mail: string | null;
+    mobile: string | null;
+  }[];
+  for (const r of adherentRows) add(r.nom_norm, r.nom_naissance_norm, r.prenom_norm, { mail: r.mail, mobile: r.mobile });
+
+  const fuzzyRows = db
+    .prepare(
+      `SELECT fm.candidate_nom_norm AS nomNorm, fm.candidate_prenom_norm AS prenomNorm, ad.mail AS mail, ad.mobile AS mobile
+       FROM adherent_fuzzy_matches fm
+       INNER JOIN adherents ad ON ad.spelc = fm.spelc AND ad.nom_norm = fm.adherent_nom_norm AND ad.prenom_norm = fm.adherent_prenom_norm
+       WHERE fm.status = 'valide' AND fm.spelc = ?`
+    )
+    .all(spelc) as { nomNorm: string; prenomNorm: string; mail: string | null; mobile: string | null }[];
+  for (const r of fuzzyRows) add(r.nomNorm, null, r.prenomNorm, { mail: r.mail, mobile: r.mobile });
+
+  return map;
+}
+
+/** Contact de l'adhérent correspondant à cet électeur dans la map construite
+ * par buildAdherentContactMap(), s'il y en a un — `null` sinon. */
+export function adherentContactFor(
+  map: Map<string, AdherentContact>,
+  nomNorm: string,
+  prenomNorm: string,
+  nomNaissanceNorm: string | null
+): AdherentContact | null {
+  for (const key of identityKeys(nomNorm, nomNaissanceNorm, prenomNorm)) {
+    const contact = map.get(key);
+    if (contact) return contact;
+  }
+  return null;
 }
 
 /** Un électeur (son Spelc, nom, prénom, nom de naissance déjà normalisés)
