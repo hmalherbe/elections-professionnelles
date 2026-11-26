@@ -23,7 +23,6 @@ import brevoRoutes from "./routes/brevo.js";
 import documentsRoutes from "./routes/documents.js";
 import documentFoldersRoutes from "./routes/documentFolders.js";
 import unsubscribeRoutes from "./routes/unsubscribe.js";
-import { UPLOADS_DIR } from "./lib/uploads.js";
 import { APP_MODE } from "./lib/appMode.js";
 
 migrate();
@@ -61,11 +60,6 @@ if (APP_MODE === "relance-only") {
 // data URI, que de nombreux clients mail (Gmail, Outlook.com...) bloquent.
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 app.use("/api/assets", express.static(path.resolve(__dirname, "../assets")));
-
-// Logos uploadés par les admins Spelc : mêmes raisons que ci-dessus, mais
-// stockés dans le volume persistant (voir lib/uploads.ts) puisqu'il s'agit
-// de contenu généré à l'exécution, pas d'un fichier versionné.
-app.use("/api/uploads/logos", express.static(UPLOADS_DIR));
 
 // Public (jamais authentifié) — monté avant les routeurs ci-dessous, qui
 // exigent tous une authentification. Chemin volontairement très court

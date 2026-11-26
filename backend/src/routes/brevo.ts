@@ -55,16 +55,20 @@ function campagneTagAuto(kind: "mail" | "sms", spelc: string): string {
   return kind === "mail" ? `relance-mail-${date}-${spelc}` : `relance-SMS-${date}-${spelc}`;
 }
 
+/** Logo du Spelc fédéral (champ {{logo_spelc}}), image fixe (backend/assets),
+ * identique pour tous les Spelcs locaux — plus de gestion par Spelc (la
+ * carte d'upload dédiée a été retirée de AdminSpelcDashboard.tsx). */
+const SPELC_LOGO_PATH = "/api/assets/logo/spelc.png";
+
 /** Bannière de campagne nationale fixe (champ {{logo_rugby}}), image-baked
  * (backend/assets), pas de gestion par l'admin Spelc. */
 const RUGBY_BANNER_PATH = "/api/assets/logo/rugby.png";
 
-/** Démo "relance-only" : pas de gestion de logo par l'admin (voir
- * AdminSpelcDashboard.tsx), donc le logo du Spelc fédéral est fixe, ajouté en
- * tête de chaque mail plutôt que laissé au modèle (voir DEFAULT_EMAIL_TEMPLATE_SIMPLE
- * qui ne le référence plus depuis qu'il a été vidé). */
+/** Démo "relance-only" : le modèle simplifié (voir DEFAULT_EMAIL_TEMPLATE_SIMPLE)
+ * ne référence plus {{logo_spelc}}, donc le logo est ajouté en tête de
+ * chaque mail plutôt que laissé au modèle. */
 function withDemoLogo(html: string): string {
-  return isRelanceOnly() ? buildLogoHtml("/api/assets/logo/spelc.png") + html : html;
+  return isRelanceOnly() ? buildLogoHtml(SPELC_LOGO_PATH) + html : html;
 }
 
 /** Crédits mail restants sur le compte Brevo (miroir de findMailCredits,
@@ -208,10 +212,12 @@ router.put("/templates/sms/apply-to-all", requireRole("admin_general"), (req, re
 });
 
 /**
- * Réglages propres à un Spelc pour ses relances : logo + réseaux sociaux
- * insérés dans ses modèles de mail, et mail/mobile de test propres à ce
- * Spelc (utilisés en priorité sur le mail/mobile de test global de l'admin
- * général, réservé lui aux relances PSA).
+ * Réglages propres à un Spelc pour ses relances : réseaux sociaux insérés
+ * dans ses modèles de mail, et mail/mobile de test propres à ce Spelc
+ * (utilisés en priorité sur le mail/mobile de test global de l'admin
+ * général, réservé lui aux relances PSA). Le logo ({{logo_spelc}}) n'en fait
+ * plus partie : image fixe, identique pour tous les Spelcs (voir
+ * SPELC_LOGO_PATH), plus de gestion par Spelc.
  */
 router.get("/spelc-settings", requireRole("admin_spelc", "admin_general"), (req, res) => {
   const spelc = req.query.spelc as string;
@@ -222,7 +228,7 @@ router.get("/spelc-settings", requireRole("admin_spelc", "admin_general"), (req,
 router.put("/spelc-settings", requireRole("admin_spelc", "admin_general"), (req, res) => {
   const spelc = (req.body?.spelc as string) || req.user!.spelc || "";
   if (!spelc || !assertSpelcAccess(req, res, spelc)) return;
-  const { logoDataUri, socialLinks, testEmail, testMobile, smsSender } = req.body ?? {};
+  const { socialLinks, testEmail, testMobile, smsSender } = req.body ?? {};
   if (typeof smsSender === "string" && smsSender && !isValidSmsSender(smsSender)) {
     res.status(400).json({
       error: "Expéditeur SMS invalide : 11 caractères maximum, lettres et chiffres uniquement, au moins une lettre.",
@@ -230,7 +236,6 @@ router.put("/spelc-settings", requireRole("admin_spelc", "admin_general"), (req,
     return;
   }
   updateSpelcSettings(spelc, {
-    logoDataUri: typeof logoDataUri === "string" ? logoDataUri : undefined,
     socialLinks: socialLinks && typeof socialLinks === "object" ? (socialLinks as SocialLinks) : undefined,
     testEmail: typeof testEmail === "string" ? testEmail : undefined,
     testMobile: typeof testMobile === "string" ? testMobile : undefined,
@@ -416,7 +421,7 @@ function templateFieldsFor(r: Recipient, spelc: string, canal: "mail" | "sms"): 
     // alias conservés pour compatibilité avec d'anciens modèles
     scrutin: scrutinLocal,
     votant: votantLocal,
-    logo_spelc: buildLogoHtml(settings.logoDataUri),
+    logo_spelc: buildLogoHtml(SPELC_LOGO_PATH),
     logo_rugby: buildBannerHtml(RUGBY_BANNER_PATH, "Transformez l'essai ! Votez 2 fois Spelc"),
     reseaux_sociaux: buildSocialLinksHtml(settings.socialLinks),
     // Lien de désinscription propre à ce destinataire et à ce canal (voir
