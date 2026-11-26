@@ -71,7 +71,7 @@ export async function sendBrevoEmails(payload: SendEmailPayload): Promise<BrevoS
           Accept: "application/json",
         },
         body: JSON.stringify({
-          sender: { email: "no-reply@spelc.fr", name: "SPELC" },
+          sender: { email: "ccm2026@spelc.fr", name: "SPELC" },
           to: [recipient],
           subject: payload.subject,
           htmlContent: payload.htmlContent,
