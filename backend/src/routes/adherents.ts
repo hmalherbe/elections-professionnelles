@@ -74,7 +74,7 @@ router.post("/upload", requireRole("admin_spelc", "admin_general"), upload.singl
           return acc;
         }, {});
         const nom = keys["nom"] ?? Object.values(row)[0];
-        const prenom = keys["prenom"] ?? Object.values(row)[1];
+        const prenom = keys["prenom"] ?? keys["prénom"] ?? Object.values(row)[1];
         const mail = keys["mail"] ?? keys["email"] ?? Object.values(row)[2];
         const mobile = sanitizeMobile(
           keys["mobile"] ?? keys["numero de mobile"] ?? keys["numéro de mobile"] ?? Object.values(row)[3]
@@ -142,7 +142,7 @@ router.post("/import-all", requireRole("admin_general"), upload.single("file"), 
       }, {});
       const spelc = String(keys["spelc"] ?? "").trim();
       const nom = keys["nom"];
-      const prenom = keys["prenom"];
+      const prenom = keys["prenom"] ?? keys["prénom"];
       if (!spelc && !nom && !prenom) return; // ligne vide
       if (!spelc) {
         errors.push({ row: idx + 2, message: "Colonne spelc requise." });
@@ -171,7 +171,7 @@ router.post("/import-all", requireRole("admin_general"), upload.single("file"), 
             return acc;
           }, {});
           const nom = keys["nom"];
-          const prenom = keys["prenom"];
+          const prenom = keys["prenom"] ?? keys["prénom"];
           const mail = keys["mail"] ?? keys["email"];
           const mobile = sanitizeMobile(keys["mobile"] ?? keys["numero de mobile"] ?? keys["numéro de mobile"]);
           const nomNaissance = keys["nom de naissance"] ?? keys["nom_naissance"];
