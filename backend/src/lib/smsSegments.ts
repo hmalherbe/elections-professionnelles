@@ -79,14 +79,29 @@ export function analyzeSmsEncoding(text: string): SmsEncodingInfo {
 }
 
 /**
- * Nombre de segments (= crédits Brevo, approximativement) consommés par ce
- * message, en tenant compte de l'encodage réel (GSM-7 si tous les
- * caractères le permettent, UCS-2 sinon — voir gsm7Length ci-dessus) et des
- * tailles de segment différentes pour un SMS simple vs multi-parties.
- * Approximation standard du secteur SMS : Brevo peut appliquer des règles
- * de facturation propres non documentées publiquement (ex. par pays de
- * destination), donc ce nombre reste indicatif.
+ * Facteur entre un segment technique (voir analyzeSmsEncoding) et le nombre
+ * de crédits RÉELLEMENT facturés par Brevo pour un SMS vers un numéro
+ * français avec expéditeur alphanumérique (seul cas d'usage de cette
+ * application) : Brevo ne documente pas sa grille publiquement, mais les
+ * envois réels (champ `usedCredits` de sa réponse, voir services/brevo.ts)
+ * montrent systématiquement un coût bien supérieur à 1 crédit par segment
+ * de 160 caractères GSM-7 — 4,5 crédits constatés, pas 1. Un envoi réel
+ * reste toujours prioritaire sur cette estimation dès qu'il a eu lieu
+ * (creditsUsed) ; ce facteur ne sert qu'à estimer AVANT un envoi (contrôle
+ * de quota "tout ou rien", aperçu SMS).
+ */
+const BREVO_CREDITS_PER_SEGMENT_FR_ALPHA = 4.5;
+
+/**
+ * Nombre de crédits Brevo ESTIMÉS pour ce message (segments techniques ×
+ * BREVO_CREDITS_PER_SEGMENT_FR_ALPHA), en tenant compte de l'encodage réel
+ * (GSM-7 si tous les caractères le permettent, UCS-2 sinon — voir
+ * gsm7Length ci-dessus) et des tailles de segment différentes pour un SMS
+ * simple vs multi-parties. Reste une estimation : Brevo peut appliquer des
+ * règles de facturation propres non documentées publiquement (le facteur
+ * lui-même en est un exemple) — toujours remplacée par le chiffre réel
+ * (creditsUsed) une fois un envoi effectué.
  */
 export function smsSegmentCount(text: string): number {
-  return analyzeSmsEncoding(text).segments;
+  return analyzeSmsEncoding(text).segments * BREVO_CREDITS_PER_SEGMENT_FR_ALPHA;
 }

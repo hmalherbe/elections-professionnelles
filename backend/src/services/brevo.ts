@@ -60,13 +60,10 @@ export interface BrevoSendSummary {
    * N'existe que pour les SMS (Brevo ne renvoie pas ce champ pour un mail,
    * dont le coût n'est de toute façon pas compté en "crédits SMS"). Autorité
    * sur le nombre de crédits consommés : à préférer à toute estimation
-   * locale (voir lib/smsSegments.ts) chaque fois qu'un envoi réel a eu lieu,
-   * l'estimation ne restant utile que pour un aperçu SANS envoi, où aucune
-   * réponse Brevo n'existe — voir le correctif suite à un écart constaté
-   * (4 crédits réels / SMS facturés par Brevo pour un envoi vers un numéro
-   * français avec expéditeur alphanumérique, contre 1-2 estimés par
-   * smsSegmentCount, qui suppose à tort un coût de 1 crédit par segment
-   * indépendant du pays de destination et du type d'expéditeur).
+   * locale (voir lib/smsSegments.ts, BREVO_CREDITS_PER_SEGMENT_FR_ALPHA)
+   * chaque fois qu'un envoi réel a eu lieu, l'estimation ne restant utile
+   * que pour estimer AVANT un envoi (contrôle de quota "tout ou rien",
+   * aperçu SMS), où aucune réponse Brevo n'existe encore.
    */
   creditsUsed: number | null;
 }
