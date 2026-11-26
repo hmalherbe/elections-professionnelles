@@ -12,14 +12,19 @@ import crypto from "node:crypto";
  */
 const SECRET = process.env.SCRAPING_SECRET_KEY || process.env.JWT_SECRET || "dev-secret-change-me";
 
-// 12 caractères base64url (~72 bits) : largement suffisant pour ce niveau de
+// 8 caractères base64url (~48 bits) : largement suffisant pour ce niveau de
 // risque (désinscrire quelqu'un n'expose aucune donnée, au pire un
 // inconvénient mineur) — court exprès pour économiser des caractères dans un
-// SMS (voir buildUnsubscribeUrl).
-const TOKEN_LENGTH = 12;
+// SMS (voir buildUnsubscribeUrl). 12 : ancienne longueur, conservée pour que
+// les liens déjà envoyés (mails/SMS déjà reçus avant ce raccourcissement)
+// restent valides — voir verifyUnsubscribeToken.
+const TOKEN_LENGTH = 8;
+const LEGACY_TOKEN_LENGTH = 12;
 
-function sign(contact: string): string {
-  return crypto.createHmac("sha256", SECRET).update(contact).digest("base64url").slice(0, TOKEN_LENGTH);
+/** Signature complète (jamais tronquée) : unsubscribeToken()/verifyUnsubscribeToken()
+ * en prennent chacun un préfixe, toujours le même pour un contact donné. */
+function fullSignature(contact: string): string {
+  return crypto.createHmac("sha256", SECRET).update(contact).digest("base64url");
 }
 
 export function canalFromContact(contact: string): "mail" | "sms" {
@@ -27,19 +32,35 @@ export function canalFromContact(contact: string): "mail" | "sms" {
 }
 
 export function unsubscribeToken(contact: string): string {
-  return sign(contact);
+  return fullSignature(contact).slice(0, TOKEN_LENGTH);
 }
 
+/** Accepte un jeton à la longueur courante (8) ou à l'ancienne (12) — les deux
+ * sont des préfixes de la même signature, donc un jeton de 8 caractères est
+ * automatiquement valide pour un contact dont le jeton long a été calculé
+ * plus tôt. Toute autre longueur est rejetée d'emblée (jamais une simple
+ * troncature arbitraire à comparer). */
 export function verifyUnsubscribeToken(contact: string, token: string): boolean {
-  const expected = sign(contact);
-  // Longueurs égales par construction (12 caractères fixes) : timingSafeEqual
-  // exige des buffers de même taille, jamais déclenché par une entrée
-  // utilisateur de longueur différente puisqu'on compare à `expected`, pas
-  // l'inverse.
-  return (
-    token.length === expected.length &&
-    crypto.timingSafeEqual(Buffer.from(token, "utf-8"), Buffer.from(expected, "utf-8"))
-  );
+  if (token.length !== TOKEN_LENGTH && token.length !== LEGACY_TOKEN_LENGTH) return false;
+  const expected = fullSignature(contact).slice(0, token.length);
+  return crypto.timingSafeEqual(Buffer.from(token, "utf-8"), Buffer.from(expected, "utf-8"));
+}
+
+/**
+ * Un mobile français normalisé (voir lib/phone.ts) commence toujours par
+ * "33" — le signaler dans l'URL n'apporte rien (toujours le même pays pour
+ * cette application) : on le retire du segment d'URL (reconstruit à la
+ * volée par expandContactParam) pour économiser 2 caractères sur chaque SMS.
+ * Un contact mail, lui, passe tel quel (encodé pour l'URL).
+ */
+function shortenContactParam(contact: string): string {
+  return /^33\d+$/.test(contact) ? contact.slice(2) : encodeURIComponent(contact);
+}
+
+/** Inverse de shortenContactParam() : reconstruit le contact complet
+ * (identique à celui signé par unsubscribeToken) à partir du segment d'URL. */
+export function expandContactParam(contactParam: string): string {
+  return /^\d+$/.test(contactParam) ? `33${contactParam}` : decodeURIComponent(contactParam);
 }
 
 /**
@@ -47,11 +68,12 @@ export function verifyUnsubscribeToken(contact: string, token: string): boolean 
  * {{lien_desinscription}}, voir routes/brevo.ts templateFieldsFor) — absolue
  * via PUBLIC_BASE_URL (déjà utilisée pour les liens de pièces jointes/logos),
  * indispensable pour un lien cliqué depuis un client mail ou un SMS. Chemin
- * et paramètres volontairement très courts (/api/u?c=...&t=...) : chaque
- * caractère compte dans un SMS (160 par segment GSM-7, facturé au segment).
+ * volontairement très court (/u/<contact>/<jeton>, voir infra/nginx.conf
+ * pour la réécriture vers /api/u) : chaque caractère compte dans un SMS (160
+ * par segment GSM-7, facturé au segment).
  */
 export function buildUnsubscribeUrl(contact: string): string {
   const base = (process.env.PUBLIC_BASE_URL || "").replace(/\/$/, "");
   const token = unsubscribeToken(contact);
-  return `${base}/api/u?c=${encodeURIComponent(contact)}&t=${token}`;
+  return `${base}/u/${shortenContactParam(contact)}/${token}`;
 }
