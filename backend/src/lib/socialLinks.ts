@@ -72,7 +72,7 @@ export function buildSocialLinksHtml(links: SocialLinks): string {
 }
 
 /** Taille fixe du logo Spelc en entête de mail (voir buildLogoHtml). */
-const LOGO_SIZE_PX = 250;
+const LOGO_SIZE_PX = 200;
 
 /**
  * Logo en tête de mail, centré horizontalement, taille fixée à
