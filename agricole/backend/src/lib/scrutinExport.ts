@@ -1,5 +1,6 @@
 import ExcelJS from "exceljs";
 import type { ScrutinDetailResult, ScrutinStats } from "../services/stats.js";
+import { SCRUTINS } from "./scrutins.js";
 
 function addSyntheseRows(sheet: ExcelJS.Worksheet, label: string, stats: ScrutinStats): void {
   const rows: [string, string | number][] = [
@@ -31,9 +32,9 @@ export function buildScrutinDetailWorkbook(data: ScrutinDetailResult): ExcelJS.W
 
   const syntheseSheet = wb.addWorksheet("Synthèse");
   syntheseSheet.columns = [{ width: 42 }, { width: 16 }];
-  addSyntheseRows(syntheseSheet, "Le CCM (Comité consultatif ministériel)", data.global.scrutin1);
+  addSyntheseRows(syntheseSheet, SCRUTINS[0].label, data.global.scrutin1);
   syntheseSheet.addRow([]);
-  addSyntheseRows(syntheseSheet, "La CCM (Commission consultative mixte)", data.global.scrutin2);
+  addSyntheseRows(syntheseSheet, SCRUTINS[1].label, data.global.scrutin2);
 
   const sheet = wb.addWorksheet("Détail par établissement", {
     properties: { outlineLevelRow: 1, outlineProperties: { summaryBelow: false, summaryRight: false } },

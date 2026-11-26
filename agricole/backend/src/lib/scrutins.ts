@@ -11,8 +11,8 @@ export interface ScrutinDef {
 }
 
 export const SCRUTINS: ScrutinDef[] = [
-  { code: "scrutin1", label: "Comité consultatif ministériel (CCM)" },
-  { code: "scrutin2", label: "Commission consultative mixte (CCM)" },
+  { code: "scrutin1", label: "Comité consultatif ministériel (le CCM)" },
+  { code: "scrutin2", label: "Commission consultative mixte (la CCM)" },
 ];
 
 export type ScrutinCode = (typeof SCRUTINS)[number]["code"];

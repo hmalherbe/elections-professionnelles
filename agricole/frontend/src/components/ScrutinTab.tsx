@@ -79,8 +79,8 @@ export function ScrutinTab() {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <ScrutinRateCard title="Le CCM (Comité consultatif ministériel)" stats={data?.global.scrutin1} />
-        <ScrutinRateCard title="La CCM (Commission consultative mixte)" stats={data?.global.scrutin2} />
+        <ScrutinRateCard title={SCRUTINS[0].label} stats={data?.global.scrutin1} />
+        <ScrutinRateCard title={SCRUTINS[1].label} stats={data?.global.scrutin2} />
       </div>
 
       <div className="flex flex-wrap items-end gap-3">
@@ -91,8 +91,8 @@ export function ScrutinTab() {
             value={typeScrutin}
             onChange={(e) => setTypeScrutin(e.target.value as TypeScrutinFilter)}
           >
-            <option value="scrutin1">Le CCM ({SCRUTINS[0].label})</option>
-            <option value="scrutin2">La CCM ({SCRUTINS[1].label})</option>
+            <option value="scrutin1">{SCRUTINS[0].label}</option>
+            <option value="scrutin2">{SCRUTINS[1].label}</option>
           </select>
         </div>
         <div>
