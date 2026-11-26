@@ -125,6 +125,14 @@ export function migrate(): void {
     CREATE INDEX IF NOT EXISTS idx_emargements_import ON emargements(import_id);
     CREATE INDEX IF NOT EXISTS idx_emargements_scope ON emargements(scope, academie, degre, snapshot_date);
     CREATE INDEX IF NOT EXISTS idx_emargements_spelc ON emargements(spelc, snapshot_date);
+    -- scrutinsByEtablissement()/scrutinsTab() filtrent toujours par
+    -- "import_id IN (...) AND spelc = ?" pour un admin Spelc : sans index
+    -- dédié aux deux colonnes ensemble, le planificateur SQLite peut choisir
+    -- de driver la requête par import_id (idx_emargements_import), donc
+    -- scanner TOUTES les lignes de l'import académique (tous Spelcs
+    -- confondus) avant de filtrer sur spelc, plutôt que de ne lire que les
+    -- lignes de ce Spelc directement.
+    CREATE INDEX IF NOT EXISTS idx_emargements_spelc_import ON emargements(spelc, import_id);
     CREATE INDEX IF NOT EXISTS idx_emargements_name ON emargements(nom_norm, prenom_norm);
 
     CREATE TABLE IF NOT EXISTS adherents (
