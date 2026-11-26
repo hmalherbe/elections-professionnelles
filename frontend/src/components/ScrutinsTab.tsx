@@ -76,7 +76,11 @@ export function ScrutinsTab({ scope, academie, spelc, allowAdherentFilter, group
   }, [scope, academie, spelc, votant, adherent, scrutinType, etablissement, allowAdherentFilter, groupByEtablissement, page]);
 
   const data = groupByEtablissement ? groupedData : flatData;
-  const scrutinTypes = data?.groups.map((g) => g.scrutinType) ?? [];
+  // Depuis scrutinTypeOptions (hors le filtre type de scrutin lui-même), pas
+  // depuis data.groups : une fois un type sélectionné, groups ne contient
+  // plus QUE ce type (c'est son rôle, afficher les stats du filtre courant),
+  // donc l'utiliser pour peupler ce même sélecteur le ferait se vider lui-même.
+  const scrutinTypes = data?.scrutinTypeOptions ?? [];
   const totalPages = Math.max(1, Math.ceil((flatData?.totalRows ?? 0) / PAGE_SIZE));
 
   async function exportExcel() {

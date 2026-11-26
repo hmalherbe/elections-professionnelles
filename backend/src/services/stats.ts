@@ -382,29 +382,33 @@ export interface ScrutinsResult {
   /** Établissements disponibles sous les mêmes filtres (hors le filtre établissement
    * lui-même), pour le sélecteur dédié — voir scrutinsByEtablissement. */
   etablissementOptions: string[];
+  /** Types de scrutin disponibles sous les mêmes filtres (hors le filtre type de
+   * scrutin lui-même) : sans cette liste séparée, le sélecteur ne montrerait plus
+   * que le type déjà sélectionné une fois `groups` filtré par ce même type. */
+  scrutinTypeOptions: string[];
 }
 
 export function scrutinsTab(filter: ScrutinsFilter, limit = 200, offset = 0): ScrutinsResult {
   const ids = currentImportIdsForFilter(filter);
-  if (ids.length === 0) return { groups: [], rows: [], totalRows: 0, etablissementOptions: [] };
+  if (ids.length === 0) return { groups: [], rows: [], totalRows: 0, etablissementOptions: [], scrutinTypeOptions: [] };
 
-  const baseParts = [`e.import_id IN (${idsPlaceholder(ids)})`];
-  const baseParams: unknown[] = [...ids];
+  // "core" : tout sauf le type de scrutin et l'établissement, pour pouvoir
+  // calculer les options de CHACUN des deux sélecteurs sans jamais les
+  // faire disparaître une fois sélectionnés eux-mêmes (même principe pour
+  // les deux, voir whereForOptions/whereForScrutinTypeOptions ci-dessous).
+  const coreParts = [`e.import_id IN (${idsPlaceholder(ids)})`];
+  const coreParams: unknown[] = [...ids];
   if (filter.spelc) {
-    baseParts.push("e.spelc = ?");
-    baseParams.push(filter.spelc);
+    coreParts.push("e.spelc = ?");
+    coreParams.push(filter.spelc);
   } else if (filter.academie) {
     // Même correctif que whereForScope() : sans lui, une académie sans Spelc
     // précisé verrait les émargements de toute la France en scope national.
-    baseParts.push("e.academie = ?");
-    baseParams.push(filter.academie);
+    coreParts.push("e.academie = ?");
+    coreParams.push(filter.academie);
   }
-  if (filter.scrutinType) {
-    baseParts.push("e.scrutin_type = ?");
-    baseParams.push(filter.scrutinType);
-  }
-  if (filter.votant === "votant") baseParts.push("e.votant = 1");
-  if (filter.votant === "non_votant") baseParts.push("e.votant = 0");
+  if (filter.votant === "votant") coreParts.push("e.votant = 1");
+  if (filter.votant === "non_votant") coreParts.push("e.votant = 0");
 
   // Le rapprochement adhérent n'a de sens qu'une fois filtré sur un Spelc précis
   // (les adhérents sont déclarés par Spelc). On l'exprime en EXISTS (plutôt
@@ -412,8 +416,30 @@ export function scrutinsTab(filter: ScrutinsFilter, limit = 200, offset = 0): Sc
   // adhérents partagent le même nom/prénom au sein d'un Spelc.
   const adherentExists = adherentExistsClause();
   const showAdherentStatus = Boolean(filter.spelc);
-  if (filter.spelc && filter.adherent === "oui") baseParts.push(adherentExists);
-  else if (filter.spelc && filter.adherent === "non") baseParts.push(`NOT ${adherentExists}`);
+  if (filter.spelc && filter.adherent === "oui") coreParts.push(adherentExists);
+  else if (filter.spelc && filter.adherent === "non") coreParts.push(`NOT ${adherentExists}`);
+
+  const scrutinTypeOptionsParts = [...coreParts];
+  const scrutinTypeOptionsParams = [...coreParams];
+  if (filter.affectation) {
+    scrutinTypeOptionsParts.push("COALESCE(e.affectation, 'Non renseigné') = ?");
+    scrutinTypeOptionsParams.push(filter.affectation);
+  }
+  const scrutinTypeOptions = (
+    db
+      .prepare(
+        `SELECT DISTINCT COALESCE(e.scrutin_type, 'Non défini') AS t
+         FROM emargements e WHERE ${scrutinTypeOptionsParts.join(" AND ")} ORDER BY t`
+      )
+      .all(...scrutinTypeOptionsParams) as { t: string }[]
+  ).map((r) => r.t);
+
+  const baseParts = [...coreParts];
+  const baseParams = [...coreParams];
+  if (filter.scrutinType) {
+    baseParts.push("e.scrutin_type = ?");
+    baseParams.push(filter.scrutinType);
+  }
 
   const whereForOptions = baseParts.join(" AND ");
   const etablissementOptions = (
@@ -454,7 +480,7 @@ export function scrutinsTab(filter: ScrutinsFilter, limit = 200, offset = 0): Sc
     )
     .all(...params, limit, offset) as Record<string, unknown>[];
 
-  return { groups, rows, totalRows: totalRow.c, etablissementOptions };
+  return { groups, rows, totalRows: totalRow.c, etablissementOptions, scrutinTypeOptions };
 }
 
 export interface ScrutinsByEtablissementGroup {
@@ -467,6 +493,8 @@ export interface ScrutinsByEtablissementResult {
   /** Établissements disponibles sous les mêmes filtres, hors le filtre établissement
    * lui-même — pour pouvoir toujours en choisir un autre sans repasser par "Tous". */
   etablissementOptions: string[];
+  /** Même principe pour le type de scrutin, hors le filtre type de scrutin lui-même. */
+  scrutinTypeOptions: string[];
   etablissements: ScrutinsByEtablissementGroup[];
   totalRows: number;
 }
@@ -499,24 +527,25 @@ interface EtablissementRawRow {
  */
 export function scrutinsByEtablissement(filter: ScrutinsFilter): ScrutinsByEtablissementResult {
   const ids = currentImportIdsForFilter(filter);
-  if (ids.length === 0) return { groups: [], etablissementOptions: [], etablissements: [], totalRows: 0 };
+  if (ids.length === 0) {
+    return { groups: [], etablissementOptions: [], scrutinTypeOptions: [], etablissements: [], totalRows: 0 };
+  }
 
-  const baseParts = [`e.import_id IN (${idsPlaceholder(ids)})`];
-  const baseParams: unknown[] = [...ids];
+  // SANS le type de scrutin ni l'établissement (voir plus bas) : les options
+  // de CHAQUE sélecteur se calculent sur ce périmètre commun, sans jamais se
+  // faire disparaître elles-mêmes une fois sélectionnées.
+  const coreParts = [`e.import_id IN (${idsPlaceholder(ids)})`];
+  const coreParams: unknown[] = [...ids];
   if (filter.spelc) {
-    baseParts.push("e.spelc = ?");
-    baseParams.push(filter.spelc);
+    coreParts.push("e.spelc = ?");
+    coreParams.push(filter.spelc);
   } else if (filter.academie) {
-    baseParts.push("e.academie = ?");
-    baseParams.push(filter.academie);
+    coreParts.push("e.academie = ?");
+    coreParams.push(filter.academie);
   }
-  if (filter.scrutinType) {
-    baseParts.push("e.scrutin_type = ?");
-    baseParams.push(filter.scrutinType);
-  }
-  if (filter.votant === "votant") baseParts.push("e.votant = 1");
-  if (filter.votant === "non_votant") baseParts.push("e.votant = 0");
-  const where = baseParts.join(" AND ");
+  if (filter.votant === "votant") coreParts.push("e.votant = 1");
+  if (filter.votant === "non_votant") coreParts.push("e.votant = 0");
+  const where = coreParts.join(" AND ");
 
   const showAdherentStatus = Boolean(filter.spelc);
   const contactMap = showAdherentStatus ? buildAdherentContactMap(filter.spelc!) : null;
@@ -528,28 +557,41 @@ export function scrutinsByEtablissement(filter: ScrutinsFilter): ScrutinsByEtabl
               e.nom_norm AS nomNorm, e.prenom_norm AS prenomNorm, e.nom_naissance_norm AS nomNaissanceNorm
        FROM emargements e WHERE ${where}`
     )
-    .all(...baseParams) as EtablissementRawRow[];
+    .all(...coreParams) as EtablissementRawRow[];
 
   // isAdherent en nombre (0/1), pas en booléen : même type que l'ancien
   // "CASE WHEN ... THEN 1 ELSE 0 END" SQL, attendu tel quel par l'export
   // Excel (lib/scrutinsExport.ts) et l'affichage (ScrutinsTab.tsx).
-  const rows: (Record<string, unknown> & { nom: string; prenom: string; affectation: string })[] = rawRows.map((r) => {
-    const { nomNorm, prenomNorm, nomNaissanceNorm, ...rest } = r;
-    if (!contactMap) return rest;
-    const contact = adherentContactFor(contactMap, nomNorm, prenomNorm, nomNaissanceNorm);
-    return { ...rest, isAdherent: contact ? 1 : 0, adherentMail: contact?.mail ?? null, adherentMobile: contact?.mobile ?? null };
-  });
+  const rows: (Record<string, unknown> & { nom: string; prenom: string; affectation: string; scrutinType: string | null })[] =
+    rawRows.map((r) => {
+      const { nomNorm, prenomNorm, nomNaissanceNorm, ...rest } = r;
+      if (!contactMap) return rest;
+      const contact = adherentContactFor(contactMap, nomNorm, prenomNorm, nomNaissanceNorm);
+      return { ...rest, isAdherent: contact ? 1 : 0, adherentMail: contact?.mail ?? null, adherentMobile: contact?.mobile ?? null };
+    });
 
   const adherentFiltered =
     showAdherentStatus && filter.adherent
       ? rows.filter((r) => (filter.adherent === "oui" ? r.isAdherent === 1 : r.isAdherent === 0))
       : rows;
 
-  const etablissementOptions = [...new Set(adherentFiltered.map((r) => r.affectation))].sort((a, b) =>
-    a.localeCompare(b, "fr")
-  );
+  // Chaque sélecteur respecte l'AUTRE filtre mais pas le sien : le type de
+  // scrutin disponible tient compte de l'établissement choisi (et
+  // inversement), sans quoi sélectionner l'un ferait disparaître les autres
+  // options de lui-même.
+  const matchingScrutinType = (r: (typeof adherentFiltered)[number]) =>
+    !filter.scrutinType || (r.scrutinType ?? "Non défini") === filter.scrutinType;
+  const matchingAffectation = (r: (typeof adherentFiltered)[number]) =>
+    !filter.affectation || r.affectation === filter.affectation;
 
-  const finalRows = filter.affectation ? adherentFiltered.filter((r) => r.affectation === filter.affectation) : adherentFiltered;
+  const etablissementOptions = [
+    ...new Set(adherentFiltered.filter(matchingScrutinType).map((r) => r.affectation)),
+  ].sort((a, b) => a.localeCompare(b, "fr"));
+  const scrutinTypeOptions = [
+    ...new Set(adherentFiltered.filter(matchingAffectation).map((r) => r.scrutinType ?? "Non défini")),
+  ].sort((a, b) => a.localeCompare(b, "fr"));
+
+  const finalRows = adherentFiltered.filter((r) => matchingScrutinType(r) && matchingAffectation(r));
 
   const groupsMap = new Map<string, { total: number; votants: number }>();
   for (const r of finalRows) {
@@ -580,7 +622,7 @@ export function scrutinsByEtablissement(filter: ScrutinsFilter): ScrutinsByEtabl
       }),
     }));
 
-  return { groups, etablissementOptions, etablissements, totalRows: finalRows.length };
+  return { groups, etablissementOptions, scrutinTypeOptions, etablissements, totalRows: finalRows.length };
 }
 
 export interface EtablissementRow {

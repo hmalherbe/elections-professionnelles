@@ -58,6 +58,7 @@ export interface ScrutinsResult {
   rows: ScrutinsRow[];
   totalRows: number;
   etablissementOptions: string[];
+  scrutinTypeOptions: string[];
 }
 
 export interface ScrutinsByEtablissementGroup {
@@ -68,6 +69,7 @@ export interface ScrutinsByEtablissementGroup {
 export interface ScrutinsByEtablissementResult {
   groups: { scrutinType: string; total: number; votants: number }[];
   etablissementOptions: string[];
+  scrutinTypeOptions: string[];
   etablissements: ScrutinsByEtablissementGroup[];
   totalRows: number;
 }
