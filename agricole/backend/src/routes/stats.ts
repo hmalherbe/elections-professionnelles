@@ -44,7 +44,9 @@ function parseScrutinDetailFilter(req: Request) {
   let adherent: "oui" | "non" | null = null;
   if (req.query.adherent === "oui" || req.query.adherent === "non") adherent = req.query.adherent;
 
-  return { votant1, votant2, adherent, etablissement: (req.query.etablissement as string) || null };
+  const typeScrutin = isScrutinCode(req.query.typeScrutin) ? req.query.typeScrutin : null;
+
+  return { votant1, votant2, adherent, typeScrutin, etablissement: (req.query.etablissement as string) || null };
 }
 
 router.get("/scrutin-detail", (req, res) => {

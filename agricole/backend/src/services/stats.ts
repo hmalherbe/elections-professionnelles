@@ -77,12 +77,20 @@ export function participationParEtablissement(scrutin: ScrutinCode): Etablisseme
 
 export interface ScrutinDetailFilter {
   /** Chacun ne s'applique qu'à la liste d'électeurs par établissement
-   * (rows), jamais aux taux : un taux calculé sur des lignes déjà filtrées
-   * par leur propre statut de vote n'aurait aucun sens (toujours 0 % ou
-   * 100 %). Absent de la liste électorale d'un scrutin -> ne correspond ni
-   * à "votant" ni à "non_votant" de CE scrutin (voir matchesVotantFilters). */
+   * (rows), jamais aux taux ni aux options d'établissement : un taux (ou
+   * une liste d'établissements) calculé sur des lignes déjà filtrées par
+   * leur propre statut de vote, ou restreintes à un seul scrutin, n'aurait
+   * plus le même sens que les cartes de taux globales affichées au-dessus
+   * (toujours les 2 scrutins, sur leur population complète respective) —
+   * voir matchesDetailFilters. Absent de la liste électorale d'un scrutin
+   * -> ne correspond ni à "votant" ni à "non_votant" de CE scrutin, ni au
+   * filtre type de scrutin le désignant. */
   votant1?: "votant" | "non_votant" | null;
   votant2?: "votant" | "non_votant" | null;
+  /** "scrutin1" (le CCM) ou "scrutin2" (la CCM) : ne liste que les électeurs
+   * inscrits sur la liste électorale de CE scrutin (l'autre colonne reste
+   * affichée, "Non inscrit" ou renseignée selon le cas). */
+  typeScrutin?: ScrutinCode | null;
   adherent?: "oui" | "non" | null;
   etablissement?: string | null;
 }
@@ -164,15 +172,18 @@ function summarizeScrutin(rows: MergedElecteur[], key: "scrutin1" | "scrutin2"):
   };
 }
 
-/** Un électeur correspond-il aux filtres votant1/votant2 ? Absent de la
- * liste électorale d'un scrutin (scrutinX === null) ne correspond à aucun
- * des 2 choix ("votant" ni "non_votant") de CE scrutin : une relance ne
- * cible que des personnes effectivement inscrites à ce scrutin-là. */
-function matchesVotantFilters(r: MergedElecteur, filter: ScrutinDetailFilter): boolean {
+/** Un électeur correspond-il aux filtres votant1/votant2/typeScrutin ?
+ * Absent de la liste électorale d'un scrutin (scrutinX === null) ne
+ * correspond à aucun des 2 choix ("votant" ni "non_votant") de CE scrutin,
+ * ni au filtre type de scrutin le désignant : une relance ne cible que des
+ * personnes effectivement inscrites à ce scrutin-là. */
+function matchesDetailFilters(r: MergedElecteur, filter: ScrutinDetailFilter): boolean {
   if (filter.votant1 === "votant" && r.scrutin1?.votant !== 1) return false;
   if (filter.votant1 === "non_votant" && r.scrutin1?.votant !== 0) return false;
   if (filter.votant2 === "votant" && r.scrutin2?.votant !== 1) return false;
   if (filter.votant2 === "non_votant" && r.scrutin2?.votant !== 0) return false;
+  if (filter.typeScrutin === "scrutin1" && r.scrutin1 == null) return false;
+  if (filter.typeScrutin === "scrutin2" && r.scrutin2 == null) return false;
   return true;
 }
 
@@ -257,9 +268,9 @@ export function scrutinDetail(filter: ScrutinDetailFilter): ScrutinDetailResult 
     scrutin2: summarizeScrutin(aggRows, "scrutin2"),
   };
 
-  // Les filtres votant1/votant2 n'interviennent qu'ici, pour la liste
-  // d'électeurs affichée (jamais pour les taux ci-dessus).
-  const detailRows = aggRows.filter((r) => matchesVotantFilters(r, filter));
+  // Les filtres votant1/votant2/typeScrutin n'interviennent qu'ici, pour la
+  // liste d'électeurs affichée (jamais pour les taux ci-dessus).
+  const detailRows = aggRows.filter((r) => matchesDetailFilters(r, filter));
 
   const byEtab = new Map<string, MergedElecteur[]>();
   for (const r of aggRows) {

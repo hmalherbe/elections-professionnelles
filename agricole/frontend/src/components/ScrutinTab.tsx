@@ -1,10 +1,12 @@
 import { Fragment, useEffect, useState } from "react";
 import { api, qs } from "../lib/api";
 import { formatPercent } from "../lib/colors";
+import { SCRUTINS } from "../lib/scrutins";
 import type { ScrutinDetailResult, ScrutinEmargement, ScrutinStats } from "../lib/types";
 import { Card } from "./Card";
 
 type VotantFilter = "" | "votant" | "non_votant";
+type TypeScrutinFilter = "" | "scrutin1" | "scrutin2";
 
 /**
  * Onglet "Scrutin" : taux de participation global et par établissement
@@ -13,12 +15,14 @@ type VotantFilter = "" | "votant" | "non_votant";
  * scrutin2) — fusionnés par identité (une personne peut être sur la liste
  * électorale de l'un, de l'autre, ou des deux). Détail par établissement
  * repliable, avec un statut et un émargement par scrutin pour chaque
- * électeur, filtres établissement / statut de vote (par scrutin) / adhérent,
- * export Excel.
+ * électeur, filtres établissement / type de scrutin (ne liste que les
+ * électeurs inscrits à celui choisi) / statut de vote (par scrutin) /
+ * adhérent, export Excel.
  */
 export function ScrutinTab() {
   const [votant1, setVotant1] = useState<VotantFilter>("");
   const [votant2, setVotant2] = useState<VotantFilter>("");
+  const [typeScrutin, setTypeScrutin] = useState<TypeScrutinFilter>("");
   const [adherent, setAdherent] = useState<"" | "oui" | "non">("");
   const [etablissement, setEtablissement] = useState<string>("");
   const [data, setData] = useState<ScrutinDetailResult | null>(null);
@@ -33,13 +37,14 @@ export function ScrutinTab() {
         `/stats/scrutin-detail${qs({
           votant1: votant1 || undefined,
           votant2: votant2 || undefined,
+          typeScrutin: typeScrutin || undefined,
           adherent: adherent || undefined,
           etablissement: etablissement || undefined,
         })}`
       )
       .then(setData)
       .finally(() => setLoading(false));
-  }, [votant1, votant2, adherent, etablissement]);
+  }, [votant1, votant2, typeScrutin, adherent, etablissement]);
 
   async function exportExcel() {
     setExporting(true);
@@ -48,6 +53,7 @@ export function ScrutinTab() {
         `/stats/scrutin-detail/export${qs({
           votant1: votant1 || undefined,
           votant2: votant2 || undefined,
+          typeScrutin: typeScrutin || undefined,
           adherent: adherent || undefined,
           etablissement: etablissement || undefined,
         })}`,
@@ -94,6 +100,18 @@ export function ScrutinTab() {
                 {et}
               </option>
             ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-slate-500">Type de scrutin</label>
+          <select
+            className="mt-1 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+            value={typeScrutin}
+            onChange={(e) => setTypeScrutin(e.target.value as TypeScrutinFilter)}
+          >
+            <option value="">Tous</option>
+            <option value="scrutin1">Le CCM ({SCRUTINS[0].label})</option>
+            <option value="scrutin2">La CCM ({SCRUTINS[1].label})</option>
           </select>
         </div>
         <div>
