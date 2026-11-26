@@ -1,14 +1,14 @@
 import { Router } from "express";
 import multer from "multer";
 import { db } from "../db/index.js";
-import { requireAuth } from "../middleware/auth.js";
+import { requireAuth, requireFullAdmin } from "../middleware/auth.js";
 import { runImport, defaultSnapshotDate } from "../services/imports.js";
 import { isScrutinCode } from "../lib/scrutins.js";
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 60 * 1024 * 1024 } });
 
-router.use(requireAuth);
+router.use(requireAuth, requireFullAdmin);
 
 /** Import quotidien du fichier JSON des émargements d'un des 2 scrutins nationaux agricoles. */
 router.post("/:scrutin", upload.single("file"), (req, res) => {

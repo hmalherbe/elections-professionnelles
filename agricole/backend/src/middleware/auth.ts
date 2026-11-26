@@ -2,17 +2,21 @@ import type { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 
 /**
- * Un seul profil d'administrateur, sans académie ni Spelc (pas de
- * hiérarchie territoriale pour ce suivi national agricole) — contrairement
- * à l'application éducation nationale, tout compte authentifié a accès à
- * l'ensemble des données. Plusieurs comptes peuvent coexister (voir
- * routes/admin.ts), mais tous avec les mêmes droits.
+ * Pas d'académie ni de Spelc (pas de hiérarchie territoriale pour ce suivi
+ * national agricole) — contrairement à l'application éducation nationale,
+ * tout compte authentifié a accès à l'ensemble des données. Deux rôles
+ * seulement, sans périmètre fin par onglet : "admin_complet" (tous les
+ * onglets) et "admin_restreint" (tous les onglets sauf Imports et Comptes
+ * administrateurs — voir requireFullAdmin).
  */
+export type UserRole = "admin_complet" | "admin_restreint";
+
 export interface AuthUser {
   id: number;
   email: string;
   nom: string | null;
   prenom: string | null;
+  role: UserRole;
   mustChangePassword: boolean;
 }
 
@@ -44,4 +48,14 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
   } catch {
     res.status(401).json({ error: "Session invalide ou expirée." });
   }
+}
+
+/** Réservé aux onglets Imports et Comptes administrateurs — à monter après
+ * requireAuth (voir routes/imports.ts, routes/admin.ts). */
+export function requireFullAdmin(req: Request, res: Response, next: NextFunction): void {
+  if (req.user?.role !== "admin_complet") {
+    res.status(403).json({ error: "Réservé à l'administration complète." });
+    return;
+  }
+  next();
 }

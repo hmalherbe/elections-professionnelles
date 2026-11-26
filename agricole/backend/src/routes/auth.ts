@@ -10,6 +10,7 @@ interface UserRow {
   password_hash: string;
   nom: string | null;
   prenom: string | null;
+  role: AuthUser["role"];
   must_change_password: number;
 }
 
@@ -19,6 +20,7 @@ function toAuthUser(row: UserRow): AuthUser {
     email: row.email,
     nom: row.nom,
     prenom: row.prenom,
+    role: row.role,
     mustChangePassword: Boolean(row.must_change_password),
   };
 }

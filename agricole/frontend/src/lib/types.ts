@@ -1,8 +1,11 @@
+export type UserRole = "admin_complet" | "admin_restreint";
+
 export interface AuthUser {
   id: number;
   email: string;
   nom: string | null;
   prenom: string | null;
+  role: UserRole;
   mustChangePassword: boolean;
 }
 
@@ -34,6 +37,7 @@ export interface ManagedUser {
   email: string;
   nom: string | null;
   prenom: string | null;
+  role: UserRole;
   must_change_password: number;
   created_at: string;
 }

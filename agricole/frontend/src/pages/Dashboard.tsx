@@ -7,6 +7,7 @@ import { EtablissementsTab } from "../components/EtablissementsTab";
 import { FileUploadCard } from "../components/FileUploadCard";
 import { SocialLinksEditor } from "../components/SocialLinksEditor";
 import { api, qs } from "../lib/api";
+import { useAuth } from "../lib/auth";
 import { CATEGORICAL } from "../lib/colors";
 import { SCRUTINS, type ScrutinDef } from "../lib/scrutins";
 import type { SocialLinks } from "../lib/socialLinks";
@@ -18,18 +19,26 @@ import type {
   MailSeriesPoint,
   ManagedUser,
   RelanceTrackingRow,
+  UserRole,
 } from "../lib/types";
 
 const TABS = ["Vue d'ensemble", "Participation par établissement", "Imports", "Adhérents", "Relances adhérents", "Comptes administrateurs"] as const;
 type Tab = (typeof TABS)[number];
 
+/** Onglets réservés à l'administration complète (voir la carte "Types de
+ * compte" dans Comptes administrateurs) — masqués pour un compte restreint. */
+const FULL_ADMIN_ONLY_TABS: Tab[] = ["Imports", "Comptes administrateurs"];
+
 export function Dashboard() {
+  const { user } = useAuth();
+  const isFullAdmin = user?.role !== "admin_restreint";
+  const visibleTabs = TABS.filter((t) => isFullAdmin || !FULL_ADMIN_ONLY_TABS.includes(t));
   const [tab, setTab] = useState<Tab>("Vue d'ensemble");
 
   return (
     <div>
       <div className="mb-4 flex flex-wrap gap-2">
-        {TABS.map((t) => (
+        {visibleTabs.map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -44,10 +53,10 @@ export function Dashboard() {
 
       {tab === "Vue d'ensemble" && <VueEnsemble />}
       {tab === "Participation par établissement" && <ParticipationPanel />}
-      {tab === "Imports" && <ImportsPanel />}
+      {tab === "Imports" && isFullAdmin && <ImportsPanel />}
       {tab === "Adhérents" && <AdherentsPanel />}
       {tab === "Relances adhérents" && <RelancesPanel />}
-      {tab === "Comptes administrateurs" && <ComptesPanel />}
+      {tab === "Comptes administrateurs" && isFullAdmin && <ComptesPanel />}
     </div>
   );
 }
@@ -1105,9 +1114,20 @@ function DesinscriptionsPanel() {
   );
 }
 
+const ROLE_LABELS: Record<UserRole, string> = {
+  admin_complet: "Administration complète",
+  admin_restreint: "Administration restreinte",
+};
+
 function ComptesPanel() {
   const [users, setUsers] = useState<ManagedUser[]>([]);
-  const [form, setForm] = useState({ email: "", password: "", nom: "", prenom: "" });
+  const [form, setForm] = useState<{ email: string; password: string; nom: string; prenom: string; role: UserRole }>({
+    email: "",
+    password: "",
+    nom: "",
+    prenom: "",
+    role: "admin_complet",
+  });
   const [error, setError] = useState<string | null>(null);
 
   function refresh() {
@@ -1120,7 +1140,7 @@ function ComptesPanel() {
     setError(null);
     try {
       await api.post("/admin/users", form);
-      setForm({ email: "", password: "", nom: "", prenom: "" });
+      setForm({ email: "", password: "", nom: "", prenom: "", role: "admin_complet" });
       refresh();
     } catch (err) {
       setError((err as Error).message);
@@ -1129,8 +1149,29 @@ function ComptesPanel() {
 
   return (
     <div className="space-y-4">
+      <Card title="Types de compte">
+        <dl className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
+          <div>
+            <dt className="font-semibold text-slate-800">Administration complète</dt>
+            <dd className="mt-1 text-slate-600">
+              Accès à tous les onglets, sans restriction : Vue d'ensemble, Participation par établissement,{" "}
+              <strong>Imports</strong>, Adhérents, Relances adhérents et <strong>Comptes administrateurs</strong>{" "}
+              (création, suppression et consultation des autres comptes).
+            </dd>
+          </div>
+          <div>
+            <dt className="font-semibold text-slate-800">Administration restreinte</dt>
+            <dd className="mt-1 text-slate-600">
+              Accès à tous les onglets <strong>sauf</strong> Imports et Comptes administrateurs : Vue d'ensemble,
+              Participation par établissement, Adhérents et Relances adhérents. Ne peut pas importer de nouveaux
+              émargements, ni voir, créer ou supprimer des comptes administrateurs.
+            </dd>
+          </div>
+        </dl>
+      </Card>
+
       <Card title="Créer un compte administrateur">
-        <form onSubmit={createUser} className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <form onSubmit={createUser} className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <input
             placeholder="Nom"
             className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"
@@ -1159,6 +1200,14 @@ function ComptesPanel() {
             value={form.password}
             onChange={(e) => setForm({ ...form, password: e.target.value })}
           />
+          <select
+            className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+            value={form.role}
+            onChange={(e) => setForm({ ...form, role: e.target.value as UserRole })}
+          >
+            <option value="admin_complet">{ROLE_LABELS.admin_complet}</option>
+            <option value="admin_restreint">{ROLE_LABELS.admin_restreint}</option>
+          </select>
           <button className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700">Créer</button>
         </form>
         {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
@@ -1171,6 +1220,7 @@ function ComptesPanel() {
               <th className="py-2 pr-4">Nom</th>
               <th className="px-4 py-2">Prénom</th>
               <th className="px-4 py-2">Email</th>
+              <th className="px-4 py-2">Type de compte</th>
               <th className="px-4 py-2">Mot de passe</th>
               <th className="px-4 py-2"></th>
             </tr>
@@ -1181,6 +1231,7 @@ function ComptesPanel() {
                 <td className="py-1.5 pr-4">{u.nom ?? "—"}</td>
                 <td className="px-4 py-1.5">{u.prenom ?? "—"}</td>
                 <td className="px-4 py-1.5">{u.email}</td>
+                <td className="px-4 py-1.5">{ROLE_LABELS[u.role]}</td>
                 <td className="px-4 py-1.5">
                   {u.must_change_password ? (
                     <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-700">À changer</span>

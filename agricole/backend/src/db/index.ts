@@ -14,12 +14,16 @@ db.pragma("foreign_keys = ON");
 
 export function migrate(): void {
   db.exec(`
+    -- role : "admin_complet" (accès à tous les onglets) ou "admin_restreint"
+    -- (tous les onglets sauf Imports et Comptes administrateurs) — voir
+    -- middleware/auth.ts.
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       email TEXT NOT NULL UNIQUE,
       password_hash TEXT NOT NULL,
       nom TEXT,
       prenom TEXT,
+      role TEXT NOT NULL DEFAULT 'admin_complet' CHECK (role IN ('admin_complet', 'admin_restreint')),
       must_change_password INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
@@ -158,6 +162,14 @@ export function migrate(): void {
     );
     CREATE INDEX IF NOT EXISTS idx_relance_tracking_pending ON relance_tracking(owner_user_id, message_id);
   `);
+  // Base déjà déployée avant l'ajout du rôle : CREATE TABLE IF NOT EXISTS
+  // ci-dessus est un no-op sur une table users existante, donc la colonne
+  // doit être ajoutée explicitement ici, de façon idempotente.
+  addColumnIfMissing(
+    "users",
+    "role",
+    "TEXT NOT NULL DEFAULT 'admin_complet' CHECK (role IN ('admin_complet', 'admin_restreint'))"
+  );
 }
 
 /**
