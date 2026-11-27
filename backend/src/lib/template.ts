@@ -122,13 +122,41 @@ export function buildIfTestCases(text: string): TemplateTestCase[] {
   }));
 }
 
+/** Champs dont la valeur est du HTML construit par l'application elle-même
+ * (logos/bannière en pièce jointe fixe, liens sociaux configurés par
+ * l'admin) — jamais issus d'un fichier importé. Seuls ceux-ci échappent à
+ * l'échappement HTML du mode "html" ci-dessous. */
+const RAW_HTML_FIELDS = new Set(["logo_spelc", "logo_rugby", "reseaux_sociaux"]);
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 /**
  * Moteur de template minimal : substitution {{champ}} et conditions
  * {{#if expression}}...{{else}}...{{/if}}, l'expression pouvant combiner
  * plusieurs champs avec and/or/not(...) et des parenthèses. Suffisant pour
  * les contenus de mail/SMS de relance décrits dans la spécification.
+ *
+ * `format` ("text" par défaut) : "html" échappe chaque valeur substituée
+ * (hors RAW_HTML_FIELDS) avant insertion — indispensable pour un corps de
+ * mail affiché ensuite tel quel via dangerouslySetInnerHTML
+ * (AdminSpelcDashboard.tsx, aperçu du modèle) : {{nom}}/{{prenom}}
+ * viennent d'un fichier importé (Excel/JSON) et ne sont jamais du texte de
+ * confiance — sans cet échappement, un nom/prénom contenant une balise
+ * HTML (fichier corrompu ou malveillant) s'exécuterait tel quel dans le
+ * navigateur de quiconque prévisualie ensuite ce modèle (XSS stocké,
+ * potentiellement contre un compte admin plus privilégié que celui ayant
+ * importé le fichier). "text" (objet du mail, contenu SMS) ne doit jamais
+ * échapper : ni un en-tête "Objet" ni un SMS ne sont interprétés comme du
+ * HTML, un "&" littéral doit y rester "&".
  */
-export function renderTemplate(source: string, fields: TemplateFields): string {
+export function renderTemplate(source: string, fields: TemplateFields, format: "html" | "text" = "text"): string {
   let out = source.replace(
     /{{#if\s+([^{}]+?)\s*}}([\s\S]*?)(?:{{else}}([\s\S]*?))?{{\/if}}/g,
     (_m, expr, truthy, falsy) => {
@@ -137,7 +165,9 @@ export function renderTemplate(source: string, fields: TemplateFields): string {
   );
   out = out.replace(/{{\s*(\w+)\s*}}/g, (_m, key) => {
     const value = fields[key];
-    return value === undefined || value === null ? "" : String(value);
+    if (value === undefined || value === null) return "";
+    const text = String(value);
+    return format === "html" && !RAW_HTML_FIELDS.has(key) ? escapeHtml(text) : text;
   });
   return out;
 }

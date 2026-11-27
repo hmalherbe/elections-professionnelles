@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { requiredSecret } from "./secrets.js";
 
 /**
  * Chiffrement symétrique (AES-256-GCM) pour la clé API Brevo stockée en
@@ -6,7 +7,7 @@ import crypto from "node:crypto";
  * d'environnement (SECRET_KEY, ou à défaut JWT_SECRET) via SHA-256, pour
  * obtenir 32 octets quelle que soit sa longueur d'origine.
  */
-const SECRET = process.env.SECRET_KEY || process.env.JWT_SECRET || "dev-secret-change-me";
+const SECRET = requiredSecret(["SECRET_KEY", "JWT_SECRET"], "dev-secret-change-me");
 const KEY = crypto.createHash("sha256").update(SECRET).digest();
 
 export function encrypt(plainText: string): string {

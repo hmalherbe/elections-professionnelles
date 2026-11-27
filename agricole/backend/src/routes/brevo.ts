@@ -176,8 +176,8 @@ router.post("/templates/email/preview", (req, res) => {
       const fields = { ...templateFieldsFor(recipient), ...overrides };
       return {
         label: `${label} — ${recipient.prenom} ${recipient.nom}${isFictional ? " (exemple)" : ""}`,
-        subject: renderTemplate(String(subject), fields),
-        html: wrapEmailHtml(renderTemplate(String(body), fields)),
+        subject: renderTemplate(String(subject), fields, "text"),
+        html: wrapEmailHtml(renderTemplate(String(body), fields, "html")),
       };
     }),
   });
@@ -204,8 +204,8 @@ router.post("/templates/email/test", async (req, res) => {
   const result = await sendBrevoEmails({
     apiKey,
     to: [{ email: testEmail, name: `${recipient.prenom} ${recipient.nom}` }],
-    subject: renderTemplate(String(subject), fields),
-    htmlContent: wrapEmailHtml(renderTemplate(String(body), fields)),
+    subject: renderTemplate(String(subject), fields, "text"),
+    htmlContent: wrapEmailHtml(renderTemplate(String(body), fields, "html")),
     tag: "test-modele",
   });
   appendRelanceLog({
@@ -276,8 +276,8 @@ router.post("/campaigns/email", async (req, res) => {
     const result = await sendBrevoEmails({
       apiKey,
       to: [{ email, name: `${r.prenom} ${r.nom}` }],
-      subject: renderTemplate(template.subject, fields),
-      htmlContent: wrapEmailHtml(renderTemplate(template.body, fields)),
+      subject: renderTemplate(template.subject, fields, "text"),
+      htmlContent: wrapEmailHtml(renderTemplate(template.body, fields, "html")),
       tag: tag ?? "relance",
     });
     sent += result.sent;

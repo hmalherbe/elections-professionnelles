@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { requiredSecret } from "./secrets.js";
 
 /**
  * Jeton de désinscription (mail) : signature HMAC du contact seul,
@@ -7,7 +8,7 @@ import crypto from "node:crypto";
  * Même secret que lib/crypto.ts (clé API Brevo chiffrée), nommage différent
  * ici pour ne pas suggérer un lien avec le chiffrement des clés API.
  */
-const SECRET = process.env.SECRET_KEY || process.env.JWT_SECRET || "dev-secret-change-me";
+const SECRET = requiredSecret(["SECRET_KEY", "JWT_SECRET"], "dev-secret-change-me");
 
 const TOKEN_LENGTH = 12;
 

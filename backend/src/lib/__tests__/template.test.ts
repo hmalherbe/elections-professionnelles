@@ -32,6 +32,37 @@ describe("renderTemplate — substitution simple", () => {
   });
 });
 
+describe("renderTemplate — échappement HTML (format)", () => {
+  it("n'échappe rien par défaut (objet du mail, SMS)", () => {
+    const out = renderTemplate("Bonjour {{prenom}}", fields({ prenom: "<script>alert(1)</script>" }));
+    expect(out).toBe("Bonjour <script>alert(1)</script>");
+  });
+
+  it("n'échappe rien en format \"text\" explicite", () => {
+    const out = renderTemplate("Bonjour {{prenom}}", fields({ prenom: "<b>x</b> & y" }), "text");
+    expect(out).toBe("Bonjour <b>x</b> & y");
+  });
+
+  it("échappe un champ provenant d'un fichier importé (nom/prénom) en format \"html\"", () => {
+    const out = renderTemplate(
+      "Bonjour {{prenom}} {{nom}}",
+      fields({ prenom: '<img src=x onerror="alert(1)">', nom: "A & B" }),
+      "html"
+    );
+    expect(out).toBe("Bonjour &lt;img src=x onerror=&quot;alert(1)&quot;&gt; A &amp; B");
+    expect(out).not.toContain("<img");
+  });
+
+  it("n'échappe jamais logo_spelc/logo_rugby/reseaux_sociaux (HTML construit par l'application)", () => {
+    const out = renderTemplate(
+      "{{logo_spelc}}{{logo_rugby}}{{reseaux_sociaux}}",
+      fields({ logo_spelc: '<img src="a.png">', logo_rugby: '<img src="b.png">', reseaux_sociaux: '<a href="x">y</a>' }),
+      "html"
+    );
+    expect(out).toBe('<img src="a.png"><img src="b.png"><a href="x">y</a>');
+  });
+});
+
 describe("renderTemplate — expressions booléennes (and/or/not)", () => {
   it("n'a voté nulle part -> les deux scrutins", () => {
     const out = renderTemplate(TEMPLATE, fields({ CCMMEP_non_votant: true, scrutin_local_non_votant: true }));

@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { requiredSecret } from "./secrets.js";
 
 /**
  * Jeton de désinscription (mail/SMS) : signature HMAC du contact seul,
@@ -10,7 +11,7 @@ import crypto from "node:crypto";
  * mobile jamais (voir canalFromContact) — le format du contact suffit déjà à
  * distinguer les deux, inutile de le répéter dans l'entrée du HMAC.
  */
-const SECRET = process.env.SCRAPING_SECRET_KEY || process.env.JWT_SECRET || "dev-secret-change-me";
+const SECRET = requiredSecret(["SCRAPING_SECRET_KEY", "JWT_SECRET"], "dev-secret-change-me");
 
 // 8 caractères base64url (~48 bits) : largement suffisant pour ce niveau de
 // risque (désinscrire quelqu'un n'expose aucune donnée, au pire un

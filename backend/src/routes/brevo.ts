@@ -492,8 +492,8 @@ router.post("/templates/email/test", requireRole("admin_spelc", "admin_general")
   const result = await sendBrevoEmails({
     apiKey,
     to: [{ email: testEmail, name: `${recipient.prenom} ${recipient.nom}` }],
-    subject: renderTemplate(String(subject), fields),
-    htmlContent: wrapEmailHtml(withDemoLogo(renderTemplate(ensureSiteLink(String(body)), fields))),
+    subject: renderTemplate(String(subject), fields, "text"),
+    htmlContent: wrapEmailHtml(withDemoLogo(renderTemplate(ensureSiteLink(String(body)), fields, "html"))),
     tag: "test-modele",
   });
   appendRelanceLog({
@@ -549,7 +549,7 @@ router.post("/templates/sms/test", requireRole("admin_spelc", "admin_general"), 
   }
   const fields = templateFieldsFor(recipient, spelc, "sms");
   const campagneTag = smsCampagneTag(spelc, "test-modele");
-  const content = renderTemplate(String(body), fields);
+  const content = renderTemplate(String(body), fields, "text");
   const result = await sendBrevoSms({
     apiKey,
     recipients: [normalizeFrenchMobile(testMobile)],
@@ -636,8 +636,8 @@ router.post("/templates/email/preview", requireRole("admin_spelc", "admin_genera
       const fields = { ...templateFieldsFor(recipient, spelc, "mail"), ...overrides };
       return {
         label: `${label} — ${recipient.prenom} ${recipient.nom}`,
-        subject: renderTemplate(String(subject), fields),
-        html: wrapEmailHtml(withDemoLogo(renderTemplate(ensureSiteLink(String(body)), fields))),
+        subject: renderTemplate(String(subject), fields, "text"),
+        html: wrapEmailHtml(withDemoLogo(renderTemplate(ensureSiteLink(String(body)), fields, "html"))),
       };
     }),
   });
@@ -674,7 +674,7 @@ router.post("/templates/sms/preview", requireRole("admin_spelc", "admin_general"
     let worstRecipient: Recipient | null = null;
     for (const r of pool) {
       const fields = { ...templateFieldsFor(r, spelc, "sms"), ...overrides };
-      const rendered = renderTemplate(String(body), fields);
+      const rendered = renderTemplate(String(body), fields, "text");
       const credits = smsSegmentCount(rendered);
       if (credits > worstCredits || (credits === worstCredits && rendered.length > worst.length)) {
         worst = rendered;
@@ -806,8 +806,8 @@ router.post("/campaigns/email", requireRole("admin_spelc"), async (req, res) => 
     name: `${r.prenom} ${r.nom}`,
     nom: r.nom,
     prenom: r.prenom,
-    subject: renderTemplate(template.subject, templateFieldsFor(r, spelc, "mail")),
-    html: wrapEmailHtml(withDemoLogo(renderTemplate(ensureSiteLink(template.body), templateFieldsFor(r, spelc, "mail")))),
+    subject: renderTemplate(template.subject, templateFieldsFor(r, spelc, "mail"), "text"),
+    html: wrapEmailHtml(withDemoLogo(renderTemplate(ensureSiteLink(template.body), templateFieldsFor(r, spelc, "mail"), "html"))),
   }));
 
   // Vérification des crédits mail Brevo AVANT l'envoi : jusqu'ici seul un
@@ -918,7 +918,7 @@ router.post("/campaigns/sms", requireRole("admin_spelc"), async (req, res) => {
   // compter dans l'estimation).
   const targets = recipients
     .filter((r) => !hasAlreadySent(spelc, "sms", campagneTag, normalizeFrenchMobile(r.mobile!)))
-    .map((r) => ({ r, contact: normalizeFrenchMobile(r.mobile!), content: renderTemplate(template.body, templateFieldsFor(r, spelc, "sms")) }));
+    .map((r) => ({ r, contact: normalizeFrenchMobile(r.mobile!), content: renderTemplate(template.body, templateFieldsFor(r, spelc, "sms"), "text") }));
   const alreadySent = recipients.length - targets.length;
 
   // Tout ou rien : si le quota ne suffit pas à envoyer la totalité de la
