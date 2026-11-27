@@ -4,6 +4,7 @@ import { db } from "../db/index.js";
 import { requireAuth, requireFullAdmin, type UserRole } from "../middleware/auth.js";
 import { isBrevoApiKeyConfigured, maskedBrevoApiKey, saveBrevoApiKey } from "../services/brevo.js";
 import { getOrgSettings, updateOrgSettings } from "../services/orgSettings.js";
+import { resetImportedData } from "../services/imports.js";
 
 const router = Router();
 
@@ -86,6 +87,16 @@ router.put("/org-settings", (req, res) => {
     testEmail: typeof testEmail === "string" ? testEmail : undefined,
   });
   res.json({ ok: true });
+});
+
+/**
+ * Réinitialise l'application : supprime toutes les émargements (2 scrutins)
+ * et tous les adhérents — voir onglet Paramètres, services/imports.ts#resetImportedData().
+ * Réservé à l'administration complète (action destructrice, même niveau
+ * que l'onglet Imports).
+ */
+router.post("/reset-imported-data", requireFullAdmin, (_req, res) => {
+  res.json(resetImportedData());
 });
 
 export default router;

@@ -63,3 +63,33 @@ export function runImport(raw: unknown, ctx: ImportContext): ImportResult {
 export function defaultSnapshotDate(): string {
   return dayjs().format("YYYY-MM-DD");
 }
+
+export interface ResetResult {
+  importsDeleted: number;
+  emargementsDeleted: number;
+  adherentsDeleted: number;
+}
+
+/**
+ * Réinitialise l'application en supprimant toutes les données importées
+ * (émargements des 2 scrutins, fichier des adhérents) — voir onglet
+ * Paramètres, réservé à l'administration complète. Conserve tout le reste
+ * (comptes, modèle de relance, réglages Brevo...). La suppression des
+ * imports entraîne en cascade celle des émargements (ON DELETE CASCADE,
+ * voir db/index.ts) ; celle des adhérents n'entraîne pas celle des
+ * suggestions de rapprochement (table ancrée sur l'identité adhérent, pas
+ * sur un id), donc supprimée ici explicitement pour garder le même effet
+ * "tout remettre à zéro".
+ */
+export function resetImportedData(): ResetResult {
+  const importsDeleted = (db.prepare("SELECT COUNT(*) AS c FROM imports").get() as { c: number }).c;
+  const emargementsDeleted = (db.prepare("SELECT COUNT(*) AS c FROM emargements").get() as { c: number }).c;
+  const adherentsDeleted = (db.prepare("SELECT COUNT(*) AS c FROM adherents").get() as { c: number }).c;
+  const tx = db.transaction(() => {
+    db.prepare("DELETE FROM imports").run();
+    db.prepare("DELETE FROM adherent_fuzzy_matches").run();
+    db.prepare("DELETE FROM adherents").run();
+  });
+  tx();
+  return { importsDeleted, emargementsDeleted, adherentsDeleted };
+}

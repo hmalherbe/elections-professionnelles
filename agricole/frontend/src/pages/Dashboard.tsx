@@ -31,12 +31,13 @@ const TABS = [
   "Adhérents",
   "Relances adhérents",
   "Comptes administrateurs",
+  "Paramètres",
 ] as const;
 type Tab = (typeof TABS)[number];
 
 /** Onglets réservés à l'administration complète (voir la carte "Types de
  * compte" dans Comptes administrateurs) — masqués pour un compte restreint. */
-const FULL_ADMIN_ONLY_TABS: Tab[] = ["Imports", "Comptes administrateurs"];
+const FULL_ADMIN_ONLY_TABS: Tab[] = ["Imports", "Comptes administrateurs", "Paramètres"];
 
 export function Dashboard() {
   const { user } = useAuth();
@@ -67,6 +68,7 @@ export function Dashboard() {
       {tab === "Adhérents" && <AdherentsPanel />}
       {tab === "Relances adhérents" && <RelancesPanel />}
       {tab === "Comptes administrateurs" && isFullAdmin && <ComptesPanel />}
+      {tab === "Paramètres" && isFullAdmin && <ParametresPanel />}
     </div>
   );
 }
@@ -1171,16 +1173,18 @@ function ComptesPanel() {
             <dt className="font-semibold text-slate-800">Administration complète</dt>
             <dd className="mt-1 text-slate-600">
               Accès à tous les onglets, sans restriction : Vue d'ensemble, Participation par établissement, Scrutin,{" "}
-              <strong>Imports</strong>, Adhérents, Relances adhérents et <strong>Comptes administrateurs</strong>{" "}
-              (création, suppression et consultation des autres comptes).
+              <strong>Imports</strong>, Adhérents, Relances adhérents, <strong>Comptes administrateurs</strong>{" "}
+              (création, suppression et consultation des autres comptes) et <strong>Paramètres</strong> (suppression
+              des données électeurs/adhérents).
             </dd>
           </div>
           <div>
             <dt className="font-semibold text-slate-800">Administration restreinte</dt>
             <dd className="mt-1 text-slate-600">
-              Accès à tous les onglets <strong>sauf</strong> Imports et Comptes administrateurs : Vue d'ensemble,
-              Participation par établissement, Scrutin, Adhérents et Relances adhérents. Ne peut pas importer de
-              nouveaux émargements, ni voir, créer ou supprimer des comptes administrateurs.
+              Accès à tous les onglets <strong>sauf</strong> Imports, Comptes administrateurs et Paramètres : Vue
+              d'ensemble, Participation par établissement, Scrutin, Adhérents et Relances adhérents. Ne peut pas
+              importer de nouveaux émargements, voir/créer/supprimer des comptes administrateurs, ni supprimer les
+              données électeurs/adhérents.
             </dd>
           </div>
         </dl>
@@ -1277,6 +1281,76 @@ function ComptesPanel() {
           </tbody>
         </table>
       </Card>
+    </div>
+  );
+}
+
+const RESET_CONFIRM_WORD = "RÉINITIALISER";
+
+/**
+ * Zone de danger (onglet Paramètres, admin complet uniquement) : supprime
+ * toutes les émargements des 2 scrutins et tous les adhérents — voir
+ * backend/src/services/imports.ts#resetImportedData(). Conserve tout le
+ * reste (comptes, modèle de relance, réglages Brevo/réseaux sociaux...).
+ */
+function ReinitialiserPanel() {
+  const [confirmText, setConfirmText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+
+  async function reset() {
+    if (!window.confirm("Dernière confirmation : supprimer toutes les données importées ? Cette action est irréversible.")) return;
+    setBusy(true);
+    setMessage(null);
+    try {
+      const res = await api.post<{ importsDeleted: number; emargementsDeleted: number; adherentsDeleted: number }>(
+        "/admin/reset-imported-data",
+        {}
+      );
+      setMessage(
+        `Réinitialisation effectuée : ${res.importsDeleted} import(s) (${res.emargementsDeleted} émargement(s)) et ${res.adherentsDeleted} adhérent(s) supprimés.`
+      );
+      setConfirmText("");
+    } catch (err) {
+      setMessage((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card title="Zone de danger — Supprimer les données électeurs et adhérents">
+      <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+        Supprime <strong>tous les émargements importés</strong> (le CCM et la CCM) et{" "}
+        <strong>tous les adhérents</strong>. Conserve les comptes, le modèle de relance et les réglages Brevo/réseaux
+        sociaux. Action irréversible.
+      </div>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <label className="text-xs font-medium text-slate-500">
+          Tapez « {RESET_CONFIRM_WORD} » pour activer le bouton :
+        </label>
+        <input
+          className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+          value={confirmText}
+          onChange={(e) => setConfirmText(e.target.value)}
+        />
+        <button
+          disabled={confirmText !== RESET_CONFIRM_WORD || busy}
+          onClick={reset}
+          className="rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-40"
+        >
+          {busy ? "Réinitialisation en cours…" : "Supprimer les données"}
+        </button>
+      </div>
+      {message && <p className="mt-2 text-sm text-slate-600">{message}</p>}
+    </Card>
+  );
+}
+
+function ParametresPanel() {
+  return (
+    <div className="space-y-4">
+      <ReinitialiserPanel />
     </div>
   );
 }
