@@ -450,7 +450,7 @@
     <div class="diagram-card">
       <div class="diagram-scroll">
         <figure style="margin:0;">
-<svg viewBox="0 0 1560 1140" role="img" aria-label="Schéma entité-relation des 20 tables SQLite de l'application, groupées en cinq domaines (référentiels, comptes, résultats d'élection &amp; adhérents, documents, relances Brevo), avec les clés étrangères déclarées et les rapprochements par spelc ou académie.">
+<svg viewBox="0 0 1560 2040" role="img" aria-label="Schéma entité-relation exhaustif des 20 tables SQLite de l'application (toutes les colonnes), groupées en cinq domaines (référentiels, comptes, résultats d'élection &amp; adhérents, documents, relances Brevo), avec les clés étrangères déclarées et les rapprochements par spelc ou académie.">
           <defs>
             <marker id="arrow" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
               <path d="M0,0 L10,5 L0,10 z" style="fill:var(--primary)"/>
@@ -459,70 +459,70 @@
 
           <!-- ===== zone backgrounds ===== -->
           <g>
-            <rect x="245" y="46" width="1291" height="244" rx="12" style="fill:var(--sch-zone-bg)"/>
+            <rect x="245" y="46" width="1291" height="262" rx="12" style="fill:var(--sch-zone-bg)"/>
             <text x="262" y="66" style="font:600 11px 'IBM Plex Sans';letter-spacing:.06em;fill:var(--sch-zone-label)">RÉFÉRENTIELS</text>
 
-            <rect x="245" y="304" width="1291" height="154" rx="12" style="fill:var(--sch-zone-bg)"/>
-            <text x="262" y="324" style="font:600 11px 'IBM Plex Sans';letter-spacing:.06em;fill:var(--sch-zone-label)">COMPTES</text>
+            <rect x="245" y="322" width="1291" height="280" rx="12" style="fill:var(--sch-zone-bg)"/>
+            <text x="262" y="342" style="font:600 11px 'IBM Plex Sans';letter-spacing:.06em;fill:var(--sch-zone-label)">COMPTES</text>
 
-            <rect x="245" y="472" width="1291" height="154" rx="12" style="fill:var(--sch-zone-bg)"/>
-            <text x="262" y="492" style="font:600 11px 'IBM Plex Sans';letter-spacing:.06em;fill:var(--sch-zone-label)">RÉSULTATS D'ÉLECTION &amp; ADHÉRENTS</text>
+            <rect x="245" y="616" width="1291" height="442" rx="12" style="fill:var(--sch-zone-bg)"/>
+            <text x="262" y="636" style="font:600 11px 'IBM Plex Sans';letter-spacing:.06em;fill:var(--sch-zone-label)">RÉSULTATS D'ÉLECTION &amp; ADHÉRENTS</text>
 
-            <rect x="245" y="640" width="1291" height="154" rx="12" style="fill:var(--sch-zone-bg)"/>
-            <text x="262" y="660" style="font:600 11px 'IBM Plex Sans';letter-spacing:.06em;fill:var(--sch-zone-label)">DOCUMENTS</text>
+            <rect x="245" y="1072" width="1291" height="316" rx="12" style="fill:var(--sch-zone-bg)"/>
+            <text x="262" y="1092" style="font:600 11px 'IBM Plex Sans';letter-spacing:.06em;fill:var(--sch-zone-label)">DOCUMENTS</text>
 
-            <rect x="245" y="808" width="1291" height="280" rx="12" style="fill:var(--sch-zone-bg)"/>
-            <text x="262" y="828" style="font:600 11px 'IBM Plex Sans';letter-spacing:.06em;fill:var(--sch-zone-label)">RELANCES / BREVO</text>
+            <rect x="245" y="1402" width="1291" height="586" rx="12" style="fill:var(--sch-zone-bg)"/>
+            <text x="262" y="1422" style="font:600 11px 'IBM Plex Sans';letter-spacing:.06em;fill:var(--sch-zone-label)">RELANCES / BREVO</text>
           </g>
 
           <!-- ===== soft-key rails (drawn under the table boxes) ===== -->
-          <line x1="110" y1="100" x2="110" y2="1040" style="stroke:var(--sch-rail-spelc)" stroke-width="1.6" stroke-dasharray="2 4" opacity="0.55"/>
-          <line x1="175" y1="100" x2="175" y2="740" style="stroke:var(--sch-rail-academie)" stroke-width="1.6" stroke-dasharray="2 4" opacity="0.55"/>
+          <line x1="110" y1="100" x2="110" y2="1950" style="stroke:var(--sch-rail-spelc)" stroke-width="1.6" stroke-dasharray="2 4" opacity="0.55"/>
+          <line x1="175" y1="100" x2="175" y2="1200" style="stroke:var(--sch-rail-academie)" stroke-width="1.6" stroke-dasharray="2 4" opacity="0.55"/>
 
           <!-- soft ties → spelc rail -->
           <g stroke-width="1.3" stroke-dasharray="2 4" opacity="0.55">
-            <line x1="514" y1="113" x2="110" y2="113" style="stroke:var(--sch-rail-spelc)"/>
-            <line x1="768" y1="113" x2="110" y2="113" style="stroke:var(--sch-rail-spelc)"/>
-            <line x1="260" y1="236" x2="110" y2="236" style="stroke:var(--sch-rail-spelc)"/>
-            <line x1="514" y1="236" x2="110" y2="236" style="stroke:var(--sch-rail-spelc)"/>
-            <line x1="514" y1="380" x2="110" y2="380" style="stroke:var(--sch-rail-spelc)"/>
-            <line x1="514" y1="548" x2="110" y2="548" style="stroke:var(--sch-rail-spelc)"/>
-            <line x1="768" y1="554" x2="110" y2="554" style="stroke:var(--sch-rail-spelc)"/>
-            <line x1="1022" y1="554" x2="110" y2="554" style="stroke:var(--sch-rail-spelc)"/>
-            <line x1="260" y1="716" x2="110" y2="716" style="stroke:var(--sch-rail-spelc)"/>
-            <line x1="514" y1="716" x2="110" y2="716" style="stroke:var(--sch-rail-spelc)"/>
-            <line x1="260" y1="890" x2="110" y2="890" style="stroke:var(--sch-rail-spelc)"/>
-            <line x1="768" y1="872" x2="110" y2="872" style="stroke:var(--sch-rail-spelc)"/>
-            <line x1="260" y1="1016" x2="110" y2="1016" style="stroke:var(--sch-rail-spelc)"/>
-            <line x1="514" y1="1025" x2="110" y2="1025" style="stroke:var(--sch-rail-spelc)"/>
+            <line x1="514" y1="118" x2="110" y2="118" style="stroke:var(--sch-rail-spelc)"/>
+            <line x1="768" y1="136" x2="110" y2="136" style="stroke:var(--sch-rail-spelc)"/>
+            <line x1="260" y1="244" x2="110" y2="244" style="stroke:var(--sch-rail-spelc)"/>
+            <line x1="514" y1="244" x2="110" y2="244" style="stroke:var(--sch-rail-spelc)"/>
+            <line x1="514" y1="484" x2="110" y2="484" style="stroke:var(--sch-rail-spelc)"/>
+            <line x1="514" y1="940" x2="110" y2="940" style="stroke:var(--sch-rail-spelc)"/>
+            <line x1="768" y1="706" x2="110" y2="706" style="stroke:var(--sch-rail-spelc)"/>
+            <line x1="1022" y1="706" x2="110" y2="706" style="stroke:var(--sch-rail-spelc)"/>
+            <line x1="260" y1="1198" x2="110" y2="1198" style="stroke:var(--sch-rail-spelc)"/>
+            <line x1="514" y1="1198" x2="110" y2="1198" style="stroke:var(--sch-rail-spelc)"/>
+            <line x1="260" y1="1546" x2="110" y2="1546" style="stroke:var(--sch-rail-spelc)"/>
+            <line x1="768" y1="1474" x2="110" y2="1474" style="stroke:var(--sch-rail-spelc)"/>
+            <line x1="260" y1="1924" x2="110" y2="1924" style="stroke:var(--sch-rail-spelc)"/>
+            <line x1="514" y1="1582" x2="110" y2="1582" style="stroke:var(--sch-rail-spelc)"/>
           </g>
           <!-- soft ties → académie rail -->
           <g stroke-width="1.3" stroke-dasharray="2 4" opacity="0.55">
-            <line x1="260" y1="125" x2="175" y2="125" style="stroke:var(--sch-rail-academie)"/>
-            <line x1="514" y1="125" x2="175" y2="125" style="stroke:var(--sch-rail-academie)"/>
-            <line x1="768" y1="125" x2="175" y2="125" style="stroke:var(--sch-rail-academie)"/>
-            <line x1="514" y1="392" x2="175" y2="392" style="stroke:var(--sch-rail-academie)"/>
-            <line x1="260" y1="554" x2="175" y2="554" style="stroke:var(--sch-rail-academie)"/>
-            <line x1="514" y1="560" x2="175" y2="560" style="stroke:var(--sch-rail-academie)"/>
-            <line x1="260" y1="728" x2="175" y2="728" style="stroke:var(--sch-rail-academie)"/>
-            <line x1="514" y1="728" x2="175" y2="728" style="stroke:var(--sch-rail-academie)"/>
+            <line x1="260" y1="118" x2="175" y2="118" style="stroke:var(--sch-rail-academie)"/>
+            <line x1="514" y1="154" x2="175" y2="154" style="stroke:var(--sch-rail-academie)"/>
+            <line x1="768" y1="154" x2="175" y2="154" style="stroke:var(--sch-rail-academie)"/>
+            <line x1="514" y1="466" x2="175" y2="466" style="stroke:var(--sch-rail-academie)"/>
+            <line x1="260" y1="724" x2="175" y2="724" style="stroke:var(--sch-rail-academie)"/>
+            <line x1="514" y1="742" x2="175" y2="742" style="stroke:var(--sch-rail-academie)"/>
+            <line x1="260" y1="1180" x2="175" y2="1180" style="stroke:var(--sch-rail-academie)"/>
+            <line x1="514" y1="1180" x2="175" y2="1180" style="stroke:var(--sch-rail-academie)"/>
           </g>
 
           <!-- ===== hard FK arrows (declared, enforced) ===== -->
           <g fill="none" style="stroke:var(--primary)" stroke-width="2">
-            <path d="M 490 386 L 514 386" marker-end="url(#arrow)"/>
-            <path d="M 514 554 L 490 554" marker-end="url(#arrow)"/>
-            <path d="M 375 496 L 375 463 L 502 463 L 502 448 L 525 448 L 525 444" marker-end="url(#arrow)"/>
-            <path d="M 883 496 L 883 463 L 756 463 L 756 448 L 640 448 L 640 444" marker-end="url(#arrow)"/>
-            <path d="M 1137 496 L 1137 463 L 1010 463 L 1010 448 L 700 448 L 700 444" marker-end="url(#arrow)"/>
-            <path d="M 420 664 L 420 632 L 460 632 L 460 664" marker-end="url(#arrow)"/>
-            <path d="M 375 664 L 375 632 L 502 632 L 502 448 L 555 448 L 555 444" marker-end="url(#arrow)"/>
-            <path d="M 629 664 L 629 632 L 756 632 L 756 448 L 670 448 L 670 444" marker-end="url(#arrow)"/>
-            <path d="M 514 722 L 490 722" marker-end="url(#arrow)"/>
-            <path d="M 430 832 L 430 801 L 502 801 L 502 448 L 585 448 L 585 444" marker-end="url(#arrow)"/>
+            <path d="M 490 412 L 514 412" marker-end="url(#arrow)"/>
+            <path d="M 514 706 L 490 706" marker-end="url(#arrow)"/>
+            <path d="M 375 640 L 375 609 L 502 609 L 502 592 L 530 592 L 530 588" marker-end="url(#arrow)"/>
+            <path d="M 883 640 L 883 609 L 756 609 L 756 592 L 650 592 L 650 588" marker-end="url(#arrow)"/>
+            <path d="M 1137 640 L 1137 609 L 1010 609 L 1010 592 L 700 592 L 700 588" marker-end="url(#arrow)"/>
+            <path d="M 420 1096 L 420 1065 L 460 1065 L 460 1096" marker-end="url(#arrow)"/>
+            <path d="M 375 1096 L 375 1065 L 502 1065 L 502 592 L 550 592 L 550 588" marker-end="url(#arrow)"/>
+            <path d="M 629 1096 L 629 1065 L 756 1065 L 756 592 L 670 592 L 670 588" marker-end="url(#arrow)"/>
+            <path d="M 514 1360 L 500 1360 L 500 1280 L 490 1280" marker-end="url(#arrow)"/>
+            <path d="M 430 1426 L 430 1395 L 502 1395 L 502 592 L 585 592 L 585 588" marker-end="url(#arrow)"/>
           </g>
 
-          <!-- ===================== TABLE BOXES ===================== -->
+          <!-- ===================== TABLE BOXES (exhaustif) ===================== -->
           <!-- Z1 · Référentiels -->
           <g>
             <rect x="260" y="70" width="230" height="98" rx="9" style="fill:var(--sch-z1-fill);stroke:var(--sch-z1-stroke)" stroke-width="1.6"/>
@@ -552,11 +552,12 @@
           </g>
 
           <g>
-            <rect x="260" y="196" width="230" height="80" rx="9" style="fill:var(--sch-z1-fill);stroke:var(--sch-z1-stroke)" stroke-width="1.6"/>
+            <rect x="260" y="196" width="230" height="98" rx="9" style="fill:var(--sch-z1-fill);stroke:var(--sch-z1-stroke)" stroke-width="1.6"/>
             <text x="274" y="219" style="font:700 13px 'IBM Plex Mono';fill:var(--sch-z1-text)">ref_sms_quota</text>
             <line x1="274" y1="227" x2="476" y2="227" style="stroke:var(--sch-z1-stroke)" opacity="0.35"/>
             <text x="274" y="244" style="font:600 11.5px 'IBM Plex Mono';fill:var(--ink)">spelc · PK</text>
             <text x="274" y="262" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">credits</text>
+            <text x="274" y="280" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">updated_at</text>
           </g>
 
           <g>
@@ -577,140 +578,229 @@
 
           <!-- Z2 · Comptes -->
           <g>
-            <rect x="260" y="328" width="230" height="98" rx="9" style="fill:var(--sch-z2-fill);stroke:var(--sch-z2-stroke)" stroke-width="1.6"/>
-            <text x="274" y="351" style="font:700 13px 'IBM Plex Mono';fill:var(--sch-z2-text)">password_resets</text>
-            <line x1="274" y1="359" x2="476" y2="359" style="stroke:var(--sch-z2-stroke)" opacity="0.35"/>
-            <text x="274" y="376" style="font:600 11.5px 'IBM Plex Mono';fill:var(--ink)">id · PK</text>
-            <text x="274" y="394" style="font:500 11.5px 'IBM Plex Mono';fill:var(--primary)">user_id → users</text>
-            <text x="274" y="412" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">token_hash, expires_at</text>
+            <rect x="260" y="346" width="230" height="152" rx="9" style="fill:var(--sch-z2-fill);stroke:var(--sch-z2-stroke)" stroke-width="1.6"/>
+            <text x="274" y="369" style="font:700 13px 'IBM Plex Mono';fill:var(--sch-z2-text)">password_resets</text>
+            <line x1="274" y1="377" x2="476" y2="377" style="stroke:var(--sch-z2-stroke)" opacity="0.35"/>
+            <text x="274" y="394" style="font:600 11.5px 'IBM Plex Mono';fill:var(--ink)">id · PK</text>
+            <text x="274" y="412" style="font:500 11.5px 'IBM Plex Mono';fill:var(--primary)">user_id → users</text>
+            <text x="274" y="430" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">token_hash</text>
+            <text x="274" y="448" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">expires_at</text>
+            <text x="274" y="466" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">used_at</text>
+            <text x="274" y="484" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">created_at</text>
           </g>
 
           <g>
-            <rect x="514" y="328" width="230" height="116" rx="9" style="fill:var(--sch-z2-fill);stroke:var(--sch-z2-stroke)" stroke-width="1.6"/>
-            <text x="528" y="351" style="font:700 13.5px 'IBM Plex Mono';fill:var(--sch-z2-text)">users</text>
-            <line x1="528" y1="359" x2="730" y2="359" style="stroke:var(--sch-z2-stroke)" opacity="0.35"/>
-            <text x="528" y="376" style="font:600 11.5px 'IBM Plex Mono';fill:var(--ink)">id · PK</text>
-            <text x="528" y="394" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">email · role</text>
-            <text x="528" y="412" style="font:400 italic 11.5px 'IBM Plex Mono';fill:var(--muted)">~spelc · ~academie</text>
-            <text x="528" y="430" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">must_change_password</text>
+            <rect x="514" y="346" width="230" height="242" rx="9" style="fill:var(--sch-z2-fill);stroke:var(--sch-z2-stroke)" stroke-width="1.6"/>
+            <text x="528" y="369" style="font:700 13.5px 'IBM Plex Mono';fill:var(--sch-z2-text)">users</text>
+            <line x1="528" y1="377" x2="730" y2="377" style="stroke:var(--sch-z2-stroke)" opacity="0.35"/>
+            <text x="528" y="394" style="font:600 11.5px 'IBM Plex Mono';fill:var(--ink)">id · PK</text>
+            <text x="528" y="412" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">email</text>
+            <text x="528" y="430" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">password_hash</text>
+            <text x="528" y="448" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">role</text>
+            <text x="528" y="466" style="font:400 italic 11.5px 'IBM Plex Mono';fill:var(--muted)">~academie</text>
+            <text x="528" y="484" style="font:400 italic 11.5px 'IBM Plex Mono';fill:var(--muted)">~spelc</text>
+            <text x="528" y="502" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">brevo_api_key</text>
+            <text x="528" y="520" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">created_at</text>
+            <text x="528" y="538" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">nom</text>
+            <text x="528" y="556" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">prenom</text>
+            <text x="528" y="574" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">must_change_password</text>
           </g>
 
           <!-- Z3 · Résultats & adhérents -->
           <g>
-            <rect x="260" y="496" width="230" height="116" rx="9" style="fill:var(--sch-z3-fill);stroke:var(--sch-z3-stroke)" stroke-width="1.6"/>
-            <text x="274" y="519" style="font:700 13.5px 'IBM Plex Mono';fill:var(--sch-z3-text)">imports</text>
-            <line x1="274" y1="527" x2="476" y2="527" style="stroke:var(--sch-z3-stroke)" opacity="0.35"/>
-            <text x="274" y="544" style="font:600 11.5px 'IBM Plex Mono';fill:var(--ink)">id · PK</text>
-            <text x="274" y="562" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">scope · degre</text>
-            <text x="274" y="580" style="font:400 italic 11.5px 'IBM Plex Mono';fill:var(--muted)">~academie</text>
-            <text x="274" y="598" style="font:500 11.5px 'IBM Plex Mono';fill:var(--primary)">imported_by → users</text>
+            <rect x="260" y="640" width="230" height="224" rx="9" style="fill:var(--sch-z3-fill);stroke:var(--sch-z3-stroke)" stroke-width="1.6"/>
+            <text x="274" y="663" style="font:700 13.5px 'IBM Plex Mono';fill:var(--sch-z3-text)">imports</text>
+            <line x1="274" y1="671" x2="476" y2="671" style="stroke:var(--sch-z3-stroke)" opacity="0.35"/>
+            <text x="274" y="688" style="font:600 11.5px 'IBM Plex Mono';fill:var(--ink)">id · PK</text>
+            <text x="274" y="706" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">scope</text>
+            <text x="274" y="724" style="font:400 italic 11.5px 'IBM Plex Mono';fill:var(--muted)">~academie</text>
+            <text x="274" y="742" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">degre</text>
+            <text x="274" y="760" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">filename</text>
+            <text x="274" y="778" style="font:500 11.5px 'IBM Plex Mono';fill:var(--primary)">imported_by → users</text>
+            <text x="274" y="796" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">imported_at</text>
+            <text x="274" y="814" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">snapshot_date</text>
+            <text x="274" y="832" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">row_count</text>
+            <text x="274" y="850" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">is_simulation</text>
           </g>
 
           <g>
-            <rect x="514" y="496" width="230" height="116" rx="9" style="fill:var(--sch-z3-fill);stroke:var(--sch-z3-stroke)" stroke-width="1.6"/>
-            <text x="528" y="519" style="font:700 13.5px 'IBM Plex Mono';fill:var(--sch-z3-text)">emargements</text>
-            <line x1="528" y1="527" x2="730" y2="527" style="stroke:var(--sch-z3-stroke)" opacity="0.35"/>
-            <text x="528" y="544" style="font:600 11.5px 'IBM Plex Mono';fill:var(--ink)">id · PK</text>
-            <text x="528" y="562" style="font:400 italic 11.5px 'IBM Plex Mono';fill:var(--muted)">~spelc · ~academie</text>
-            <text x="528" y="580" style="font:500 11.5px 'IBM Plex Mono';fill:var(--primary)">import_id → imports</text>
-            <text x="528" y="598" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">votant, nom_norm</text>
+            <rect x="514" y="640" width="230" height="404" rx="9" style="fill:var(--sch-z3-fill);stroke:var(--sch-z3-stroke)" stroke-width="1.6"/>
+            <text x="528" y="663" style="font:700 13.5px 'IBM Plex Mono';fill:var(--sch-z3-text)">emargements</text>
+            <line x1="528" y1="671" x2="730" y2="671" style="stroke:var(--sch-z3-stroke)" opacity="0.35"/>
+            <text x="528" y="688" style="font:600 11.5px 'IBM Plex Mono';fill:var(--ink)">id · PK</text>
+            <text x="528" y="706" style="font:500 11.5px 'IBM Plex Mono';fill:var(--primary)">import_id → imports</text>
+            <text x="528" y="724" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">scope</text>
+            <text x="528" y="742" style="font:400 italic 11.5px 'IBM Plex Mono';fill:var(--muted)">~academie</text>
+            <text x="528" y="760" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">degre</text>
+            <text x="528" y="778" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">scrutin_type</text>
+            <text x="528" y="796" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">nom</text>
+            <text x="528" y="814" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">prenom</text>
+            <text x="528" y="832" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">nom_norm</text>
+            <text x="528" y="850" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">prenom_norm</text>
+            <text x="528" y="868" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">date_emargement</text>
+            <text x="528" y="886" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">corps</text>
+            <text x="528" y="904" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">affectation</text>
+            <text x="528" y="922" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">departement</text>
+            <text x="528" y="940" style="font:400 italic 11.5px 'IBM Plex Mono';fill:var(--muted)">~spelc</text>
+            <text x="528" y="958" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">reference_bulletin</text>
+            <text x="528" y="976" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">votant</text>
+            <text x="528" y="994" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">snapshot_date</text>
+            <text x="528" y="1012" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">nom_naissance</text>
+            <text x="528" y="1030" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">nom_naissance_norm</text>
           </g>
 
           <g>
-            <rect x="768" y="496" width="230" height="116" rx="9" style="fill:var(--sch-z3-fill);stroke:var(--sch-z3-stroke)" stroke-width="1.6"/>
-            <text x="782" y="519" style="font:700 13.5px 'IBM Plex Mono';fill:var(--sch-z3-text)">adherents</text>
-            <line x1="782" y1="527" x2="984" y2="527" style="stroke:var(--sch-z3-stroke)" opacity="0.35"/>
-            <text x="782" y="544" style="font:600 11.5px 'IBM Plex Mono';fill:var(--ink)">id · PK</text>
-            <text x="782" y="562" style="font:400 italic 11.5px 'IBM Plex Mono';fill:var(--muted)">~spelc</text>
-            <text x="782" y="580" style="font:500 11.5px 'IBM Plex Mono';fill:var(--primary)">uploaded_by → users</text>
-            <text x="782" y="598" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">mail · mobile</text>
+            <rect x="768" y="640" width="230" height="260" rx="9" style="fill:var(--sch-z3-fill);stroke:var(--sch-z3-stroke)" stroke-width="1.6"/>
+            <text x="782" y="663" style="font:700 13.5px 'IBM Plex Mono';fill:var(--sch-z3-text)">adherents</text>
+            <line x1="782" y1="671" x2="984" y2="671" style="stroke:var(--sch-z3-stroke)" opacity="0.35"/>
+            <text x="782" y="688" style="font:600 11.5px 'IBM Plex Mono';fill:var(--ink)">id · PK</text>
+            <text x="782" y="706" style="font:400 italic 11.5px 'IBM Plex Mono';fill:var(--muted)">~spelc</text>
+            <text x="782" y="724" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">nom</text>
+            <text x="782" y="742" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">prenom</text>
+            <text x="782" y="760" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">nom_norm</text>
+            <text x="782" y="778" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">prenom_norm</text>
+            <text x="782" y="796" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">mail</text>
+            <text x="782" y="814" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">mobile</text>
+            <text x="782" y="832" style="font:500 11.5px 'IBM Plex Mono';fill:var(--primary)">uploaded_by → users</text>
+            <text x="782" y="850" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">uploaded_at</text>
+            <text x="782" y="868" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">nom_naissance</text>
+            <text x="782" y="886" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">nom_naissance_norm</text>
           </g>
 
           <g>
-            <rect x="1022" y="496" width="230" height="116" rx="9" style="fill:var(--sch-z3-fill);stroke:var(--sch-z3-stroke)" stroke-width="1.6"/>
-            <text x="1036" y="519" style="font:700 12px 'IBM Plex Mono';fill:var(--sch-z3-text)">adherent_fuzzy_matches</text>
-            <line x1="1036" y1="527" x2="1238" y2="527" style="stroke:var(--sch-z3-stroke)" opacity="0.35"/>
-            <text x="1036" y="544" style="font:600 11.5px 'IBM Plex Mono';fill:var(--ink)">id · PK</text>
-            <text x="1036" y="562" style="font:400 italic 11.5px 'IBM Plex Mono';fill:var(--muted)">~spelc</text>
-            <text x="1036" y="580" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">status (en_attente/valide/rejete)</text>
-            <text x="1036" y="598" style="font:500 11.5px 'IBM Plex Mono';fill:var(--primary)">reviewed_by → users</text>
+            <rect x="1022" y="640" width="230" height="332" rx="9" style="fill:var(--sch-z3-fill);stroke:var(--sch-z3-stroke)" stroke-width="1.6"/>
+            <text x="1036" y="663" style="font:700 12px 'IBM Plex Mono';fill:var(--sch-z3-text)">adherent_fuzzy_matches</text>
+            <line x1="1036" y1="671" x2="1238" y2="671" style="stroke:var(--sch-z3-stroke)" opacity="0.35"/>
+            <text x="1036" y="688" style="font:600 11.5px 'IBM Plex Mono';fill:var(--ink)">id · PK</text>
+            <text x="1036" y="706" style="font:400 italic 11.5px 'IBM Plex Mono';fill:var(--muted)">~spelc</text>
+            <text x="1036" y="724" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">adherent_nom</text>
+            <text x="1036" y="742" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">adherent_prenom</text>
+            <text x="1036" y="760" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">adherent_nom_norm</text>
+            <text x="1036" y="778" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">adherent_prenom_norm</text>
+            <text x="1036" y="796" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">adherent_nom_naissance</text>
+            <text x="1036" y="814" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">adherent_nom_naissance_norm</text>
+            <text x="1036" y="832" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">candidate_nom</text>
+            <text x="1036" y="850" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">candidate_prenom</text>
+            <text x="1036" y="868" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">candidate_nom_norm</text>
+            <text x="1036" y="886" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">candidate_prenom_norm</text>
+            <text x="1036" y="904" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">status</text>
+            <text x="1036" y="922" style="font:500 11.5px 'IBM Plex Mono';fill:var(--primary)">reviewed_by → users</text>
+            <text x="1036" y="940" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">reviewed_at</text>
+            <text x="1036" y="958" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">created_at</text>
           </g>
 
           <!-- Z4 · Documents -->
           <g>
-            <rect x="260" y="664" width="230" height="116" rx="9" style="fill:var(--sch-z4-fill);stroke:var(--sch-z4-stroke)" stroke-width="1.6"/>
-            <text x="274" y="687" style="font:700 13px 'IBM Plex Mono';fill:var(--sch-z4-text)">document_folders</text>
-            <line x1="274" y1="695" x2="476" y2="695" style="stroke:var(--sch-z4-stroke)" opacity="0.35"/>
-            <text x="274" y="712" style="font:600 11.5px 'IBM Plex Mono';fill:var(--ink)">id · PK</text>
-            <text x="274" y="730" style="font:500 11px 'IBM Plex Mono';fill:var(--primary)">parent_id → soi-même</text>
-            <text x="274" y="748" style="font:500 11.5px 'IBM Plex Mono';fill:var(--primary)">created_by → users</text>
-            <text x="274" y="766" style="font:400 italic 11.5px 'IBM Plex Mono';fill:var(--muted)">~spelc · ~academie</text>
+            <rect x="260" y="1096" width="230" height="188" rx="9" style="fill:var(--sch-z4-fill);stroke:var(--sch-z4-stroke)" stroke-width="1.6"/>
+            <text x="274" y="1119" style="font:700 13px 'IBM Plex Mono';fill:var(--sch-z4-text)">document_folders</text>
+            <line x1="274" y1="1127" x2="476" y2="1127" style="stroke:var(--sch-z4-stroke)" opacity="0.35"/>
+            <text x="274" y="1144" style="font:600 11.5px 'IBM Plex Mono';fill:var(--ink)">id · PK</text>
+            <text x="274" y="1162" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">scope</text>
+            <text x="274" y="1180" style="font:400 italic 11.5px 'IBM Plex Mono';fill:var(--muted)">~academie</text>
+            <text x="274" y="1198" style="font:400 italic 11.5px 'IBM Plex Mono';fill:var(--muted)">~spelc</text>
+            <text x="274" y="1216" style="font:500 11.5px 'IBM Plex Mono';fill:var(--primary)">parent_id → soi-même</text>
+            <text x="274" y="1234" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">name</text>
+            <text x="274" y="1252" style="font:500 11.5px 'IBM Plex Mono';fill:var(--primary)">created_by → users</text>
+            <text x="274" y="1270" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">created_at</text>
           </g>
 
           <g>
-            <rect x="514" y="664" width="230" height="116" rx="9" style="fill:var(--sch-z4-fill);stroke:var(--sch-z4-stroke)" stroke-width="1.6"/>
-            <text x="528" y="687" style="font:700 13.5px 'IBM Plex Mono';fill:var(--sch-z4-text)">documents</text>
-            <line x1="528" y1="695" x2="730" y2="695" style="stroke:var(--sch-z4-stroke)" opacity="0.35"/>
-            <text x="528" y="712" style="font:600 11.5px 'IBM Plex Mono';fill:var(--ink)">id · PK</text>
-            <text x="528" y="730" style="font:500 11px 'IBM Plex Mono';fill:var(--primary)">folder_id → document_folders</text>
-            <text x="528" y="748" style="font:500 11.5px 'IBM Plex Mono';fill:var(--primary)">uploaded_by → users</text>
-            <text x="528" y="766" style="font:400 italic 11.5px 'IBM Plex Mono';fill:var(--muted)">~spelc · ~academie</text>
+            <rect x="514" y="1096" width="230" height="278" rx="9" style="fill:var(--sch-z4-fill);stroke:var(--sch-z4-stroke)" stroke-width="1.6"/>
+            <text x="528" y="1119" style="font:700 13.5px 'IBM Plex Mono';fill:var(--sch-z4-text)">documents</text>
+            <line x1="528" y1="1127" x2="730" y2="1127" style="stroke:var(--sch-z4-stroke)" opacity="0.35"/>
+            <text x="528" y="1144" style="font:600 11.5px 'IBM Plex Mono';fill:var(--ink)">id · PK</text>
+            <text x="528" y="1162" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">scope</text>
+            <text x="528" y="1180" style="font:400 italic 11.5px 'IBM Plex Mono';fill:var(--muted)">~academie</text>
+            <text x="528" y="1198" style="font:400 italic 11.5px 'IBM Plex Mono';fill:var(--muted)">~spelc</text>
+            <text x="528" y="1216" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">filename</text>
+            <text x="528" y="1234" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">original_name</text>
+            <text x="528" y="1252" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">mime_type</text>
+            <text x="528" y="1270" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">size_bytes</text>
+            <text x="528" y="1288" style="font:500 11.5px 'IBM Plex Mono';fill:var(--primary)">uploaded_by → users</text>
+            <text x="528" y="1306" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">uploaded_at</text>
+            <text x="528" y="1324" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">extracted_text</text>
+            <text x="528" y="1342" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">extraction_status</text>
+            <text x="528" y="1360" style="font:500 11.5px 'IBM Plex Mono';fill:var(--primary)">folder_id → document_folders</text>
           </g>
 
           <!-- Z5 · Relances / Brevo -->
           <g>
-            <rect x="260" y="832" width="230" height="116" rx="9" style="fill:var(--sch-z5-fill);stroke:var(--sch-z5-stroke)" stroke-width="1.6"/>
-            <text x="274" y="855" style="font:700 13px 'IBM Plex Mono';fill:var(--sch-z5-text)">relance_tracking</text>
-            <line x1="274" y1="863" x2="476" y2="863" style="stroke:var(--sch-z5-stroke)" opacity="0.35"/>
-            <text x="274" y="880" style="font:600 11.5px 'IBM Plex Mono';fill:var(--ink)">id · PK</text>
-            <text x="274" y="898" style="font:500 11.5px 'IBM Plex Mono';fill:var(--primary)">owner_user_id → users</text>
-            <text x="274" y="916" style="font:400 italic 11.5px 'IBM Plex Mono';fill:var(--muted)">~scope (spelc)</text>
-            <text x="274" y="934" style="font:400 11px 'IBM Plex Mono';fill:var(--muted)">credits, estimated_credits</text>
+            <rect x="260" y="1426" width="230" height="422" rx="9" style="fill:var(--sch-z5-fill);stroke:var(--sch-z5-stroke)" stroke-width="1.6"/>
+            <text x="274" y="1449" style="font:700 13px 'IBM Plex Mono';fill:var(--sch-z5-text)">relance_tracking</text>
+            <line x1="274" y1="1457" x2="476" y2="1457" style="stroke:var(--sch-z5-stroke)" opacity="0.35"/>
+            <text x="274" y="1474" style="font:600 11.5px 'IBM Plex Mono';fill:var(--ink)">id · PK</text>
+            <text x="274" y="1492" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">created_at</text>
+            <text x="274" y="1510" style="font:500 11.5px 'IBM Plex Mono';fill:var(--primary)">owner_user_id → users</text>
+            <text x="274" y="1528" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">type</text>
+            <text x="274" y="1546" style="font:400 italic 11.5px 'IBM Plex Mono';fill:var(--muted)">~scope</text>
+            <text x="274" y="1564" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">campagne_tag</text>
+            <text x="274" y="1582" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">nom</text>
+            <text x="274" y="1600" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">prenom</text>
+            <text x="274" y="1618" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">contact</text>
+            <text x="274" y="1636" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">test_mode</text>
+            <text x="274" y="1654" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">send_ok</text>
+            <text x="274" y="1672" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">message_id</text>
+            <text x="274" y="1690" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">delivery_status</text>
+            <text x="274" y="1708" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">clicked</text>
+            <text x="274" y="1726" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">clicked_at</text>
+            <text x="274" y="1744" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">last_checked_at</text>
+            <text x="274" y="1762" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">error_message</text>
+            <text x="274" y="1780" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">opened</text>
+            <text x="274" y="1798" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">opened_at</text>
+            <text x="274" y="1816" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">credits</text>
+            <text x="274" y="1834" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">estimated_credits</text>
           </g>
 
           <g>
-            <rect x="514" y="832" width="230" height="98" rx="9" style="fill:var(--sch-z5-fill);stroke:var(--sch-z5-stroke)" stroke-width="1.6"/>
-            <text x="528" y="855" style="font:700 13px 'IBM Plex Mono';fill:var(--sch-z5-text)">relance_optout</text>
-            <line x1="528" y1="863" x2="730" y2="863" style="stroke:var(--sch-z5-stroke)" opacity="0.35"/>
-            <text x="528" y="880" style="font:600 11.5px 'IBM Plex Mono';fill:var(--ink)">(canal, contact) · PK</text>
-            <text x="528" y="898" style="font:400 italic 11px 'IBM Plex Mono';fill:var(--muted)">cf. adherents.mail/mobile</text>
+            <rect x="514" y="1426" width="230" height="80" rx="9" style="fill:var(--sch-z5-fill);stroke:var(--sch-z5-stroke)" stroke-width="1.6"/>
+            <text x="528" y="1449" style="font:700 13px 'IBM Plex Mono';fill:var(--sch-z5-text)">relance_optout</text>
+            <line x1="528" y1="1457" x2="730" y2="1457" style="stroke:var(--sch-z5-stroke)" opacity="0.35"/>
+            <text x="528" y="1474" style="font:600 11.5px 'IBM Plex Mono';fill:var(--ink)">(canal, contact) · PK</text>
+            <text x="528" y="1492" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">created_at</text>
           </g>
 
           <g>
-            <rect x="768" y="832" width="230" height="80" rx="9" style="fill:var(--sch-z5-fill);stroke:var(--sch-z5-stroke)" stroke-width="1.6"/>
-            <text x="782" y="855" style="font:700 13px 'IBM Plex Mono';fill:var(--sch-z5-text)">email_templates</text>
-            <line x1="782" y1="863" x2="984" y2="863" style="stroke:var(--sch-z5-stroke)" opacity="0.35"/>
-            <text x="782" y="880" style="font:600 11.5px 'IBM Plex Mono';fill:var(--ink)">spelc · PK</text>
-            <text x="782" y="898" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">subject, body</text>
+            <rect x="768" y="1426" width="230" height="116" rx="9" style="fill:var(--sch-z5-fill);stroke:var(--sch-z5-stroke)" stroke-width="1.6"/>
+            <text x="782" y="1449" style="font:700 13px 'IBM Plex Mono';fill:var(--sch-z5-text)">email_templates</text>
+            <line x1="782" y1="1457" x2="984" y2="1457" style="stroke:var(--sch-z5-stroke)" opacity="0.35"/>
+            <text x="782" y="1474" style="font:600 11.5px 'IBM Plex Mono';fill:var(--ink)">spelc · PK</text>
+            <text x="782" y="1492" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">subject</text>
+            <text x="782" y="1510" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">body</text>
+            <text x="782" y="1528" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">updated_at</text>
           </g>
 
           <g>
-            <rect x="260" y="976" width="230" height="80" rx="9" style="fill:var(--sch-z5-fill);stroke:var(--sch-z5-stroke)" stroke-width="1.6"/>
-            <text x="274" y="999" style="font:700 13px 'IBM Plex Mono';fill:var(--sch-z5-text)">sms_templates</text>
-            <line x1="274" y1="1007" x2="476" y2="1007" style="stroke:var(--sch-z5-stroke)" opacity="0.35"/>
-            <text x="274" y="1024" style="font:600 11.5px 'IBM Plex Mono';fill:var(--ink)">spelc · PK</text>
-            <text x="274" y="1042" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">body</text>
+            <rect x="260" y="1876" width="230" height="98" rx="9" style="fill:var(--sch-z5-fill);stroke:var(--sch-z5-stroke)" stroke-width="1.6"/>
+            <text x="274" y="1899" style="font:700 13px 'IBM Plex Mono';fill:var(--sch-z5-text)">sms_templates</text>
+            <line x1="274" y1="1907" x2="476" y2="1907" style="stroke:var(--sch-z5-stroke)" opacity="0.35"/>
+            <text x="274" y="1924" style="font:600 11.5px 'IBM Plex Mono';fill:var(--ink)">spelc · PK</text>
+            <text x="274" y="1942" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">body</text>
+            <text x="274" y="1960" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">updated_at</text>
           </g>
 
           <g>
-            <rect x="514" y="976" width="230" height="98" rx="9" style="fill:var(--sch-z5-fill);stroke:var(--sch-z5-stroke)" stroke-width="1.6"/>
-            <text x="528" y="999" style="font:700 13px 'IBM Plex Mono';fill:var(--sch-z5-text)">spelc_settings</text>
-            <line x1="528" y1="1007" x2="730" y2="1007" style="stroke:var(--sch-z5-stroke)" opacity="0.35"/>
-            <text x="528" y="1024" style="font:600 11.5px 'IBM Plex Mono';fill:var(--ink)">spelc · PK</text>
-            <text x="528" y="1042" style="font:400 10.5px 'IBM Plex Mono';fill:var(--muted)">logo, reseaux_sociaux</text>
-            <text x="528" y="1060" style="font:400 10.5px 'IBM Plex Mono';fill:var(--muted)">test_email/mobile, sms_sender</text>
+            <rect x="514" y="1534" width="230" height="170" rx="9" style="fill:var(--sch-z5-fill);stroke:var(--sch-z5-stroke)" stroke-width="1.6"/>
+            <text x="528" y="1557" style="font:700 13px 'IBM Plex Mono';fill:var(--sch-z5-text)">spelc_settings</text>
+            <line x1="528" y1="1565" x2="730" y2="1565" style="stroke:var(--sch-z5-stroke)" opacity="0.35"/>
+            <text x="528" y="1582" style="font:600 11.5px 'IBM Plex Mono';fill:var(--ink)">spelc · PK</text>
+            <text x="528" y="1600" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">logo_data_uri</text>
+            <text x="528" y="1618" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">social_links</text>
+            <text x="528" y="1636" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">test_email</text>
+            <text x="528" y="1654" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">test_mobile</text>
+            <text x="528" y="1672" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">updated_at</text>
+            <text x="528" y="1690" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">sms_sender</text>
           </g>
 
           <g>
-            <rect x="768" y="976" width="230" height="80" rx="9" style="fill:var(--sch-z5-fill);stroke:var(--sch-z5-stroke)" stroke-width="1.6"/>
-            <text x="782" y="999" style="font:700 13px 'IBM Plex Mono';fill:var(--sch-z5-text)">app_settings</text>
-            <line x1="782" y1="1007" x2="984" y2="1007" style="stroke:var(--sch-z5-stroke)" opacity="0.35"/>
-            <text x="782" y="1024" style="font:600 11.5px 'IBM Plex Mono';fill:var(--ink)">key · PK</text>
-            <text x="782" y="1042" style="font:400 11px 'IBM Plex Mono';fill:var(--muted)">value (global, hors spelc)</text>
+            <rect x="768" y="1570" width="230" height="80" rx="9" style="fill:var(--sch-z5-fill);stroke:var(--sch-z5-stroke)" stroke-width="1.6"/>
+            <text x="782" y="1593" style="font:700 13px 'IBM Plex Mono';fill:var(--sch-z5-text)">app_settings</text>
+            <line x1="782" y1="1601" x2="984" y2="1601" style="stroke:var(--sch-z5-stroke)" opacity="0.35"/>
+            <text x="782" y="1618" style="font:600 11.5px 'IBM Plex Mono';fill:var(--ink)">key · PK</text>
+            <text x="782" y="1636" style="font:400 11.5px 'IBM Plex Mono';fill:var(--muted)">value</text>
           </g>
         </svg>
           <figcaption>
-            20 tables SQLite regroupées en cinq domaines. Flèches pleines : clé étrangère déclarée (<code>REFERENCES</code>) et contrainte par SQLite (<code>PRAGMA foreign_keys = ON</code>), avec suppression en cascade pour les tables filles d'un import ou d'un dossier de documents. Liserés pointillés en marge gauche : rapprochement par valeur texte partagée — ambre pour <b style="color:var(--sch-rail-spelc)">spelc</b>, sarcelle pour <b style="color:var(--sch-rail-academie)">académie</b> — jamais contraint par le moteur, uniquement joint dans les requêtes applicatives. Une colonne préfixée <code>~</code> dans une table indique ce type de rapprochement. La désinscription des relances (<code>relance_optout</code>) et le rapprochement adhérents/émargements (<code>adherent_fuzzy_matches</code>) se font par valeur (mail/mobile, nom/prénom), jamais par clé étrangère.
+            20 tables SQLite regroupées en cinq domaines, toutes les colonnes listées. Flèches pleines : clé étrangère déclarée (<code>REFERENCES</code>) et contrainte par SQLite (<code>PRAGMA foreign_keys = ON</code>), avec suppression en cascade pour les tables filles d'un import ou d'un dossier de documents. Liserés pointillés en marge gauche : rapprochement par valeur texte partagée — ambre pour <b style="color:var(--sch-rail-spelc)">spelc</b>, sarcelle pour <b style="color:var(--sch-rail-academie)">académie</b> — jamais contraint par le moteur, uniquement joint dans les requêtes applicatives. Une colonne préfixée <code>~</code> dans une table indique ce type de rapprochement. La désinscription des relances (<code>relance_optout</code>) et le rapprochement adhérents/émargements (<code>adherent_fuzzy_matches</code>) se font par valeur (mail/mobile, nom/prénom), jamais par clé étrangère.
           </figcaption>
         </figure>
       </div>
