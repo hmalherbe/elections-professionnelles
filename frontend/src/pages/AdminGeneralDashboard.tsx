@@ -1452,32 +1452,34 @@ function StatistiquesRelancesPanel() {
             ))}
           </select>
         </div>
-        <div className="inline-flex rounded-md border border-slate-300 text-sm">
-          <button
-            type="button"
-            onClick={() => setViewMode("reel")}
-            className={`rounded-l-md px-3 py-1 ${
-              viewMode === "reel" ? "bg-blue-600 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
-            }`}
-          >
-            Réel
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode("simulation")}
-            disabled={!simulation}
-            title={!simulation ? "Importez d'abord un scénario de test ci-dessus" : undefined}
-            className={`rounded-r-md border-l border-slate-300 px-3 py-1 ${
-              viewMode === "simulation"
-                ? "bg-blue-600 text-white"
-                : simulation
-                  ? "bg-white text-slate-600 hover:bg-slate-50"
-                  : "cursor-not-allowed bg-slate-50 text-slate-400"
-            }`}
-          >
-            Simulation
-          </button>
-        </div>
+        {AFFICHER_SCENARIO_TEST && (
+          <div className="inline-flex rounded-md border border-slate-300 text-sm">
+            <button
+              type="button"
+              onClick={() => setViewMode("reel")}
+              className={`rounded-l-md px-3 py-1 ${
+                viewMode === "reel" ? "bg-blue-600 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
+              }`}
+            >
+              Réel
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("simulation")}
+              disabled={!simulation}
+              title={!simulation ? "Importez d'abord un scénario de test ci-dessus" : undefined}
+              className={`rounded-r-md border-l border-slate-300 px-3 py-1 ${
+                viewMode === "simulation"
+                  ? "bg-blue-600 text-white"
+                  : simulation
+                    ? "bg-white text-slate-600 hover:bg-slate-50"
+                    : "cursor-not-allowed bg-slate-50 text-slate-400"
+              }`}
+            >
+              Simulation
+            </button>
+          </div>
+        )}
       </div>
 
       <Card title="Histogramme des relances par jour" subtitle={chartSubtitle}>
