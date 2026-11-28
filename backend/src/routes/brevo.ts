@@ -7,7 +7,7 @@ import { requireAuth, requireRole, canAccessSpelc } from "../middleware/auth.js"
 import { renderTemplate, buildIfTestCases, type TemplateFields } from "../lib/template.js";
 import { wrapEmailHtml, ensureSiteLink } from "../lib/emailLayout.js";
 import { sendBrevoEmails, sendBrevoSms, fetchAccountInfo, getBrevoApiKey, sleep } from "../services/brevo.js";
-import { currentImportIds } from "../services/stats.js";
+import { currentImportIds, currentImportIdsAsOf } from "../services/stats.js";
 import { runImport } from "../services/imports.js";
 import { parseEmargementsJson } from "../parsers/emargements.js";
 import { loadWorkbook, rowsAsObjects } from "../lib/xlsx.js";
@@ -244,7 +244,7 @@ router.put("/spelc-settings", requireRole("admin_spelc", "admin_general"), (req,
   res.json({ ok: true });
 });
 
-interface Recipient {
+export interface Recipient {
   nom: string;
   prenom: string;
   mail: string | null;
@@ -339,7 +339,7 @@ function indexEmargements(
  * de la table national pour chaque adhérent, d'où un temps de réponse de
  * plusieurs dizaines de secondes.
  */
-function matchedAdherents(spelc: string): Recipient[] {
+export function matchedAdherents(spelc: string): Recipient[] {
   const academies = spelcAcademies(spelc);
   if (academies.length === 0) return [];
   // Un Spelc peut être à cheval sur plusieurs académies (ex.
@@ -349,7 +349,27 @@ function matchedAdherents(spelc: string): Recipient[] {
   const localImportIds = academies.flatMap((academie) => currentImportIds("academique", academie));
   const nationalImportIds = currentImportIds("national", null);
   if (localImportIds.length === 0 && nationalImportIds.length === 0) return [];
+  return matchedAdherentsForImportIds(spelc, localImportIds, nationalImportIds);
+}
 
+/**
+ * Même rapprochement que matchedAdherents, mais pour un état des
+ * émargements reconstitué à une date passée (voir currentImportIdsAsOf) —
+ * sert à mesurer la participation des adhérents AVANT une campagne de
+ * relance (services/adminStats.ts, efficacité des relances), en comparant
+ * à l'état actuel (matchedAdherents). Mêmes académies, seuls les imports
+ * choisis changent.
+ */
+export function matchedAdherentsAsOf(spelc: string, cutoffIso: string): Recipient[] {
+  const academies = spelcAcademies(spelc);
+  if (academies.length === 0) return [];
+  const localImportIds = academies.flatMap((academie) => currentImportIdsAsOf("academique", academie, cutoffIso));
+  const nationalImportIds = currentImportIdsAsOf("national", null, cutoffIso);
+  if (localImportIds.length === 0 && nationalImportIds.length === 0) return [];
+  return matchedAdherentsForImportIds(spelc, localImportIds, nationalImportIds);
+}
+
+function matchedAdherentsForImportIds(spelc: string, localImportIds: number[], nationalImportIds: number[]): Recipient[] {
   const adherentRows = db
     .prepare("SELECT id, nom, prenom, mail, mobile, nom_norm, prenom_norm FROM adherents WHERE spelc = ?")
     .all(spelc) as { id: number; nom: string; prenom: string; mail: string | null; mobile: string | null; nom_norm: string; prenom_norm: string }[];
@@ -455,7 +475,7 @@ function resolveSmsSender(spelc: string): string {
  * simplement pas électeur à ce scrutin) n'est jamais ciblé : on n'a aucune
  * donnée de vote sur lui, ce n'est pas un non-votant.
  */
-function needsRelance(r: Recipient): boolean {
+export function needsRelance(r: Recipient): boolean {
   return (Boolean(r.nationalMatched) && !r.votantNational) || (Boolean(r.localMatched) && !r.votantLocal);
 }
 
@@ -582,6 +602,7 @@ router.post("/templates/sms/test", requireRole("admin_spelc", "admin_general"), 
     messageId: result.messageId,
     errorMessage: result.errorMessage,
     credits: result.creditsUsed ?? smsSegmentCount(content),
+    estimatedCredits: smsSegmentCount(content),
   });
   res.json({ sent: result.sent, errors: result.errors, errorMessage: result.errorMessage });
 });
@@ -986,6 +1007,7 @@ router.post("/campaigns/sms", requireRole("admin_spelc"), async (req, res) => {
       messageId: result.messageId,
       errorMessage: result.errorMessage,
       credits: result.creditsUsed ?? smsSegmentCount(content),
+      estimatedCredits: smsSegmentCount(content),
     });
     await sleep(SEND_THROTTLE_MS);
   }

@@ -39,6 +39,35 @@ export function currentImportIds(scope: Scope, academie: string | null): number[
   return rows.map((r) => r.id);
 }
 
+/**
+ * Même logique que currentImportIds, mais pour l'import "actuel à une date
+ * donnée" (le plus récent AVANT ou À cette date) plutôt que l'import
+ * actuel tout court — sert à reconstituer l'état des émargements tel qu'il
+ * était avant un envoi passé (voir services/adminStats.ts, efficacité des
+ * relances). Les imports historiques ne sont jamais supprimés au réimport
+ * (voir services/imports.ts), ce qui rend cette reconstitution possible.
+ */
+export function currentImportIdsAsOf(scope: Scope, academie: string | null, cutoffIso: string): number[] {
+  if (scope === "national") {
+    const row = db
+      .prepare("SELECT id FROM imports WHERE scope = 'national' AND imported_at <= ? ORDER BY imported_at DESC, id DESC LIMIT 1")
+      .get(cutoffIso) as { id: number } | undefined;
+    return row ? [row.id] : [];
+  }
+  if (!academie) return [];
+  const rows = db
+    .prepare(
+      `SELECT i.id FROM imports i
+       INNER JOIN (
+         SELECT degre, MAX(id) AS max_id FROM imports
+         WHERE scope = 'academique' AND academie = ? AND imported_at <= ? GROUP BY degre
+       ) latest ON latest.degre = i.degre AND latest.max_id = i.id
+       WHERE i.scope = 'academique' AND i.academie = ?`
+    )
+    .all(academie, cutoffIso, academie) as { id: number }[];
+  return rows.map((r) => r.id);
+}
+
 function idsPlaceholder(ids: number[]): string {
   return ids.map(() => "?").join(",");
 }

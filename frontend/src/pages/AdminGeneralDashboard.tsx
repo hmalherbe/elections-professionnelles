@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useState, type ReactNode } from "react";
 import { Bar, BarChart, CartesianGrid, Legend, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { CamembertCard } from "../components/CamembertCard";
 import { Card } from "../components/Card";
@@ -13,7 +13,15 @@ import { findMailCredits, findSmsCredits, type BrevoPlanEntry } from "./AdminSpe
 import { api, qs } from "../lib/api";
 import { CATEGORICAL } from "../lib/colors";
 import { parseSqliteUtc } from "../lib/date";
-import type { AcademieNode, AcademieScrutin, CourbePoint, ImportRecord, ManagedUser, RelanceDailyPoint } from "../lib/types";
+import type {
+  AcademieNode,
+  AcademieScrutin,
+  AdminStatsAvancees,
+  CourbePoint,
+  ImportRecord,
+  ManagedUser,
+  RelanceDailyPoint,
+} from "../lib/types";
 
 const TABS = [
   "Descriptif applicatif",
@@ -23,6 +31,7 @@ const TABS = [
   "Imports",
   "Electeurs académiques",
   "Statistiques relances",
+  "Statistiques avancées",
   "Utilisateurs",
   "Adhérents",
   "Référentiels",
@@ -57,6 +66,7 @@ export function AdminGeneralDashboard() {
       {tab === "Imports" && <ImportsPanel />}
       {tab === "Electeurs académiques" && <ElecteursAcademiquesPanel />}
       {tab === "Statistiques relances" && <StatistiquesRelancesPanel />}
+      {tab === "Statistiques avancées" && <StatistiquesAvanceesPanel />}
       {tab === "Utilisateurs" && <UsersPanel />}
       {tab === "Adhérents" && <AdherentsAdminPanel />}
       {tab === "Référentiels" && <ReferentielsPanel />}
@@ -1518,6 +1528,247 @@ function StatistiquesRelancesPanel() {
               : "Aucune relance envoyée pour le moment."}
           </p>
         )}
+      </Card>
+    </div>
+  );
+}
+
+function EmptyRow({ colSpan, children }: { colSpan: number; children: ReactNode }) {
+  return (
+    <tr>
+      <td colSpan={colSpan} className="py-2 text-sm text-slate-400">
+        {children}
+      </td>
+    </tr>
+  );
+}
+
+/**
+ * Six indicateurs transversaux (tous Spelc) pour piloter la campagne de
+ * relance au niveau national — voir backend/services/adminStats.ts pour le
+ * détail de chaque calcul. Un seul appel au chargement : ce sont des
+ * agrégats coûteux (rapprochement adhérents/émargements par Spelc), pas
+ * des données qui changent en cours de consultation de l'onglet.
+ */
+function StatistiquesAvanceesPanel() {
+  const [data, setData] = useState<AdminStatsAvancees | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    api
+      .get<AdminStatsAvancees>("/admin/stats-avancees")
+      .then(setData)
+      .catch((err) => setError((err as Error).message));
+  }, []);
+
+  if (error) return <p className="text-sm text-red-600">{error}</p>;
+  if (!data) return <p className="text-sm text-slate-400">Chargement…</p>;
+
+  return (
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <Card
+        title="Désinscriptions par Spelc et par canal"
+        subtitle="Relances optées hors mail/SMS (lien de désinscription cliqué), attribuées au Spelc via le fichier adhérents."
+      >
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-500">
+              <th className="py-1.5 pr-4">Spelc</th>
+              <th className="py-1.5 pr-4 text-right">Mail</th>
+              <th className="py-1.5 pr-4 text-right">SMS</th>
+              <th className="py-1.5 text-right">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.desinscriptions.rows.length === 0 ? (
+              <EmptyRow colSpan={4}>Aucune désinscription pour le moment.</EmptyRow>
+            ) : (
+              data.desinscriptions.rows.map((r) => (
+                <tr key={r.spelc} className="border-b border-slate-100">
+                  <td className="py-1.5 pr-4 text-slate-700">{r.spelc}</td>
+                  <td className="py-1.5 pr-4 text-right text-slate-700">{r.mail}</td>
+                  <td className="py-1.5 pr-4 text-right text-slate-700">{r.sms}</td>
+                  <td className="py-1.5 text-right font-medium text-slate-900">{r.total}</td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+        {data.desinscriptions.nonAttribuees > 0 && (
+          <p className="mt-2 text-xs text-slate-400">
+            + {data.desinscriptions.nonAttribuees} désinscription(s) dont le contact n'est retrouvé dans aucun fichier adhérents.
+          </p>
+        )}
+      </Card>
+
+      <Card
+        title="Crédits SMS réels vs estimés"
+        subtitle="Crédits Brevo réellement facturés comparés à l'estimation faite avant envoi (lib/smsSegments.ts) — un écart important signale des messages plus longs ou en UCS-2 qu'anticipé."
+      >
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-500">
+              <th className="py-1.5 pr-4">Spelc</th>
+              <th className="py-1.5 pr-4 text-right">Réels</th>
+              <th className="py-1.5 pr-4 text-right">Estimés</th>
+              <th className="py-1.5 text-right">Écart</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.creditsSms.length === 0 ? (
+              <EmptyRow colSpan={4}>Aucun SMS réel envoyé depuis l'ajout de cette estimation.</EmptyRow>
+            ) : (
+              data.creditsSms.map((r) => (
+                <tr key={r.spelc} className="border-b border-slate-100">
+                  <td className="py-1.5 pr-4 text-slate-700">{r.spelc}</td>
+                  <td className="py-1.5 pr-4 text-right text-slate-700">{r.reels.toLocaleString("fr-FR")}</td>
+                  <td className="py-1.5 pr-4 text-right text-slate-700">{r.estimes.toLocaleString("fr-FR")}</td>
+                  <td
+                    className={`py-1.5 text-right font-medium ${
+                      r.ecartPct === null ? "text-slate-400" : r.ecartPct > 0 ? "text-orange-600" : "text-slate-700"
+                    }`}
+                  >
+                    {r.ecartPct === null ? "—" : `${r.ecartPct > 0 ? "+" : ""}${r.ecartPct}%`}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </Card>
+
+      <Card
+        title="Spelc proches ou au plafond SMS"
+        subtitle="Spelc ayant consommé 80% ou plus de leur plafond de crédits SMS (services/smsQuota.ts)."
+      >
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-500">
+              <th className="py-1.5 pr-4">Spelc</th>
+              <th className="py-1.5 pr-4 text-right">Utilisés</th>
+              <th className="py-1.5 pr-4 text-right">Plafond</th>
+              <th className="py-1.5 text-right">%</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.plafondsSms.length === 0 ? (
+              <EmptyRow colSpan={4}>Aucun Spelc proche de son plafond.</EmptyRow>
+            ) : (
+              data.plafondsSms.map((r) => (
+                <tr key={r.spelc} className="border-b border-slate-100">
+                  <td className="py-1.5 pr-4 text-slate-700">{r.spelc}</td>
+                  <td className="py-1.5 pr-4 text-right text-slate-700">{r.used.toLocaleString("fr-FR")}</td>
+                  <td className="py-1.5 pr-4 text-right text-slate-700">{r.quota.toLocaleString("fr-FR")}</td>
+                  <td className={`py-1.5 text-right font-medium ${r.reached ? "text-red-600" : "text-orange-600"}`}>
+                    {r.pctUsed}%{r.reached && " (atteint)"}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </Card>
+
+      <Card
+        title="Efficacité de la dernière campagne"
+        subtitle="Taux de participation des adhérents retrouvés, juste avant puis depuis la dernière campagne réelle (mail ou SMS) de chaque Spelc."
+      >
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-500">
+              <th className="py-1.5 pr-4">Spelc</th>
+              <th className="py-1.5 pr-4">Dernière campagne</th>
+              <th className="py-1.5 pr-4 text-right">Avant</th>
+              <th className="py-1.5 pr-4 text-right">Après</th>
+              <th className="py-1.5 text-right">Progression</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.efficaciteRelances.length === 0 ? (
+              <EmptyRow colSpan={5}>Aucune campagne réelle envoyée pour le moment.</EmptyRow>
+            ) : (
+              data.efficaciteRelances.map((r) => (
+                <tr key={r.spelc} className="border-b border-slate-100">
+                  <td className="py-1.5 pr-4 text-slate-700">{r.spelc}</td>
+                  <td className="py-1.5 pr-4 text-slate-500">{r.derniereCampagneDate}</td>
+                  <td className="py-1.5 pr-4 text-right text-slate-700">{r.tauxAvant === null ? "—" : `${r.tauxAvant}%`}</td>
+                  <td className="py-1.5 pr-4 text-right text-slate-700">{r.tauxApres === null ? "—" : `${r.tauxApres}%`}</td>
+                  <td
+                    className={`py-1.5 text-right font-medium ${
+                      r.progressionPoints === null
+                        ? "text-slate-400"
+                        : r.progressionPoints > 0
+                          ? "text-green-700"
+                          : r.progressionPoints < 0
+                            ? "text-red-600"
+                            : "text-slate-700"
+                    }`}
+                  >
+                    {r.progressionPoints === null ? "—" : `${r.progressionPoints > 0 ? "+" : ""}${r.progressionPoints} pts`}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </Card>
+
+      <Card
+        title="Spelc n'ayant encore rien envoyé"
+        subtitle="Spelc avec des adhérents non-votants retrouvés, mais sans la moindre relance réelle (mail ou SMS) envoyée à ce jour."
+      >
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-500">
+              <th className="py-1.5 pr-4">Spelc</th>
+              <th className="py-1.5 text-right">Non-votants</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.spelcsSansEnvoi.length === 0 ? (
+              <EmptyRow colSpan={2}>Tous les Spelc ont lancé au moins une relance.</EmptyRow>
+            ) : (
+              data.spelcsSansEnvoi.map((r) => (
+                <tr key={r.spelc} className="border-b border-slate-100">
+                  <td className="py-1.5 pr-4 text-slate-700">{r.spelc}</td>
+                  <td className="py-1.5 text-right font-medium text-orange-600">{r.nonVotants}</td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </Card>
+
+      <Card
+        title="Qualité du rapprochement"
+        subtitle="Part des adhérents jamais retrouvés dans les émargements (ni au scrutin local, ni au national) — un taux élevé signale un fichier adhérents à nettoyer (orthographe, nom de naissance...)."
+      >
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-500">
+              <th className="py-1.5 pr-4">Spelc</th>
+              <th className="py-1.5 pr-4 text-right">Adhérents</th>
+              <th className="py-1.5 pr-4 text-right">Jamais retrouvés</th>
+              <th className="py-1.5 text-right">%</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.qualiteRapprochement.length === 0 ? (
+              <EmptyRow colSpan={4}>Aucun adhérent importé pour le moment.</EmptyRow>
+            ) : (
+              data.qualiteRapprochement.map((r) => (
+                <tr key={r.spelc} className="border-b border-slate-100">
+                  <td className="py-1.5 pr-4 text-slate-700">{r.spelc}</td>
+                  <td className="py-1.5 pr-4 text-right text-slate-700">{r.totalAdherents}</td>
+                  <td className="py-1.5 pr-4 text-right text-slate-700">{r.jamaisRetrouves}</td>
+                  <td className={`py-1.5 text-right font-medium ${r.pctJamaisRetrouves >= 20 ? "text-orange-600" : "text-slate-700"}`}>
+                    {r.pctJamaisRetrouves}%
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
       </Card>
     </div>
   );

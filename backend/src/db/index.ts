@@ -325,6 +325,12 @@ export function migrate(): void {
   // sommait auparavant le nombre de SMS envoyés, pas les crédits réels,
   // sous-estimant la consommation dès qu'un message dépassait 1 crédit.
   addColumnIfMissing("relance_tracking", "credits", "INTEGER NOT NULL DEFAULT 1");
+  // Crédits ESTIMÉS avant envoi (lib/smsSegments.ts, même calcul que le
+  // contrôle de quota), conservés séparément de `credits` (qui mélange
+  // valeur réelle Brevo et estimation de repli) — sert à comparer les deux
+  // dans l'admin général (services/adminStats.ts), NULL pour un mail (pas de
+  // notion de segment) ou pour un SMS envoyé avant l'ajout de cette colonne.
+  addColumnIfMissing("relance_tracking", "estimated_credits", "INTEGER");
 
   migrateScopeIncludesGeneral();
   migrateFuzzyMatchesToIdentity();

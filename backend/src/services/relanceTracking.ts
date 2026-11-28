@@ -20,6 +20,11 @@ export interface RelanceTrackingInput {
    * variable pour un SMS, voir lib/smsSegments.ts) — sert au plafond de
    * crédits SMS par Spelc (services/smsQuota.ts). Défaut 1. */
   credits?: number;
+  /** Crédits ESTIMÉS avant envoi pour un SMS (même calcul que `credits`
+   * quand Brevo ne renvoie pas creditsUsed, mais conservé même quand il le
+   * renvoie) — permet de comparer estimation et réel par Spelc dans
+   * l'admin général. Non pertinent pour un mail. */
+  estimatedCredits?: number;
 }
 
 /** Journal par personne, distinct du journal NDJSON (lib/relanceLog.ts) qui reste
@@ -28,8 +33,8 @@ export interface RelanceTrackingInput {
 export function insertRelanceTracking(entry: RelanceTrackingInput): void {
   db.prepare(
     `INSERT INTO relance_tracking
-       (owner_user_id, type, scope, campagne_tag, nom, prenom, contact, test_mode, send_ok, message_id, error_message, credits)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+       (owner_user_id, type, scope, campagne_tag, nom, prenom, contact, test_mode, send_ok, message_id, error_message, credits, estimated_credits)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     entry.ownerUserId,
     entry.type,
@@ -42,7 +47,8 @@ export function insertRelanceTracking(entry: RelanceTrackingInput): void {
     entry.sendOk ? 1 : 0,
     entry.messageId,
     entry.errorMessage ?? null,
-    entry.credits ?? 1
+    entry.credits ?? 1,
+    entry.estimatedCredits ?? null
   );
 }
 
@@ -79,6 +85,8 @@ export interface RelanceTrackingRow {
   send_ok: number;
   message_id: string | null;
   error_message: string | null;
+  credits: number;
+  estimated_credits: number | null;
   delivery_status: string | null;
   clicked: number;
   clicked_at: string | null;

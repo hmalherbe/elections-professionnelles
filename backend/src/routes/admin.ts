@@ -19,6 +19,7 @@ import { getFuzzyMatchThreshold, setFuzzyMatchThreshold } from "../services/fuzz
 import { listAllRelanceTracking, refreshPendingRelanceTracking, getRelanceDailyStatsAll } from "../services/relanceTracking.js";
 import { importUsersFromFile } from "../services/userImport.js";
 import { resetImportedData } from "../services/imports.js";
+import { getAdminStatsAvancees } from "../services/adminStats.js";
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } });
@@ -391,6 +392,17 @@ router.get("/relance-stats", (_req, res) => {
 router.get("/sms-quotas", (_req, res) => {
   const rows = db.prepare("SELECT spelc, credits FROM ref_sms_quota").all() as { spelc: string; credits: number }[];
   res.json({ rows });
+});
+
+/**
+ * Statistiques transversales (tous Spelc) pour l'admin général : désinscriptions
+ * par canal, écart crédits SMS réels/estimés, Spelc proches du plafond SMS,
+ * efficacité des relances, Spelc n'ayant encore rien envoyé malgré des
+ * non-votants, qualité du rapprochement adhérents/émargements — voir
+ * services/adminStats.ts pour le détail de chaque calcul.
+ */
+router.get("/stats-avancees", (_req, res) => {
+  res.json(getAdminStatsAvancees());
 });
 
 export default router;

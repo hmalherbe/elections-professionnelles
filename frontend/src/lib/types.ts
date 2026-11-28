@@ -109,6 +109,59 @@ export interface RelanceDailyPoint {
   smsEnvoyes: number;
 }
 
+export interface DesinscriptionSpelcRow {
+  spelc: string;
+  mail: number;
+  sms: number;
+  total: number;
+}
+
+export interface CreditsSmsRow {
+  spelc: string;
+  reels: number;
+  estimes: number;
+  ecartPct: number | null;
+}
+
+export interface SpelcQuotaRow {
+  spelc: string;
+  quota: number;
+  used: number;
+  remaining: number;
+  pctUsed: number;
+  reached: boolean;
+}
+
+export interface EfficaciteRelanceRow {
+  spelc: string;
+  derniereCampagneDate: string;
+  tauxAvant: number | null;
+  tauxApres: number | null;
+  progressionPoints: number | null;
+  relances: number;
+}
+
+export interface SpelcSansEnvoiRow {
+  spelc: string;
+  nonVotants: number;
+}
+
+export interface QualiteRapprochementRow {
+  spelc: string;
+  totalAdherents: number;
+  jamaisRetrouves: number;
+  pctJamaisRetrouves: number;
+}
+
+export interface AdminStatsAvancees {
+  desinscriptions: { rows: DesinscriptionSpelcRow[]; nonAttribuees: number };
+  creditsSms: CreditsSmsRow[];
+  plafondsSms: SpelcQuotaRow[];
+  efficaciteRelances: EfficaciteRelanceRow[];
+  spelcsSansEnvoi: SpelcSansEnvoiRow[];
+  qualiteRapprochement: QualiteRapprochementRow[];
+}
+
 export interface ManagedUser {
   id: number;
   email: string;
