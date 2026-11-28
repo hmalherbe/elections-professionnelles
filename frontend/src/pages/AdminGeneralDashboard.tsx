@@ -2097,7 +2097,6 @@ function AdherentsAdminPanel() {
 
   return (
     <div className="space-y-4">
-      <AdherentsImportStatusPanel />
       <FileUploadCard
         title="Importer tous les adhérents (tous les Spelcs)"
         subtitle="Remplace entièrement la liste de chaque Spelc mentionné dans le fichier (les Spelcs absents du fichier ne sont pas touchés). Le nom de naissance est facultatif (sert uniquement au rapprochement approximatif)."
@@ -2143,6 +2142,7 @@ function AdherentsAdminPanel() {
         </button>
         {message && <p className="mt-2 text-sm text-slate-600">{message}</p>}
       </Card>
+      <AdherentsImportStatusPanel />
     </div>
   );
 }
