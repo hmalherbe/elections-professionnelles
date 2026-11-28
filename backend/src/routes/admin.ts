@@ -395,6 +395,27 @@ router.get("/sms-quotas", (_req, res) => {
 });
 
 /**
+ * Pour chaque Spelc connu (ref_spelc), nombre d'adhérents actuellement
+ * chargés et date du dernier import — permet de savoir d'un coup d'œil
+ * quels Spelc n'ont encore jamais importé leur fichier adhérents
+ * (nbAdherents = 0, derniereMaj = null), à distinguer d'un fichier importé
+ * puis entièrement vidé (import-all/adherents.ts remplace la liste du
+ * Spelc, elle peut donc redevenir vide sans que l'import n'ait "disparu").
+ */
+router.get("/adherents-import-status", (_req, res) => {
+  const rows = db
+    .prepare(
+      `SELECT rs.spelc, COUNT(a.id) AS nbAdherents, MAX(a.uploaded_at) AS derniereMaj
+       FROM ref_spelc rs
+       LEFT JOIN adherents a ON a.spelc = rs.spelc
+       GROUP BY rs.spelc
+       ORDER BY rs.spelc`
+    )
+    .all();
+  res.json({ rows });
+});
+
+/**
  * Statistiques transversales (tous Spelc) pour l'admin général : désinscriptions
  * par canal, écart crédits SMS réels/estimés, Spelc proches du plafond SMS,
  * efficacité des relances, Spelc n'ayant encore rien envoyé malgré des

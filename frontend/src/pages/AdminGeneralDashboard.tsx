@@ -16,6 +16,7 @@ import { parseSqliteUtc } from "../lib/date";
 import type {
   AcademieNode,
   AcademieScrutin,
+  AdherentsImportStatusRow,
   AdminStatsAvancees,
   CourbePoint,
   ImportRecord,
@@ -2038,12 +2039,65 @@ function UsersPanel() {
   );
 }
 
+function AdherentsImportStatusPanel() {
+  const [rows, setRows] = useState<AdherentsImportStatusRow[] | null>(null);
+
+  useEffect(() => {
+    api.get<{ rows: AdherentsImportStatusRow[] }>("/admin/adherents-import-status").then((r) => setRows(r.rows));
+  }, []);
+
+  if (!rows) return <Card title="Fichier adhérents importé ?"><p className="text-sm text-slate-400">Chargement…</p></Card>;
+
+  const sansImport = rows.filter((r) => r.nbAdherents === 0);
+  const avecImport = rows.filter((r) => r.nbAdherents > 0);
+
+  return (
+    <Card
+      title="Fichier adhérents importé ?"
+      subtitle="Par Spelc, nombre d'adhérents actuellement chargés et date du dernier import."
+    >
+      {sansImport.length > 0 && (
+        <p className="mb-3 text-sm text-orange-600">
+          {sansImport.length} Spelc n'ont encore importé aucun fichier adhérents : {sansImport.map((r) => r.spelc).join(", ")}.
+        </p>
+      )}
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-500">
+            <th className="py-1.5 pr-4">Spelc</th>
+            <th className="py-1.5 pr-4 text-right">Adhérents</th>
+            <th className="py-1.5 pr-4">Dernier import</th>
+            <th className="py-1.5"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {[...avecImport, ...sansImport].map((r) => (
+            <tr key={r.spelc} className="border-b border-slate-100">
+              <td className="py-1.5 pr-4 text-slate-700">{r.spelc}</td>
+              <td className="py-1.5 pr-4 text-right text-slate-700">{r.nbAdherents}</td>
+              <td className="py-1.5 pr-4 text-slate-500">{r.derniereMaj ?? "—"}</td>
+              <td className="py-1.5">
+                {r.nbAdherents > 0 ? (
+                  <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">Importé</span>
+                ) : (
+                  <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700">Pas importé</span>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </Card>
+  );
+}
+
 function AdherentsAdminPanel() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
   return (
     <div className="space-y-4">
+      <AdherentsImportStatusPanel />
       <FileUploadCard
         title="Importer tous les adhérents (tous les Spelcs)"
         subtitle="Remplace entièrement la liste de chaque Spelc mentionné dans le fichier (les Spelcs absents du fichier ne sont pas touchés). Le nom de naissance est facultatif (sert uniquement au rapprochement approximatif)."

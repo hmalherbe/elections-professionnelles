@@ -153,6 +153,12 @@ export interface QualiteRapprochementRow {
   pctJamaisRetrouves: number;
 }
 
+export interface AdherentsImportStatusRow {
+  spelc: string;
+  nbAdherents: number;
+  derniereMaj: string | null;
+}
+
 export interface AdminStatsAvancees {
   desinscriptions: { rows: DesinscriptionSpelcRow[]; nonAttribuees: number };
   creditsSms: CreditsSmsRow[];
