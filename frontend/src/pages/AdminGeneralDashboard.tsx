@@ -1237,10 +1237,6 @@ function SimulationRelancesPanel({ onResult }: { onResult: (r: SimulateZipRespon
  * sélecteur — un histogramme avec une série par Spelc (40+) ne serait pas
  * lisible.
  */
-/** Masquée à la demande (doublon jugé peu utile avec les autres vues) —
- * code conservé tel quel pour une réactivation éventuelle, repasser à true. */
-const AFFICHER_RELANCES_PAR_JOUR_SPELC = false;
-
 function StatistiquesRelancesPanel() {
   const [rows, setRows] = useState<RelanceDailyPoint[]>([]);
   const [open, setOpen] = useState<Set<string>>(new Set());
@@ -1379,7 +1375,6 @@ function StatistiquesRelancesPanel() {
         <SimulationRelancesPanel onResult={setSimulation} />
       </Card>
 
-      {AFFICHER_RELANCES_PAR_JOUR_SPELC && (
       <Card
         title="Relances par jour et par Spelc"
         subtitle="Relances réelles uniquement (hors envois de test). Cliquez sur un jour pour voir le détail par Spelc."
@@ -1434,7 +1429,6 @@ function StatistiquesRelancesPanel() {
           </div>
         )}
       </Card>
-      )}
 
       <div className="flex flex-wrap items-center gap-4">
         <div>
